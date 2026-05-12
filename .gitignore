@@ -1,0 +1,122 @@
+# =========================
+# Build folders
+# =========================
+bin/
+obj/
+out/
+
+# =========================
+# Visual Studio
+# =========================
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# =========================
+# Rider / ReSharper
+# =========================
+.idea/
+_ReSharper*/
+*.DotSettings.user
+
+# =========================
+# VS Code
+# =========================
+.vscode/
+
+# =========================
+# Logs
+# =========================
+*.log
+logs/
+
+# =========================
+# NuGet
+# =========================
+*.nupkg
+packages/
+!packages/build/
+*.nuget.props
+*.nuget.targets
+
+# =========================
+# ASP.NET
+# =========================
+appsettings.Development.json
+appsettings.Local.json
+
+# =========================
+# Environment variables
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# SQL Server local db files
+# =========================
+*.mdf
+*.ldf
+
+# =========================
+# Publish output
+# =========================
+publish/
+wwwroot/dist/
+wwwroot/build/
+
+# =========================
+# Node.js (if frontend exists)
+# =========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Temporary files
+# =========================
+*.tmp
+*.temp
+*.cache
+.cache/
+temp/
+tmp/
+
+# =========================================================
+# OS FILES
+# =========================================================
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# =========================
+# Test Results
+# =========================
+TestResults/
+*.trx
+
+# =========================
+# Coverage
+# =========================
+coverage/
+*.coverage
+*.coveragexml
+
+# =========================
+# Generated files
+# =========================
+Generated/
+
+.next/
+dist/
+build/

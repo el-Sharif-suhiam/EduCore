@@ -1,0 +1,258 @@
+﻿using Common.Dtos;
+using Common.Enums;
+using Common.Exceptions;
+using Common.Utils;
+using Common.ViewModels;
+using EduCore_DataAccess;
+using System;
+using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
+using System.Text;
+namespace EduCore_BusinessLayer
+{
+    public class clsLesson
+    {
+        enMode _Mode;
+        clsProduct _Product;
+        DtoLessons _LessonsData;
+        public int Id => _LessonsData.Id;
+        public string Name => _Product.Name;
+        public DateTime CreatedAt => _Product.CreatedAt;
+        public DateTime UpdatedAt => _Product.UpdatedAt;
+        public decimal BasePrice => _Product.BasePrice;
+        public clsUser CreatedByAdmin => _Product.CreatedByAdmin;
+        public string? ThumbnailUrl => _Product.ThumbnailUrl;
+        public bool IsPublished => _Product.IsPublished;
+        public string? Summary => _Product.Summary;
+
+        public string Title => _LessonsData.Title;
+
+        public string? VideoUrl => _LessonsData.VideoUrl;
+
+        public string? BodyText => _LessonsData.BodyText;
+
+        public bool IsDeleted => _LessonsData.IsDeleted;
+
+        public DateTime? DeletedAt => _LessonsData.DeletedAt;
+
+        public int? DeletedById => _LessonsData.DeletedById;
+
+        public int InstructorId => _LessonsData.InstructorId;
+        public int? CourseId => _LessonsData.CourseId;
+        
+        public clsLesson()
+        {
+            _LessonsData = new DtoLessons();
+            _Product = new clsProduct();
+            _Product.SetProductType(enProductType.Lesson);
+            _Mode = enMode.Add;
+
+        }
+
+        private clsLesson(DtoLessons lesson)
+        {
+            clsProduct product = clsProduct.Find(lesson.ProductId);
+            if (product == null)
+                throw new NotFoundException("Invalid product Id");
+            _Product = product;
+            _LessonsData = lesson;
+            _Mode = enMode.Update;
+        }
+
+        // setters
+
+        // product setter 
+        public void SetName(string name)
+        {
+            _Product.SetName(name);
+        }
+
+        public void SetBasePrice(decimal basePrice)
+        {
+            _Product.SetBasePrice(basePrice);
+        }
+        public void SetThumbnailUrl(string thumbnailUrl)
+        {
+            _Product.SetThumbnailUrl(thumbnailUrl);
+        }
+
+        public void SetCreatedByAdmin(int AdminId)
+        {
+            _Product.SetCreatedByAdmin(AdminId);
+        }
+
+        public void SetSummary(string summary)
+        {
+            _Product.SetSummary(summary);
+        }
+
+        // Lesson setters 
+
+        public void SetTitle(string title)
+        {
+            _LessonsData.Title = clsValidation.ValidateString(title, "Title", 150);
+        }
+
+        public void SetVideoUrl(string videoUrl)
+        {
+            _LessonsData.VideoUrl = clsValidation.ValidateUrl(videoUrl, "Video Url");
+        }
+
+        public void SetBodyText(string bodyText)
+        {
+            _LessonsData.BodyText = clsValidation.ValidateString(bodyText, "Body Text");
+        }
+
+        private void _ValidateForAdd()
+        {
+            if (_LessonsData == null || _Product == null)
+                throw new ValidationException("Lesson data is missing");
+
+            if (CreatedByAdmin.Id <= 0)
+                throw new ValidationException("CreatedByAdmin is required");
+
+            if (string.IsNullOrWhiteSpace(Name))
+                throw new ValidationException("Name is required");
+            if (string.IsNullOrEmpty(Title))
+                throw new ValidationException("Title is missing"); 
+            if (BasePrice <= 0)
+                throw new ValidationException("Base price is required");
+        }
+
+        private void _ValidateForUpdate()
+        {
+            if (Id <= 0)
+                throw new ValidationException("Invalid Lesson id");
+            if (_Product.Id <= 0)
+                throw new ValidationException("Invalid product id");
+
+            if (string.IsNullOrWhiteSpace(Name))
+                throw new ValidationException("Name is required");
+            if (string.IsNullOrEmpty(Title))
+                throw new ValidationException("Title is missing");
+
+            if (BasePrice <= 0)
+                throw new ValidationException("Base price is required");
+        }
+        public static clsLesson Find(int lessonId, bool includeDeleted = false)
+        {
+            if (lessonId <= 0)
+                throw new ValidationException("Lesson id is not valid");
+
+            DtoLessons dtoLesson = includeDeleted ? clsLessonsData.GetLessonByIdIncludeDeleted(lessonId) : clsLessonsData.GetLessonById(lessonId);
+            if (dtoLesson == null)
+                throw new NotFoundException("There is no lesson with this Id");
+
+            clsLesson lesson = new clsLesson(dtoLesson);
+            return lesson;
+        }
+        
+        bool _AddLesson()
+        {
+            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            {
+
+                int productId = clsProductsData.AddProduct(_Product.ToDto(), conn, tx);
+
+
+                if (productId <= 0)
+                    throw new ConflictException("Product creation failed");
+
+                _LessonsData.ProductId = productId;
+                int lessonId = clsLessonsData.AddLesson(_LessonsData, conn, tx);
+
+                if (lessonId <= 0)
+                    throw new ConflictException("Lesson creation failed");
+
+
+                _Mode = enMode.Update;
+                return true;
+            });
+        }
+
+        bool _UpdateLesson()
+        {
+            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            {
+                DtoProduct oldProduct = clsProductsData.GetProductById(_LessonsData.ProductId);
+
+                if (oldProduct == null)
+                    throw new NotFoundException("Product not found");
+
+                bool productChanged = clsCompare.IsProductChanged(oldProduct,_Product.ToDto());
+
+                if (productChanged)
+                {
+                    bool updatedProduct = clsProductsData.UpdateProduct(_Product.ToDto(), conn, tx);
+
+                    if (!updatedProduct)
+                        throw new ConflictException("Failed to update product");
+                }
+
+                bool updatedLesson = clsLessonsData.UpdateLesson(_LessonsData, conn, tx);
+
+                if (!updatedLesson)
+                    throw new ConflictException("Failed to update lesson");
+
+                return true;
+            });
+        }
+
+        public bool Save()
+        {
+            switch (_Mode)
+            {
+                case enMode.Add:
+                    _ValidateForAdd();
+                    return _AddLesson();
+
+                case enMode.Update:
+                    _ValidateForUpdate();
+                    return _UpdateLesson();
+
+                default:
+                    return false;
+            }
+        }
+
+        private bool ControlDelete(int adminId,bool UnDelete = false)
+        {
+            if (!clsUsersRoles.IsUserAdmin(adminId))
+                throw new ConflictException("this user is not permitted to delete course");
+
+            if (_Product.Unpublish())
+                return UnDelete ? clsLessonsData.UnDeleteLesson(Id,adminId) : clsLessonsData.DeleteLesson(Id, adminId);
+            return false;
+        }
+
+        public bool Delete(int adminId)
+        {
+            return ControlDelete(adminId);
+        }
+
+        public bool UnDelete(int adminId)
+        {
+            return ControlDelete(adminId, true);
+        }
+        public static List<LessonsWithOutCoursesViewModel> GetIndependntLessons(int pageNumber,int pageSize)
+        {
+            return clsLessonsData.GetAllLessonsWithOutCourses(pageNumber, pageSize);
+        }
+
+        public static List<DtoLessons> GetAllLessons(int pageNumber, int pageSize,bool includeDeleted = false)
+        {
+            if (includeDeleted)
+                return clsLessonsData.GetAllLessonsIncludeDeleted(pageNumber, pageSize);
+            else
+                return clsLessonsData.GetAllLessons(pageNumber, pageSize);
+        }
+
+        public static List<LessonsByCourseViewModel> GetLessonsByCourse(int courseId)
+        {
+            
+            if (clsCourse.IsCourseExist(courseId))
+                throw new NotFoundException("Course not found or has been deleted");
+            return clsLessonsData.GetLessonsByCourse(courseId);
+        }
+    }
+}

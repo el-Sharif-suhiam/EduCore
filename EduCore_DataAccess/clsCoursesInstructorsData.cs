@@ -1,0 +1,101 @@
+﻿using Common.Dtos;
+using Common.Enums;
+using Common.ViewModels;
+using Microsoft.Data.SqlClient;
+using System;
+using System.Collections.Generic;
+using System.Data;
+using System.Text;
+
+namespace EduCore_DataAccess
+{
+    public class clsCoursesInstructorsData
+    {
+        public static bool AddInstructorToCourse(int courseId,int instructorId) { 
+
+            string query = @"INSERT INTO CoursesInstructors (CourseId,InstructorId) 
+                                VALUES (@CourseId,@InstructorId);";
+            int rowAffected = 0;
+
+            using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand sqlCommand = new SqlCommand(query, conn))
+            {
+                sqlCommand.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
+                sqlCommand.Parameters.Add("@InstructorId", SqlDbType.Int).Value = instructorId;
+                conn.Open();
+                rowAffected = sqlCommand.ExecuteNonQuery();
+            }
+
+            return (rowAffected > 0);
+        }
+
+        public static bool RemoveInstructorFromCourse(int courseId, int instructorId)
+        {
+
+            string query = @"DELETE FROM CoursesInstructors
+                                WHERE CourseId = @CourseId AND InstructorId = @InstructorId;";
+            int rowAffected = 0;
+
+            using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand sqlCommand = new SqlCommand(query, conn))
+            {
+                sqlCommand.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
+                sqlCommand.Parameters.Add("@InstructorId", SqlDbType.Int).Value = instructorId;
+                conn.Open();
+                rowAffected = sqlCommand.ExecuteNonQuery();
+            }
+
+            return (rowAffected > 0);
+        }
+
+        public static List<UsersViewModel> GetInstructorsForCourseById(int courseId) {
+
+            List<UsersViewModel> users = new List<UsersViewModel>();
+            string query = @"SELECT U.Id, U.Name, U.BirthDate, U.Email , U.CreatedAt,
+                               R.Name As RoleName,U.IsActive,
+                             FROM CoursesInstructors CI
+                             JOIN Users U ON U.Id = CI.InstructorId
+                             JOIN UserRoles UR ON UR.UserId = U.Id
+                             JOIN Roles R ON R.RoleId = UR.RoleId
+                             WHERE U.IsActive = 1 AND CI.CourseId = @courseId
+                             ORDER BY CreatedAt DESC";
+      
+            using (SqlConnection sqlConnection = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand sqlCommand = new SqlCommand(query, sqlConnection))
+            {
+                sqlCommand.Parameters.Add("@courseId", SqlDbType.Int).Value = courseId;
+
+                sqlConnection.Open();
+
+                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                {
+                    int IdIndex = reader.GetOrdinal("Id");
+                    int nameIndex = reader.GetOrdinal("Name");
+                    int birthDateIndex = reader.GetOrdinal("BirthDate");
+                    int emailIndex = reader.GetOrdinal("Email");
+                    int CreatedAtIndex = reader.GetOrdinal("CreatedAt");
+                    int isActiveIndex = reader.GetOrdinal("IsActive");
+                    int roleNameIndex = reader.GetOrdinal("RoleName");
+                    while (reader.Read())
+                    {
+
+                        users.Add(new UsersViewModel
+                        {
+                            Id = reader.GetInt32(IdIndex),
+                            Name = reader.GetString(nameIndex),
+                            BirthDate = reader.GetDateTime(birthDateIndex),
+                            Email = reader.GetString(emailIndex),
+                            CreatedAt = reader.GetDateTime(CreatedAtIndex),
+                            IsActive = reader.GetBoolean(isActiveIndex),
+                            Role = reader.GetString(roleNameIndex)
+                        });
+                    }
+                }
+            }
+
+            return users;
+        
+    }
+
+    }
+}
