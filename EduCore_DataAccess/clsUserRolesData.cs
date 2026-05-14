@@ -10,7 +10,7 @@ namespace EduCore_DataAccess
 {
     public class clsUserRolesData
     {
-        public static bool AddRoleToUser(int UserId, enRoles RoleNum, SqlConnection conn, SqlTransaction tx)
+        public static async Task<bool> AddRoleToUser(int UserId, enRoles RoleNum, SqlConnection conn, SqlTransaction tx)
         {
 
             string query = @"INSERT INTO UserRoles (UserId,RoleId) 
@@ -22,20 +22,20 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@userId", SqlDbType.Int).Value = UserId;
                 sqlCommand.Parameters.Add("@roleId", SqlDbType.TinyInt).Value = (byte)RoleNum;
 
-                rowAffected = sqlCommand.ExecuteNonQuery();
+                rowAffected = await sqlCommand.ExecuteNonQueryAsync();
             }
 
             return (rowAffected > 0);
         }
-        public static bool AddRoleToUser(int userId, enRoles roleNum)
+        public static async Task<bool> AddRoleToUser(int userId, enRoles roleNum)
         {
             using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
             {
-                conn.Open();
-                return AddRoleToUser(userId, roleNum, conn, null);
+                await conn.OpenAsync();
+                return await AddRoleToUser(userId, roleNum, conn, null);
             }
         }
-        public static bool RemoveRoleFromUser(int UserId, enRoles RoleNum)
+        public static async Task<bool> RemoveRoleFromUser(int UserId, enRoles RoleNum)
         {
            
             string query = @"DELETE FROM UserRoles
@@ -51,17 +51,17 @@ namespace EduCore_DataAccess
 
                 sqlCommand.Parameters.Add("@userId", SqlDbType.Int).Value = UserId;
                 sqlCommand.Parameters.Add("@roleId", SqlDbType.TinyInt).Value = (byte)RoleNum;
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
 
-                rowAffected = sqlCommand.ExecuteNonQuery();
+                rowAffected = await sqlCommand.ExecuteNonQueryAsync();
             }
 
             return (rowAffected > 0);
             
         }
 
-        private static bool CheckUserRole(int userId, enRoles role)
+        private static async Task<bool> CheckUserRole(int userId, enRoles role)
         {
             string query = @"SELECT TOP 1 result = 1  FROM Users U
                             JOIN UserRoles UR ON UR.UserId = Id
@@ -73,19 +73,19 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = userId;
                 cmd.Parameters.Add("@RoleName", SqlDbType.NVarChar).Value = role.ToString();
 
-                sqlConnection.Open();
-                object result = cmd.ExecuteScalar();
+                await sqlConnection.OpenAsync();
+                object result = await cmd.ExecuteScalarAsync();
                 return result != null && int.TryParse(result.ToString(), out int exists) && exists == 1;
             }
         }
-        public static bool IsUserAdmin(int UserId) {
-            return CheckUserRole(UserId, enRoles.Admin);
+        public static async Task<bool> IsUserAdmin(int UserId) {
+            return await CheckUserRole(UserId, enRoles.Admin);
 
         }
 
-        public static bool IsUserInstructor(int userId)
+        public static async Task<bool> IsUserInstructor(int userId)
         {
-            return CheckUserRole(userId, enRoles.Instructor);
+            return await CheckUserRole(userId, enRoles.Instructor);
         }
     }
 }

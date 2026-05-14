@@ -9,20 +9,20 @@ namespace EduCore_BusinessLayer
 {
     public class clsCoursesInstructors
     {
-        public static bool AddInstructorToCourse(int  courseId, int userId)
+        public static async Task<bool> AddInstructorToCourse(int  courseId, int userId)
         {
-            if (clsUsersRoles.IsUserInstructor(userId))
-                return clsCoursesInstructorsData.AddInstructorToCourse(courseId, userId);
+            if (await clsUsersRoles.IsUserInstructor(userId))
+                return await clsCoursesInstructorsData.AddInstructorToCourse(courseId, userId);
             else
                 return false;
         }
 
-        public static bool RemoveInstructorFromCourse(int courseId, int userId) { 
-            return clsCoursesInstructorsData.RemoveInstructorFromCourse(courseId, userId);
+        public static async Task<bool> RemoveInstructorFromCourse(int courseId, int userId) { 
+            return await clsCoursesInstructorsData.RemoveInstructorFromCourse(courseId, userId);
         }
 
-        public static List<UsersViewModel> GetAllCourseInstructor(int courseId) {
-            return clsCoursesInstructorsData.GetInstructorsForCourseById(courseId);
+        public static async Task<List<UsersViewModel>> GetAllCourseInstructor(int courseId) {
+            return await clsCoursesInstructorsData.GetInstructorsForCourseById(courseId);
         }
 
     }

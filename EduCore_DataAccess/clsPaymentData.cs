@@ -11,7 +11,7 @@ namespace EduCore_DataAccess
 {
     public class clsPaymentData
     {
-        public int AddPayment(DtoPayment p)
+        public static async Task<int> AddPayment(DtoPayment p)
         {
             string query = @"INSERT INTO Payments
                             (OrderId, Price, DiscountId, DiscountPrice, PaymentMethod, Status, TransactionId)
@@ -39,16 +39,15 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@TransactionId", SqlDbType.VarChar, 200).Value =
                     (object?)p.TransactionId ?? DBNull.Value;
 
-                con.Open();
+                await con.OpenAsync();
 
-                var result = cmd.ExecuteScalar();
+                var result = await cmd.ExecuteScalarAsync();
 
                 return (result != null && int.TryParse(result.ToString(), out int id)) ? id : -1;
             }
         }
 
-        // ===== GET BY ID =====
-        public DtoPayment GetPaymentById(int id)
+        public static async Task<DtoPayment> GetPaymentById(int id)
         {
             string query = @"SELECT Id, OrderId, PaidAt, Price, DiscountId, DiscountPrice,
                             PaymentMethod, Status, TransactionId, PayedPrice
@@ -60,24 +59,35 @@ namespace EduCore_DataAccess
             {
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
 
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader r = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
-                    if (r.Read())
+                    
+                    if (await reader.ReadAsync())
                     {
+                        int idIndex = reader.GetOrdinal("Id");
+                        int orderIdIndex = reader.GetOrdinal("OrderId");
+                        int paidAtIndex = reader.GetOrdinal("PaidAt");
+                        int priceIndex = reader.GetOrdinal("Price");
+                        int discountIdIndex = reader.GetOrdinal("DiscountId");
+                        int discountPriceIndex = reader.GetOrdinal("DiscountPrice");
+                        int paymentMethodIndex = reader.GetOrdinal("PaymentMethod");
+                        int statusIndex = reader.GetOrdinal("Status");
+                        int transactionIdIndex = reader.GetOrdinal("TransactionId");
+                        int payedPriceIndex = reader.GetOrdinal("PayedPrice");
                         return new DtoPayment
                         {
-                            Id = r.GetInt32(0),
-                            OrderId = r.GetInt32(1),
-                            PaidAt = r.GetDateTime(2),
-                            Price = r.GetDecimal(3),
-                            DiscountId = r.IsDBNull(4) ? null : r.GetInt16(4),
-                            DiscountPrice = r.IsDBNull(5) ? null : r.GetDecimal(5),
-                            PaymentMethod = r.IsDBNull(6) ? null : r.GetString(6),
-                            Status = (enStatus)Enum.Parse(typeof(enStatus), r.GetString(7)),
-                            TransactionId = r.IsDBNull(8) ? null : r.GetString(8),
-                            PayedPrice = r.GetDecimal(9)
+                            Id = reader.GetInt32(idIndex),
+                            OrderId = reader.GetInt32(orderIdIndex),
+                            PaidAt = reader.GetDateTime(paidAtIndex),
+                            Price = reader.GetDecimal(priceIndex),
+                            DiscountId = reader.IsDBNull(discountIdIndex) ? null : reader.GetInt16(discountIdIndex),
+                            DiscountPrice = reader.IsDBNull(discountPriceIndex) ? null : reader.GetDecimal(discountPriceIndex),
+                            PaymentMethod = reader.IsDBNull(paymentMethodIndex) ? null : reader.GetString(paymentMethodIndex),
+                            Status = (enPaymentStatus)Enum.Parse(typeof(enPaymentStatus), reader.GetString(statusIndex)),
+                            TransactionId = reader.IsDBNull(transactionIdIndex) ? null : reader.GetString(transactionIdIndex),
+                            PayedPrice = reader.GetDecimal(payedPriceIndex)
                         };
                     }
                 }
@@ -86,7 +96,7 @@ namespace EduCore_DataAccess
             return null;
         }
 
-        public List<DtoPayment> GetAllPayments(int pageNumber, int pageSize)
+        public static async Task<List<DtoPayment>> GetAllPayments(int pageNumber, int pageSize)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -107,25 +117,36 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
 
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader r = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
-                    while (r.Read())
+                    int idIndex = reader.GetOrdinal("Id");
+                    int orderIdIndex = reader.GetOrdinal("OrderId");
+                    int paidAtIndex = reader.GetOrdinal("PaidAt");
+                    int priceIndex = reader.GetOrdinal("Price");
+                    int discountIdIndex = reader.GetOrdinal("DiscountId");
+                    int discountPriceIndex = reader.GetOrdinal("DiscountPrice");
+                    int paymentMethodIndex = reader.GetOrdinal("PaymentMethod");
+                    int statusIndex = reader.GetOrdinal("Status");
+                    int transactionIdIndex = reader.GetOrdinal("TransactionId");
+                    int payedPriceIndex = reader.GetOrdinal("PayedPrice");
+
+                    while (await reader.ReadAsync())
                     {
 
                         payments.Add(new DtoPayment
                         {
-                            Id = r.GetInt32(0),
-                            OrderId = r.GetInt32(1),
-                            PaidAt = r.GetDateTime(2),
-                            Price = r.GetDecimal(3),
-                            DiscountId = r.IsDBNull(4) ? null : r.GetInt16(4),
-                            DiscountPrice = r.IsDBNull(5) ? null : r.GetDecimal(5),
-                            PaymentMethod = r.IsDBNull(6) ? null : r.GetString(6),
-                            Status = (enStatus)Enum.Parse(typeof(enStatus), r.GetString(7)),
-                            TransactionId = r.IsDBNull(8) ? null : r.GetString(8),
-                            PayedPrice = r.GetDecimal(9)
+                            Id = reader.GetInt32(idIndex),
+                            OrderId = reader.GetInt32(orderIdIndex),
+                            PaidAt = reader.GetDateTime(paidAtIndex),
+                            Price = reader.GetDecimal(priceIndex),
+                            DiscountId = reader.IsDBNull(discountIdIndex) ? null : reader.GetInt16(discountIdIndex),
+                            DiscountPrice = reader.IsDBNull(discountPriceIndex) ? null : reader.GetDecimal(discountPriceIndex),
+                            PaymentMethod = reader.IsDBNull(paymentMethodIndex) ? null : reader.GetString(paymentMethodIndex),
+                            Status = (enPaymentStatus)Enum.Parse(typeof(enPaymentStatus), reader.GetString(statusIndex)),
+                            TransactionId = reader.IsDBNull(transactionIdIndex) ? null : reader.GetString(transactionIdIndex),
+                            PayedPrice = reader.GetDecimal(payedPriceIndex)
                         });
                     }
                 }
@@ -135,7 +156,7 @@ namespace EduCore_DataAccess
         }
 
 
-        public List<DtoPayment> GetAllPaymentsForUser(int pageNumber, int pageSize,int UserId)
+        public static async Task<List<DtoPayment>> GetAllPaymentsForUser(int pageNumber, int pageSize,int UserId)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -159,25 +180,36 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@UserId", SqlDbType.Int).Value = UserId;
 
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader r = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
-                    while (r.Read())
+                    int idIndex = reader.GetOrdinal("Id");
+                    int orderIdIndex = reader.GetOrdinal("OrderId");
+                    int paidAtIndex = reader.GetOrdinal("PaidAt");
+                    int priceIndex = reader.GetOrdinal("Price");
+                    int discountIdIndex = reader.GetOrdinal("DiscountId");
+                    int discountPriceIndex = reader.GetOrdinal("DiscountPrice");
+                    int paymentMethodIndex = reader.GetOrdinal("PaymentMethod");
+                    int statusIndex = reader.GetOrdinal("Status");
+                    int transactionIdIndex = reader.GetOrdinal("TransactionId");
+                    int payedPriceIndex = reader.GetOrdinal("PayedPrice");
+
+                    while (await reader.ReadAsync())
                     {
 
                         payments.Add(new DtoPayment
                         {
-                            Id = r.GetInt32(0),
-                            OrderId = r.GetInt32(1),
-                            PaidAt = r.GetDateTime(2),
-                            Price = r.GetDecimal(3),
-                            DiscountId = r.IsDBNull(4) ? null : r.GetInt16(4),
-                            DiscountPrice = r.IsDBNull(5) ? null : r.GetDecimal(5),
-                            PaymentMethod = r.IsDBNull(6) ? null : r.GetString(6),
-                            Status = (enStatus)Enum.Parse(typeof(enStatus), r.GetString(7)),
-                            TransactionId = r.IsDBNull(8) ? null : r.GetString(8),
-                            PayedPrice = r.GetDecimal(9)
+                            Id = reader.GetInt32(idIndex),
+                            OrderId = reader.GetInt32(orderIdIndex),
+                            PaidAt = reader.GetDateTime(paidAtIndex),
+                            Price = reader.GetDecimal(priceIndex),
+                            DiscountId = reader.IsDBNull(discountIdIndex) ? null : reader.GetInt16(discountIdIndex),
+                            DiscountPrice = reader.IsDBNull(discountPriceIndex) ? null : reader.GetDecimal(discountPriceIndex),
+                            PaymentMethod = reader.IsDBNull(paymentMethodIndex) ? null : reader.GetString(paymentMethodIndex),
+                            Status = (enPaymentStatus)Enum.Parse(typeof(enPaymentStatus), reader.GetString(statusIndex)),
+                            TransactionId = reader.IsDBNull(transactionIdIndex) ? null : reader.GetString(transactionIdIndex),
+                            PayedPrice = reader.GetDecimal(payedPriceIndex)
                         });
                     }
                 }
@@ -185,8 +217,7 @@ namespace EduCore_DataAccess
 
             return payments;
         }
-        // ===== UPDATE STATUS =====
-        public bool UpdateStatus(int id, enPaymentStatus status)
+        public static async Task<bool> UpdateStatus(int id, enPaymentStatus status)
         {
             string query = @"UPDATE Payments SET Status = @Status WHERE Id = @Id";
 
@@ -196,8 +227,8 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
                 cmd.Parameters.Add("@Status", SqlDbType.VarChar, 50).Value = status.ToString();
 
-                con.Open();
-                return cmd.ExecuteNonQuery() > 0;
+                await con.OpenAsync();
+                return await cmd.ExecuteNonQueryAsync() > 0;
             }
         }
         }

@@ -10,7 +10,7 @@ namespace EduCore_DataAccess
 {
     public class clsCourseLessonData
     {
-        public static bool AddLessonToCourse(DtoCourseLesson courseLesson)
+        public static async Task<bool> AddLessonToCourse(DtoCourseLesson courseLesson)
         {
             string query = @"INSERT INTO CoursesLessons 
                         (CourseId,LessonId)
@@ -22,15 +22,15 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseLesson.CourseId;
                 command.Parameters.Add("@LessonId", SqlDbType.Int).Value = courseLesson.LessonId;
-                connection.Open();
+                await connection.OpenAsync();
 
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static bool DeleteLessonFromCourse(DtoCourseLesson courseLesson)
+        public static async Task<bool> DeleteLessonFromCourse(DtoCourseLesson courseLesson)
         {
             string query = @"DELETE FROM CoursesLessons 
                          WHERE CourseId = @CourseId AND LessonId = @LessonId;";
@@ -40,15 +40,15 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseLesson.CourseId;
                 command.Parameters.Add("@LessonId", SqlDbType.Int).Value = courseLesson.LessonId;
-                connection.Open();
+                await connection.OpenAsync();
 
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static List<CourseLessonViewModel> GetAllCourseLessonsViewModel(int courseId,int pageNumber, int pageSize)
+        public static async Task<List<CourseLessonViewModel>> GetAllCourseLessonsViewModel(int courseId,int pageNumber, int pageSize)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -71,9 +71,9 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
 
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int productIdIndex = reader.GetOrdinal("ProductId");
@@ -85,7 +85,7 @@ namespace EduCore_DataAccess
                     int courseIdIndex = reader.GetOrdinal("CourseId");
                     int createdAtIndex = reader.GetOrdinal("CreatedAt");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
 
                         courseLessons.Add(new CourseLessonViewModel

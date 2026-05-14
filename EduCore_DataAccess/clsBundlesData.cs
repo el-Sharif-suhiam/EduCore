@@ -10,7 +10,7 @@ namespace EduCore_DataAccess
 {
     public class clsBundlesData
     {
-        public static int AddBundle(DtoBundle bundle, SqlConnection conn,SqlTransaction tx)
+        public static async Task<int> AddBundle(DtoBundle bundle, SqlConnection conn,SqlTransaction tx)
         {
             string query = @"INSERT INTO Bundles 
                         (ProductId)
@@ -26,7 +26,7 @@ namespace EduCore_DataAccess
 
 
 
-                var result = command.ExecuteScalar();
+                var result = await command.ExecuteScalarAsync();
 
                 bundleId = result != null ? Convert.ToInt32(result) : -1;
 
@@ -35,7 +35,7 @@ namespace EduCore_DataAccess
             return bundleId;
         }
 
-        public static DtoBundle GetBundleById(int bundleId)
+        public static async Task<DtoBundle> GetBundleById(int bundleId)
         {
             if (bundleId <= 0) return null;
 
@@ -50,11 +50,11 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = bundleId;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         int idIndex = reader.GetOrdinal("Id");
                         int productIndex = reader.GetOrdinal("ProductId");
@@ -71,7 +71,7 @@ namespace EduCore_DataAccess
             return bundle;
         }
 
-        public static bool UpdateBundle(DtoBundle bundle, SqlConnection conn, SqlTransaction tx)
+        public static async Task<bool> UpdateBundle(DtoBundle bundle, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Bundles
                          SET ProductId = @ProductId,
@@ -84,13 +84,13 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = bundle.Id;
                 command.Parameters.Add("@ProductId", SqlDbType.Int).Value = bundle.ProductId;
 
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static bool DeleteBundle(int bundleId)
+        public static async Task<bool> DeleteBundle(int bundleId)
         {
             string query = @"DELETE FROM Bundles
                          WHERE Id = @Id;";
@@ -102,14 +102,14 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = bundleId;
 
-                connection.Open();
-                rows = command.ExecuteNonQuery();
+                await connection.OpenAsync();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static List<DtoBundle> GetAllBundles()
+        public static async Task<List<DtoBundle>> GetAllBundles()
         {
             List<DtoBundle> bundles = new List<DtoBundle>();
 
@@ -120,14 +120,14 @@ namespace EduCore_DataAccess
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int productIndex = reader.GetOrdinal("ProductId");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         bundles.Add(new DtoBundle
                         {
@@ -141,7 +141,7 @@ namespace EduCore_DataAccess
             return bundles;
         }
 
-        public static List<BundleViewModel> GetAllBundlesView()
+        public static async  Task<List<BundleViewModel>> GetAllBundlesView()
         {
             List<BundleViewModel> bundles = new List<BundleViewModel>();
 
@@ -154,9 +154,9 @@ namespace EduCore_DataAccess
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
 
                     int idIndex = reader.GetOrdinal("Id");
@@ -166,7 +166,7 @@ namespace EduCore_DataAccess
                     int basePriceIndex = reader.GetOrdinal("BasePrice");
                     int thumbnailIndex = reader.GetOrdinal("ThumbnailUrl");
                     int summaryIndex = reader.GetOrdinal("Summary");
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         bundles.Add(new BundleViewModel
                         {
@@ -185,7 +185,7 @@ namespace EduCore_DataAccess
 
         }
 
-        public static bool BundleExists(int bundleId)
+        public static async Task<bool> BundleExists(int bundleId)
         {
             const string query = @"SELECT CAST(
                                 CASE WHEN EXISTS (
@@ -200,8 +200,9 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = bundleId;
 
-                connection.Open();
-                return (bool)command.ExecuteScalar();
+                await connection.OpenAsync();
+                var result = await command.ExecuteScalarAsync();
+                return (bool)result;
             }
         }
     }

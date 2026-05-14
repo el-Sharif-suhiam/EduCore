@@ -8,7 +8,7 @@ namespace EduCore_DataAccess
 {
     public class clsProductsData
     {
-        public static DtoProduct GetProductById(int id)
+        public static async Task<DtoProduct> GetProductById(int id)
         {
             DtoProduct product = new DtoProduct();
 
@@ -23,11 +23,11 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         int idIndex = reader.GetOrdinal("Id");
                         int typeIndex = reader.GetOrdinal("ProductType");
@@ -60,7 +60,7 @@ namespace EduCore_DataAccess
             return product;
         }
 
-        private static List<DtoProduct> GenericGetAllProduct(string query, int pageNumber, int pageSize)
+        private static async Task<List<DtoProduct>> GenericGetAllProduct(string query, int pageNumber, int pageSize)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -70,9 +70,9 @@ namespace EduCore_DataAccess
             {
                 sqlCommand.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
 
                     int idIndex = reader.GetOrdinal("Id");
@@ -86,7 +86,7 @@ namespace EduCore_DataAccess
                     int summaryIndex = reader.GetOrdinal("Summary");
                     int publishedIndex = reader.GetOrdinal("IsPublished");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         products.Add(new DtoProduct
                         {
@@ -107,7 +107,7 @@ namespace EduCore_DataAccess
 
             return products;
         }
-        static public List<DtoProduct> GetAllProducts(int pageNumber, int pageSize)
+        static public async Task<List<DtoProduct>> GetAllProducts(int pageNumber, int pageSize)
         {
             string query = @"SELECT Id, ProductType, Name, CreatedAt, UpdatedAt, 
                                BasePrice, CreatedByAdmin, ThumbnailUrl,Summary, IsPublished
@@ -117,10 +117,10 @@ namespace EduCore_DataAccess
                             FETCH NEXT @RowsPerPage ROWS ONLY;";
 
 
-            return GenericGetAllProduct(query,pageNumber,pageSize);
+            return await GenericGetAllProduct(query,pageNumber,pageSize);
         }
 
-        static public List<DtoProduct> GetAllPublishedProductsByPage(int pageNumber, int pageSize)
+        static public async Task<List<DtoProduct>> GetAllPublishedProductsByPage(int pageNumber, int pageSize)
         {
 
             string query = @"SELECT Id, ProductType, Name, CreatedAt, UpdatedAt, 
@@ -131,9 +131,9 @@ namespace EduCore_DataAccess
                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                             FETCH NEXT @RowsPerPage ROWS ONLY;";
 
-            return GenericGetAllProduct(query, pageNumber, pageSize);
+            return await GenericGetAllProduct(query, pageNumber, pageSize);
         }
-        static public int AddProduct(DtoProduct product, SqlConnection conn, SqlTransaction tx)
+        static public async Task<int> AddProduct(DtoProduct product, SqlConnection conn, SqlTransaction tx)
         {
             int ProductID = -1;
 
@@ -153,7 +153,7 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@Summary", SqlDbType.NVarChar,300).Value = product.Summary;
                 sqlCommand.Parameters.Add("@IsPublished", SqlDbType.Bit).Value = product.IsPublished;
 
-                object result = sqlCommand.ExecuteScalar();
+                object result = await sqlCommand.ExecuteScalarAsync();
 
                 ProductID = result != null ? Convert.ToInt32(result) : -1;
 
@@ -163,15 +163,15 @@ namespace EduCore_DataAccess
             return ProductID;
         }
 
-        public static int AddProduct(DtoProduct product)
+        public static async Task<int> AddProduct(DtoProduct product)
         {
             using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
             {
-                conn.Open();
-                return AddProduct(product, conn, null);
+                await conn.OpenAsync();
+                return await AddProduct(product, conn, null);
             }
         }
-        public static bool UpdateProduct(DtoProduct product,SqlConnection conn, SqlTransaction tx)
+        public static async Task<bool> UpdateProduct(DtoProduct product,SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Products
                              SET Name = @Name,
@@ -194,21 +194,21 @@ namespace EduCore_DataAccess
                     .Value = (object?)product.ThumbnailUrl ?? DBNull.Value;
                 command.Parameters.Add("@Summary", SqlDbType.NVarChar,300).Value = (object?)product.Summary ?? DBNull.Value;
 
-                rowsAffected = command.ExecuteNonQuery();
+                rowsAffected = await command.ExecuteNonQueryAsync();
             }
 
             return rowsAffected > 0;
         }
 
-        public static bool UpdateProduct(DtoProduct product)
+        public static async Task<bool> UpdateProduct(DtoProduct product)
         {
             using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
             {
-                conn.Open();
-                return UpdateProduct(product, conn, null);
+                await conn.OpenAsync();
+                return await UpdateProduct(product, conn, null);
             }
         }
-        public static bool PublishProduct(int id)
+        public static async Task<bool> PublishProduct(int id)
         {
             string query = @"UPDATE Products
                             SET IsPublished = 1
@@ -221,14 +221,14 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
 
-                connection.Open();
-                rowsAffected = command.ExecuteNonQuery();
+                await connection.OpenAsync();
+                rowsAffected = await command.ExecuteNonQueryAsync();
             }
 
             return rowsAffected > 0;
         }
 
-        public static bool UnPublishProduct(int id)
+        public static async Task<bool> UnPublishProduct(int id)
         {
             string query = @"UPDATE Products
                             SET IsPublished = 0
@@ -241,12 +241,29 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
 
-                connection.Open();
-                rowsAffected = command.ExecuteNonQuery();
+                await connection.OpenAsync();
+                rowsAffected = await command.ExecuteNonQueryAsync();
             }
 
             return rowsAffected > 0;
         }
 
+        public static async Task<bool> UnPublishProductWithTansaction(int id,SqlConnection conn, SqlTransaction tx)
+        {
+            string query = @"UPDATE Products
+                            SET IsPublished = 0
+                            WHERE Id = @Id;";
+
+            int rowsAffected = 0;
+
+            using (SqlCommand command = new SqlCommand(query, conn,tx))
+            {
+                command.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+
+                rowsAffected = await command.ExecuteNonQueryAsync();
+            }
+
+            return rowsAffected > 0;
+        }
     }
 }

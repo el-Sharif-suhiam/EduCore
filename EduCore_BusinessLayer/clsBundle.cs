@@ -18,6 +18,7 @@ namespace EduCore_BusinessLayer
 
         public int Id => _BundleData.Id;
         public string Name => _Product.Name;
+        public int ProductId => _BundleData.ProductId;
         public DateTime CreatedAt => _Product.CreatedAt;
         public DateTime UpdatedAt => _Product.UpdatedAt;
         public decimal BasePrice => _Product.BasePrice;
@@ -37,11 +38,7 @@ namespace EduCore_BusinessLayer
 
         private clsBundle(DtoBundle bundle)
         {
-            clsProduct product = clsProduct.Find(bundle.ProductId);
-            if (product is null)
-                throw new NotFoundException("There is no product for this Id");
-
-            _Product = product;
+          
             _BundleData = bundle;
             _Mode = enMode.Update;
         }
@@ -56,24 +53,31 @@ namespace EduCore_BusinessLayer
         public void SetThumbnailUrl(string thumbnailUrl)
             => _Product.SetThumbnailUrl(thumbnailUrl);
 
-        public void SetCreatedByAdmin(int adminId)
-            => _Product.SetCreatedByAdmin(adminId);
+        public async Task AssignCreatedByAdminAsync(int AdminId)
+        {
+            await _Product.SetCreatedByAdmin(AdminId);
+        }
 
         public void SetSummary(string? summary)
             => _Product.SetSummary(summary);
 
 
-        public static clsBundle Find(int bundleId)
+        public static async Task<clsBundle> Find(int bundleId)
         {
             if (bundleId <= 0)
                 throw new ValidationException("Bundle id is not valid");
 
-            DtoBundle dtoBundle = clsBundlesData.GetBundleById(bundleId);
+            DtoBundle dtoBundle = await clsBundlesData.GetBundleById(bundleId);
 
             if (dtoBundle is null)
                 throw new NotFoundException("There is no bundle with this Id");
+            clsBundle bundle = new clsBundle(dtoBundle);
+            clsProduct product = await clsProduct.Find(bundle.ProductId);
+            if (product is null)
+                throw new NotFoundException("There is no product for this Id");
 
-            return new clsBundle(dtoBundle);
+            bundle._Product = product;
+            return bundle;
         }
 
 
@@ -111,31 +115,32 @@ namespace EduCore_BusinessLayer
         }
 
 
-        private bool _AddBundle()
+        private async Task<bool> _AddBundle()
         {
-            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            return await clsGeneralData.ExecuteTransaction(async(conn, tx) =>
             {
-                int productId = clsProductsData.AddProduct(_Product.ToDto(), conn, tx);
+                int productId = await clsProductsData.AddProduct(_Product.ToDto(), conn, tx);
 
                 if (productId <= 0)
                     throw new Exception("Product creation failed");
 
                 _BundleData.ProductId = productId;
-                int bundleId = clsBundlesData.AddBundle(_BundleData, conn, tx);
+                _Product.SetId(productId);
+                int bundleId = await clsBundlesData.AddBundle(_BundleData, conn, tx);
 
                 if (bundleId <= 0)
                     throw new Exception("Bundle creation failed");
-
+                _BundleData.Id = bundleId;
                 _Mode = enMode.Update;
                 return true;
             });
         }
 
-        private bool _UpdateBundle()
+        private async Task<bool> _UpdateBundle()
         {
-            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            return await clsGeneralData.ExecuteTransaction(async(conn, tx) =>
             {
-                DtoProduct oldProduct = clsProductsData.GetProductById(_BundleData.ProductId);
+                DtoProduct oldProduct = await clsProductsData.GetProductById(_BundleData.ProductId);
 
                 if (oldProduct is null)
                     throw new Exception("Product not found");
@@ -144,13 +149,13 @@ namespace EduCore_BusinessLayer
 
                 if (productChanged)
                 {
-                    bool updatedProduct = clsProductsData.UpdateProduct(_Product.ToDto(), conn, tx);
+                    bool updatedProduct = await clsProductsData.UpdateProduct(_Product.ToDto(), conn, tx);
 
                     if (!updatedProduct)
                         throw new Exception("Failed to update product");
                 }
 
-                bool updatedBundle = clsBundlesData.UpdateBundle(_BundleData, conn, tx);
+                bool updatedBundle = await clsBundlesData.UpdateBundle(_BundleData, conn, tx);
 
                 if (!updatedBundle)
                     throw new Exception("Failed to update bundle");
@@ -159,17 +164,17 @@ namespace EduCore_BusinessLayer
             });
         }
 
-        public bool Save()
+        public async Task<bool> Save()
         {
             switch (_Mode)
             {
                 case enMode.Add:
                     _ValidateForAdd();
-                    return _AddBundle();
+                    return await _AddBundle();
 
                 case enMode.Update:
                     _ValidateForUpdate();
-                    return _UpdateBundle();
+                    return await _UpdateBundle();
 
                 default:
                     return false;
@@ -179,22 +184,22 @@ namespace EduCore_BusinessLayer
 
        
 
-        public static List<DtoBundle> GetAllBundles()
-            => clsBundlesData.GetAllBundles();
+        public static async Task<List<DtoBundle>> GetAllBundles()
+            => await clsBundlesData.GetAllBundles();
 
-        public static BundleItemsViewModel GetBundleItems(short bundleId)
-            => clsBundleItemsData.GetBundleWithCourses(bundleId);
+        public static async Task<BundleItemsViewModel> GetBundleItems(short bundleId)
+            => await clsBundleItemsData.GetBundleWithCourses(bundleId);
         
-        public static bool IsBundleExist(int bundleId)
-            => clsBundlesData.BundleExists(bundleId);
+        public static async Task<bool> IsBundleExist(int bundleId)
+            => await clsBundlesData.BundleExists(bundleId);
 
-        public static List<BundleViewModel> GetBundlesView()
-            => clsBundlesData.GetAllBundlesView();
+        public static async Task<List<BundleViewModel>> GetBundlesView()
+            => await clsBundlesData.GetAllBundlesView();
 
-        public static bool AddItemToBundle(DtoBundleItem item)
-            => clsBundleItemsData.AddItemToBundle(item);
+        public static async Task<bool> AddItemToBundle(DtoBundleItem item)
+            => await clsBundleItemsData.AddItemToBundle(item);
 
-        public static bool DeleteItemFromBundle(DtoBundleItem item)
-            => clsBundleItemsData.DeleteItemFromBundle(item);
+        public static async Task<bool> DeleteItemFromBundle(DtoBundleItem item)
+            => await clsBundleItemsData.DeleteItemFromBundle(item);
     }
 }

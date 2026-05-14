@@ -9,7 +9,7 @@ namespace EduCore_DataAccess
 {
     public class clsCoursesData
     {
-        public static int AddCourse(DtoCourse course, SqlConnection conn, SqlTransaction tx)
+        public static async Task<int> AddCourse(DtoCourse course, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"INSERT INTO Courses (ProductId, CoverImageUrl)
                             VALUES (@ProductId, @CoverImageUrl);
@@ -23,7 +23,7 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@CoverImageUrl", SqlDbType.NVarChar, 500)
                     .Value = (object?)course.CoverImageUrl ?? DBNull.Value;
 
-                var result = command.ExecuteScalar();
+                var result = await command.ExecuteScalarAsync();
 
                 courseId = result != null ? Convert.ToInt32(result) : -1;
 
@@ -32,15 +32,15 @@ namespace EduCore_DataAccess
             return courseId;
         }
 
-        public static int AddCourse(DtoCourse course)
+        public static async Task<int> AddCourse(DtoCourse course)
         {
             using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
             {
-                conn.Open();
-                return AddCourse(course, conn, null);
+                await conn.OpenAsync();
+                return await AddCourse(course, conn, null);
             }
         }
-        private static DtoCourse GetCourseInternal(int CourseId, bool IncludeDeleted = false)
+        private static async Task<DtoCourse> GetCourseInternal(int CourseId, bool IncludeDeleted = false)
         {
             if (CourseId <= 0) return null;
             DtoCourse course = null;
@@ -53,15 +53,14 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = CourseId;
                 command.Parameters.Add("@IncludeDeleted", SqlDbType.Bit).Value = IncludeDeleted;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         int idIndex = reader.GetOrdinal("Id");
                         int productIndex = reader.GetOrdinal("ProductId");
-                        int summaryIndex = reader.GetOrdinal("Summary");
                         int coverIndex = reader.GetOrdinal("CoverImageUrl");
                         int isDeletedIndex = reader.GetOrdinal("IsDeleted");
                         int DeletedAtIndex = reader.GetOrdinal("DeletedAt");
@@ -71,7 +70,6 @@ namespace EduCore_DataAccess
                         {
                             Id = reader.GetInt32(idIndex),
                             ProductId = reader.GetInt32(productIndex),
-                            Summary = reader.GetString(summaryIndex),
                             CoverImageUrl = reader.IsDBNull(coverIndex) ? null : reader.GetString(coverIndex),
                             IsDeleted = reader.GetBoolean(isDeletedIndex),
                             DeletedAt = reader.IsDBNull(DeletedAtIndex) ? null : reader.GetDateTime(DeletedAtIndex),
@@ -83,11 +81,11 @@ namespace EduCore_DataAccess
 
             return course;
         }
-        public static DtoCourse GetCourseById(int CourseId)
-            => GetCourseInternal(CourseId);
-        public static DtoCourse GetCourseByIdIncludeDeleted(int CourseId)
-            => GetCourseInternal(CourseId, true);
-        public static bool UpdateCourse(DtoCourse course, SqlConnection conn, SqlTransaction tx)
+        public static async Task<DtoCourse> GetCourseById(int CourseId)
+            => await GetCourseInternal(CourseId);
+        public static async Task<DtoCourse> GetCourseByIdIncludeDeleted(int CourseId)
+            => await GetCourseInternal(CourseId, true);
+        public static async Task<bool> UpdateCourse(DtoCourse course, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Courses
                              SET CoverImageUrl = @CoverImageUrl
@@ -101,21 +99,21 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@CoverImageUrl", SqlDbType.NVarChar, 500)
                     .Value = (object?)course.CoverImageUrl ?? DBNull.Value;
 
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static bool UpdateCourse(DtoCourse course)
+        public static async Task<bool> UpdateCourse(DtoCourse course)
         {
             using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
             {
-                conn.Open();
-                return UpdateCourse(course, conn, null);
+                await conn.OpenAsync();
+                return await UpdateCourse(course, conn, null);
             }
         }
-        private static bool InternalDeleteCourse(int courseId, int AdminId,bool UnDelete = false)
+        private static async Task<bool> InternalDeleteCourse(int courseId, int AdminId, SqlConnection conn, SqlTransaction tx,bool UnDelete = false )
         {
             string query = @"UPDATE Courses
                             SET IsDeleted = 1,
@@ -134,30 +132,28 @@ namespace EduCore_DataAccess
 
             int rows = 0;
 
-            using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
-            using (SqlCommand command = new SqlCommand(query, connection))
+            using (SqlCommand command = new SqlCommand(query, conn,tx))
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = courseId;
                 command.Parameters.Add("@AdminId", SqlDbType.Int).Value = AdminId;
 
-                connection.Open();
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static bool DeleteCourse(int courseId, int adminId)
+        public static async Task<bool> DeleteCourse(int courseId, int adminId, SqlConnection conn, SqlTransaction tx)
         {
-            return InternalDeleteCourse(courseId, adminId);
+            return await InternalDeleteCourse(courseId, adminId,conn,tx);
         }
 
-        public static bool UnDelete(int courseId, int adminId)
+        public static async Task<bool> UnDelete(int courseId, int adminId, SqlConnection conn, SqlTransaction tx)
         {
-            return InternalDeleteCourse(courseId, adminId, true);
+            return await InternalDeleteCourse(courseId, adminId,conn,tx, true);
         }
 
-        private static List<DtoCourse> GetAllCoursesInternal(int pageNumber, int pageSize, bool IncludeDeleted = false)
+        private static async Task<List<DtoCourse>> GetAllCoursesInternal(int pageNumber, int pageSize, bool IncludeDeleted = false)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -179,9 +175,9 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@IncludeDeleted", SqlDbType.Bit).Value = IncludeDeleted;
 
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int productIndex = reader.GetOrdinal("ProductId");
@@ -190,7 +186,7 @@ namespace EduCore_DataAccess
                     int DeletedAtIndex = reader.GetOrdinal("DeletedAt");
                     int DeletedByIdIndex = reader.GetOrdinal("DeletedById");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
 
                         courses.Add(new DtoCourse
@@ -210,12 +206,12 @@ namespace EduCore_DataAccess
             return courses;
         }
 
-        public static List<DtoCourse> GetAllCourses(int pageNumber, int pageSize)
-            => GetAllCoursesInternal(pageNumber, pageSize);
-        public static List<DtoCourse> GetAllCoursesIncludeDeleted(int pageNumber, int pageSize) 
-            => GetAllCoursesInternal(pageNumber, pageSize, true);
+        public static async Task<List<DtoCourse>> GetAllCourses(int pageNumber, int pageSize)
+            => await GetAllCoursesInternal(pageNumber, pageSize);
+        public static async Task<List<DtoCourse>> GetAllCoursesIncludeDeleted(int pageNumber, int pageSize) 
+            => await GetAllCoursesInternal(pageNumber, pageSize, true);
 
-        public static List<CourseWithInstructorViewModel> GetAllCoursesWithInstructorViewModel(int pageNumber, int pageSize)
+        public static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructorViewModel(int pageNumber, int pageSize)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -254,9 +250,9 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int titleIndex = reader.GetOrdinal("Title");
@@ -268,7 +264,7 @@ namespace EduCore_DataAccess
                     int instrIdIndex = reader.GetOrdinal("InstructorId");
                     int instrNameIndex = reader.GetOrdinal("InstructorName");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         int courseId = reader.GetInt32(idIndex);
 
@@ -300,7 +296,7 @@ namespace EduCore_DataAccess
             return coursesDict.Values.ToList();
         }
 
-        public static bool CourseExists(int courseId)
+        public static async Task<bool> CourseExists(int courseId)
         {
             const string query = @"SELECT CAST(
                                 CASE WHEN EXISTS (
@@ -315,8 +311,10 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = courseId;
 
-                connection.Open();
-                return (bool)command.ExecuteScalar();
+                await connection.OpenAsync();
+
+                object? result = await command.ExecuteScalarAsync();
+                return result != null && (bool)result;
             }
         }
     }

@@ -58,9 +58,9 @@ namespace EduCore_BusinessLayer
             _DiscountData.DiscountRate = rate;
         }
 
-        public void SetCreatedById(int adminId)
+        public async Task AssiganCreatedByIdAsync(int adminId)
         {
-            if (!clsUsersRoles.IsUserAdmin(adminId))
+            if (!(await clsUsersRoles.IsUserAdmin(adminId)))
                 throw new NotFoundException("This user is not an Admin!");
 
             _DiscountData.CreatedById = adminId;
@@ -84,12 +84,12 @@ namespace EduCore_BusinessLayer
         }
 
 
-        public static clsDiscountCode Find(short id)
+        public static async Task<clsDiscountCode> Find(short id)
         {
             if (id <= 0)
                 throw new ValidationException("Discount code id is not valid");
 
-            DtoDiscountCode dto = clsDiscountCodesData.GetDiscountCodeById(id);
+            DtoDiscountCode dto = await clsDiscountCodesData.GetDiscountCodeById(id);
 
             if (dto is null)
                 throw new NotFoundException("No discount code found with this id");
@@ -128,9 +128,9 @@ namespace EduCore_BusinessLayer
         }
 
 
-        private bool _Add()
+        private async Task<bool> _Add()
         {
-            short newId = clsDiscountCodesData.AddDiscountCode(_DiscountData);
+            short newId = await clsDiscountCodesData.AddDiscountCode(_DiscountData);
 
             if (newId <= 0)
                 throw new Exception("Failed to add discount code");
@@ -140,25 +140,25 @@ namespace EduCore_BusinessLayer
             return true;
         }
 
-        private bool _Update()
+        private async Task<bool> _Update()
         {
-            if (!clsDiscountCodesData.UpdateDiscountCode(_DiscountData))
+            if (!(await clsDiscountCodesData.UpdateDiscountCode(_DiscountData)))
                 throw new Exception("Failed to update discount code");
 
             return true;
         }
 
-        public bool Save()
+        public async Task<bool> Save()
         {
             switch (_Mode)
             {
                 case enMode.Add:
                     _ValidateForAdd();
-                    return _Add();
+                    return await _Add();
 
                 case enMode.Update:
                     _ValidateForUpdate();
-                    return _Update();
+                    return await _Update();
 
                 default:
                     return false;
@@ -166,18 +166,18 @@ namespace EduCore_BusinessLayer
         }
 
 
-        public bool Delete()
+        public async Task<bool> Delete()
         {
-            return clsDiscountCodesData.DeleteDiscountCode(Id);
+            return await clsDiscountCodesData.DeleteDiscountCode(Id);
         }
 
 
-        public static List<DtoDiscountCode> GetValidDiscountCodes()
-            => clsDiscountCodesData.GetValidDiscountCodes();
+        public static async Task<List<DtoDiscountCode>> GetValidDiscountCodes()
+            => await clsDiscountCodesData.GetValidDiscountCodes();
 
-        public static bool IsCodeValid(short id)
+        public static async Task<bool> IsCodeValid(short id)
         {
-            DtoDiscountCode dto = clsDiscountCodesData.GetDiscountCodeById(id);
+            DtoDiscountCode dto = await clsDiscountCodesData.GetDiscountCodeById(id);
 
             if (dto is null)
                 return false;

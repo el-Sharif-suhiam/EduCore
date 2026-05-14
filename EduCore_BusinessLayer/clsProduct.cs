@@ -3,6 +3,7 @@ using Common.Enums;
 using Common.Exceptions;
 using Common.Utils;
 using EduCore_DataAccess;
+using Microsoft.Data.SqlClient;
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Text.RegularExpressions;
@@ -36,7 +37,6 @@ namespace EduCore_BusinessLayer
             _productData = product;
             _Mode = enMode.Update;
 
-            CreatedByAdmin = clsUser.Find(product.CreatedByAdmin);
         }
 
         public static clsProduct FromDto(DtoProduct dto)
@@ -85,29 +85,33 @@ namespace EduCore_BusinessLayer
             _productData.ThumbnailUrl = clsValidation.ValidateUrl(url, "thumbnail Url");
         }
 
-        public void SetCreatedByAdmin(int adminId)
+        public async Task SetCreatedByAdmin(int adminId)
         { 
-            if (clsUsersRoles.IsUserAdmin(clsValidation.ValidatePositiveInt(adminId, "Admin Id")))
+            if (await clsUsersRoles.IsUserAdmin(clsValidation.ValidatePositiveInt(adminId, "Admin Id")))
             {
                 _productData.CreatedByAdmin = adminId;
-                CreatedByAdmin = clsUser.Find(adminId);
+                CreatedByAdmin = await clsUser.Find(adminId);
             }
             
         }
 
+        public void SetId(int id)
+        {
+            _productData.Id = clsValidation.ValidatePositiveInt(id, "id");
+        }
         public void SetSummary(string summary)
         {
             _productData.Summary = clsValidation.ValidateString(summary, "Summary");
         }
 
-        public bool Publish()
+        public async Task<bool> Publish()
         {
             if (_productData.Id <= 0)
                 throw new ValidationException("Invalid Id number");
 
 
 
-            if (clsProductsData.PublishProduct(_productData.Id))
+            if (await clsProductsData.PublishProduct(_productData.Id))
             {
                 _productData.IsPublished = true;
                 _productData.UpdatedAt = DateTime.UtcNow;
@@ -118,14 +122,14 @@ namespace EduCore_BusinessLayer
 
         }
 
-        public bool Unpublish()
+        public async Task<bool> Unpublish()
         {
             if (_productData.Id <= 0)
                 throw new ValidationException("Invalid Id number");
 
 
 
-            if (clsProductsData.UnPublishProduct(_productData.Id))
+            if (await clsProductsData.UnPublishProduct(_productData.Id))
             {
                 _productData.IsPublished = false;
                 _productData.UpdatedAt = DateTime.UtcNow;
@@ -136,12 +140,30 @@ namespace EduCore_BusinessLayer
             
         }
 
+        public async Task<bool> Unpublish(SqlConnection conn,SqlTransaction tx)
+        {
+
+            if (_productData.Id <= 0)
+                throw new ValidationException("Invalid Id number");
+
+
+
+            if (await clsProductsData.UnPublishProductWithTansaction(_productData.Id,conn,tx))
+            {
+                _productData.IsPublished = false;
+                _productData.UpdatedAt = DateTime.UtcNow;
+                return true;
+            }
+            else
+                throw new ConflictException("something wrong happend with unpulishing the product");
+
+        }
         private void ValidateForAdd()
         {
             if (_productData == null)
                 throw new ValidationException("Product data is missing");
 
-            if (_productData.CreatedByAdmin <= 0)
+            if (CreatedByAdmin == null || _productData.CreatedByAdmin <= 0)
                 throw new ValidationException("CreatedByAdmin is required");
 
             if (string.IsNullOrWhiteSpace(_productData.Name))
@@ -169,9 +191,9 @@ namespace EduCore_BusinessLayer
                 throw new ValidationException("Base price is required");
         }
 
-        private bool _AddProduct()
+        private async Task<bool> _AddProduct()
         {
-            int productId = clsProductsData.AddProduct(_productData);
+            int productId = await clsProductsData.AddProduct(_productData);
 
             if (productId > 0)
             {
@@ -183,38 +205,41 @@ namespace EduCore_BusinessLayer
             return false;
         }
 
-        private bool _UpdateProduct()
+        private async Task<bool> _UpdateProduct()
         {
             _productData.UpdatedAt = DateTime.UtcNow;
-            return clsProductsData.UpdateProduct(_productData);
+            return await clsProductsData.UpdateProduct(_productData);
         }
 
-        public bool Save()
+        public async Task<bool> Save()
         {
             switch (_Mode)
             {
                 case enMode.Add:
                     ValidateForAdd();
-                    return _AddProduct();
+                    return await _AddProduct();
 
                 case enMode.Update:
                     ValidateForUpdate();
-                    return _UpdateProduct();
+                    return await _UpdateProduct();
 
                 default:
                     return false;
             }
         }
 
-        public static clsProduct Find(int productId)
+        public static async Task<clsProduct> Find(int productId)
         {
             if (productId <= 0)
                 throw new ValidationException("Product id is not valid");
            
-            DtoProduct dto = clsProductsData.GetProductById(productId);
+            DtoProduct dto = await clsProductsData.GetProductById(productId);
             if (dto == null)
                 throw new NotFoundException("There is no product with this Id");
-            return new clsProduct(dto);
+            clsProduct product = new clsProduct(dto);
+
+            product.CreatedByAdmin = await clsUser.Find(dto.CreatedByAdmin);
+            return product;
         }
     }
 }

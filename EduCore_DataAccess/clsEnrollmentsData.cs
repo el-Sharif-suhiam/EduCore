@@ -10,7 +10,7 @@ namespace EduCore_DataAccess
     public class clsEnrollmentsData
     {
 
-        public static int AddEnrollment(DtoEnrollment enrollment)
+        public static async Task<int> AddEnrollment(DtoEnrollment enrollment)
         {
             string query = @"INSERT INTO Enrollments (UserId, ProductId, EnrolledAt, ExpireAt, PaymentId)
                             VALUES (@UserId, @ProductId, @EnrolledAt, @ExpireAt, @PaymentId);
@@ -31,9 +31,9 @@ namespace EduCore_DataAccess
 
                 command.Parameters.Add("@PaymentId", SqlDbType.Int).Value = enrollment.PaymentId;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                object result = command.ExecuteScalar();
+                object result = await command.ExecuteScalarAsync();
 
                 if (result != null && int.TryParse(result.ToString(), out int newId))
                 {
@@ -44,7 +44,7 @@ namespace EduCore_DataAccess
             return id;
         }
 
-        public static DtoEnrollment GetEnrollmentByUserId(int Id)
+        public static async Task<DtoEnrollment> GetEnrollmentByUserId(int Id)
         {
             if (Id <= 0) return null;
 
@@ -59,11 +59,11 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = Id;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         int idIndex = reader.GetOrdinal("Id");
                         int userIndex = reader.GetOrdinal("UserId");
@@ -90,7 +90,7 @@ namespace EduCore_DataAccess
             return enrollment;
         }
 
-        public static bool IsEnrollmentExists(int userId, int productId)
+        public static async Task<bool> IsEnrollmentExists(int userId, int productId)
         {
             string query = @"SELECT 1 FROM Enrollments
                         WHERE UserId = @UserId AND ProductId = @ProductId";
@@ -101,15 +101,15 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@UserId", SqlDbType.Int).Value = userId;
                 command.Parameters.Add("@ProductId", SqlDbType.Int).Value = productId;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                object result = command.ExecuteScalar();
+                object result = await command.ExecuteScalarAsync();
 
                 return result != null;
             }
         }
 
-        public static List<DtoEnrollment> GetAllUserEnrollments(int UserId,int pageNumber, int pageSize)
+        public static async Task<List<DtoEnrollment>> GetAllUserEnrollments(int UserId,int pageNumber, int pageSize)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -128,9 +128,9 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@UserId", SqlDbType.Int).Value = UserId;
                 sqlCommand.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
 
                     int idIndex = reader.GetOrdinal("Id");
@@ -142,7 +142,7 @@ namespace EduCore_DataAccess
 
                     
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         enrollments.Add( new DtoEnrollment
                         {

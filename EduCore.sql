@@ -126,7 +126,7 @@
 	Status varchar(50),
 	CreatedAt DATETIME DEFAULT GETDATE(),
 	FOREIGN KEY (UserId) REFERENCES Users(Id),
-
+	-- add user id index here
 	)
 
 	CREATE TABLE OrderItems(
@@ -138,7 +138,8 @@
 	FOREIGN KEY (OrderId) REFERENCES Orders(Id),
 	UNIQUE (OrderId, ProductId)
 	)
-
+	CREATE UNIQUE INDEX UX_Order_Product
+ON OrderItems(OrderId, ProductId);
 	CREATE TABLE Payments (
 	Id INT PRIMARY KEY IDENTITY(1,1) NOT NULL,
 	OrderId Int NOT NULL,
@@ -231,3 +232,94 @@
 	CREATE UNIQUE INDEX UX_Orders_User_Pending
 	ON Orders(UserId)
 	WHERE Status = 'Pending';
+
+
+	------ ######### begining of SP ###### ------
+	
+CREATE PROCEDURE SP_AddNewItemToOrder
+   @OrderId INT,
+   @ProductId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DECLARE @PriceAtPurchase SMALLMONEY;
+
+        SELECT @PriceAtPurchase = BasePrice
+        FROM Products
+        WHERE Id = @ProductId AND IsPublished = 1;
+
+        INSERT INTO OrderItems(OrderId, ProductId, PriceAtPurchase)
+        VALUES (@OrderId, @ProductId, @PriceAtPurchase);
+
+        DECLARE @OrderItemId INT = SCOPE_IDENTITY();
+
+        DECLARE @NewTotal SMALLMONEY;
+
+        SELECT @NewTotal = ISNULL(SUM(PriceAtPurchase),0)
+        FROM OrderItems
+        WHERE OrderId = @OrderId;
+
+        UPDATE Orders
+		SET TotalPrice = @NewTotal,
+		Status = CASE 
+                WHEN @NewTotal = 0 THEN 'Empty'
+                ELSE 'Pending'
+             END
+		WHERE Id = @OrderId;
+
+        COMMIT;
+
+        SELECT 
+            @OrderItemId AS OrderItemId,
+            @NewTotal AS TotalPrice;
+
+    END TRY
+    BEGIN CATCH
+        ROLLBACK;
+        THROW;
+    END CATCH
+END
+
+
+CREATE PROCEDURE SP_RemoveItemFromOrder
+    @OrderId INT,
+    @ProductId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        DELETE FROM OrderItems
+        WHERE OrderId = @OrderId
+          AND ProductId = @ProductId;
+
+        DECLARE @NewTotal SMALLMONEY;
+
+        SELECT @NewTotal = ISNULL(SUM(PriceAtPurchase),0)
+        FROM OrderItems
+        WHERE OrderId = @OrderId;
+
+        UPDATE Orders
+        SET TotalPrice = @NewTotal,
+            Status = CASE 
+                        WHEN @NewTotal = 0 THEN 'Empty'
+                        ELSE 'Pending'
+                     END
+        WHERE Id = @OrderId;
+
+        COMMIT;
+
+        SELECT @NewTotal AS TotalPrice;
+
+    END TRY
+    BEGIN CATCH
+        ROLLBACK;
+        THROW;
+    END CATCH
+END

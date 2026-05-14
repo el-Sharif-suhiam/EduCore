@@ -12,7 +12,7 @@ namespace EduCore_DataAccess
 {
     public class clsBundleItemsData
     {
-        public static bool AddItemToBundle(DtoBundleItem bundleItem)
+        public static async Task<bool> AddItemToBundle(DtoBundleItem bundleItem)
         {
             string query = @"INSERT INTO BundlesItems 
                         (BundleId,CourseId)
@@ -24,15 +24,15 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@BundleId", SqlDbType.SmallInt).Value = bundleItem.BundleId;
                 command.Parameters.Add("@CourseId", SqlDbType.Int).Value = bundleItem.CourseId;
-                connection.Open();
+                await connection.OpenAsync();
 
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static bool DeleteItemFromBundle(DtoBundleItem bundleItem)
+        public static async Task<bool> DeleteItemFromBundle(DtoBundleItem bundleItem)
         {
             string query = @"DELETE FROM BundlesItems 
                          WHERE CourseId = @CourseId AND BundleId = @BundleId;";
@@ -42,30 +42,30 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@CourseId", SqlDbType.Int).Value = bundleItem.CourseId;
                 command.Parameters.Add("@BundleId", SqlDbType.SmallInt).Value = bundleItem.BundleId;
-                connection.Open();
+                await connection.OpenAsync();
 
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        public static BundleItemsViewModel GetBundleWithCourses(short bundleId)
+        public static async Task<BundleItemsViewModel> GetBundleWithCourses(short bundleId)
         {
             const string query = @"
-        SELECT 
-            B.Id            AS Id,
-            BP.Name         AS BundleName,
-            C.Id            AS CourseId,
-            CP.Name         AS CourseName,
-            CP.Summary      AS CourseSummary,
-            CP.ThumbnailUrl AS CourseThumbnailUrl
-        FROM Bundles B
-        JOIN Products BP        ON BP.Id = B.ProductId
-        JOIN BundlesItems BI    ON BI.BundleId = B.Id
-        JOIN Courses C          ON C.Id = BI.CourseId
-        JOIN Products CP        ON CP.Id = C.ProductId
-        WHERE BP.IsPublished = 1 AND B.Id = @Id";
+                                    SELECT 
+                                        B.Id            AS Id,
+                                        BP.Name         AS BundleName,
+                                        C.Id            AS CourseId,
+                                        CP.Name         AS CourseName,
+                                        CP.Summary      AS CourseSummary,
+                                        CP.ThumbnailUrl AS CourseThumbnailUrl
+                                    FROM Bundles B
+                                    JOIN Products BP        ON BP.Id = B.ProductId
+                                    JOIN BundlesItems BI    ON BI.BundleId = B.Id
+                                    JOIN Courses C          ON C.Id = BI.CourseId
+                                    JOIN Products CP        ON CP.Id = C.ProductId
+                                    WHERE BP.IsPublished = 1 AND B.Id = @Id";
 
             BundleItemsViewModel bundle = new BundleItemsViewModel();
 
@@ -74,9 +74,9 @@ namespace EduCore_DataAccess
             {
                 cmd.Parameters.Add("@Id", SqlDbType.SmallInt).Value = bundleId;
 
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int bundleNameIndex = reader.GetOrdinal("BundleName");
@@ -85,7 +85,7 @@ namespace EduCore_DataAccess
                     int summaryIndex = reader.GetOrdinal("CourseSummary");
                     int thumbnailIndex = reader.GetOrdinal("CourseThumbnailUrl");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         if (bundle is null)
                         {

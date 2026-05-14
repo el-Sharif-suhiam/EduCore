@@ -11,7 +11,7 @@ namespace EduCore_DataAccess
 {
     public class clsCoursesInstructorsData
     {
-        public static bool AddInstructorToCourse(int courseId,int instructorId) { 
+        public static async Task<bool> AddInstructorToCourse(int courseId,int instructorId) { 
 
             string query = @"INSERT INTO CoursesInstructors (CourseId,InstructorId) 
                                 VALUES (@CourseId,@InstructorId);";
@@ -22,14 +22,14 @@ namespace EduCore_DataAccess
             {
                 sqlCommand.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
                 sqlCommand.Parameters.Add("@InstructorId", SqlDbType.Int).Value = instructorId;
-                conn.Open();
-                rowAffected = sqlCommand.ExecuteNonQuery();
+                await conn.OpenAsync();
+                rowAffected = await sqlCommand.ExecuteNonQueryAsync();
             }
 
             return (rowAffected > 0);
         }
 
-        public static bool RemoveInstructorFromCourse(int courseId, int instructorId)
+        public static async Task<bool> RemoveInstructorFromCourse(int courseId, int instructorId)
         {
 
             string query = @"DELETE FROM CoursesInstructors
@@ -41,14 +41,14 @@ namespace EduCore_DataAccess
             {
                 sqlCommand.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
                 sqlCommand.Parameters.Add("@InstructorId", SqlDbType.Int).Value = instructorId;
-                conn.Open();
-                rowAffected = sqlCommand.ExecuteNonQuery();
+                await conn.OpenAsync();
+                rowAffected = await sqlCommand.ExecuteNonQueryAsync();
             }
 
             return (rowAffected > 0);
         }
 
-        public static List<UsersViewModel> GetInstructorsForCourseById(int courseId) {
+        public static async Task<List<UsersViewModel>> GetInstructorsForCourseById(int courseId) {
 
             List<UsersViewModel> users = new List<UsersViewModel>();
             string query = @"SELECT U.Id, U.Name, U.BirthDate, U.Email , U.CreatedAt,
@@ -65,9 +65,9 @@ namespace EduCore_DataAccess
             {
                 sqlCommand.Parameters.Add("@courseId", SqlDbType.Int).Value = courseId;
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
                     int IdIndex = reader.GetOrdinal("Id");
                     int nameIndex = reader.GetOrdinal("Name");
@@ -76,7 +76,7 @@ namespace EduCore_DataAccess
                     int CreatedAtIndex = reader.GetOrdinal("CreatedAt");
                     int isActiveIndex = reader.GetOrdinal("IsActive");
                     int roleNameIndex = reader.GetOrdinal("RoleName");
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
 
                         users.Add(new UsersViewModel

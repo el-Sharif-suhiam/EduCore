@@ -13,6 +13,11 @@ namespace Common.Dtos
 
         public decimal? PriceAtPurchase { get; set; }
 
-        public bool MarkedToDelete { get; set; } 
+    }
+
+    public class DtoOrderItemRespone
+    {
+        public int Id { get; set; }
+        public decimal NewOrderTotal { get; set; }
     }
 }

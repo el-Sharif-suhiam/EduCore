@@ -17,6 +17,7 @@ namespace EduCore_BusinessLayer
         DtoLessons _LessonsData;
         public int Id => _LessonsData.Id;
         public string Name => _Product.Name;
+        public int ProductId => _LessonsData.ProductId;
         public DateTime CreatedAt => _Product.CreatedAt;
         public DateTime UpdatedAt => _Product.UpdatedAt;
         public decimal BasePrice => _Product.BasePrice;
@@ -51,10 +52,7 @@ namespace EduCore_BusinessLayer
 
         private clsLesson(DtoLessons lesson)
         {
-            clsProduct product = clsProduct.Find(lesson.ProductId);
-            if (product == null)
-                throw new NotFoundException("Invalid product Id");
-            _Product = product;
+            _Product = new clsProduct();
             _LessonsData = lesson;
             _Mode = enMode.Update;
         }
@@ -76,9 +74,9 @@ namespace EduCore_BusinessLayer
             _Product.SetThumbnailUrl(thumbnailUrl);
         }
 
-        public void SetCreatedByAdmin(int AdminId)
+        public async Task AssignCreatedByAdminAsync(int AdminId)
         {
-            _Product.SetCreatedByAdmin(AdminId);
+            await _Product.SetCreatedByAdmin(AdminId);
         }
 
         public void SetSummary(string summary)
@@ -134,32 +132,36 @@ namespace EduCore_BusinessLayer
             if (BasePrice <= 0)
                 throw new ValidationException("Base price is required");
         }
-        public static clsLesson Find(int lessonId, bool includeDeleted = false)
+        public static async Task<clsLesson> Find(int lessonId, bool includeDeleted = false)
         {
             if (lessonId <= 0)
                 throw new ValidationException("Lesson id is not valid");
 
-            DtoLessons dtoLesson = includeDeleted ? clsLessonsData.GetLessonByIdIncludeDeleted(lessonId) : clsLessonsData.GetLessonById(lessonId);
+            DtoLessons dtoLesson = includeDeleted ?  await clsLessonsData.GetLessonByIdIncludeDeleted(lessonId) : await clsLessonsData.GetLessonById(lessonId);
             if (dtoLesson == null)
                 throw new NotFoundException("There is no lesson with this Id");
 
             clsLesson lesson = new clsLesson(dtoLesson);
+            clsProduct product = await clsProduct.Find(lesson.ProductId);
+            if (product == null)
+                throw new NotFoundException("Invalid product Id");
+            lesson._Product = product;
             return lesson;
         }
         
-        bool _AddLesson()
+        async Task<bool> _AddLesson()
         {
-            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            return await clsGeneralData.ExecuteTransaction(async (conn, tx) =>
             {
 
-                int productId = clsProductsData.AddProduct(_Product.ToDto(), conn, tx);
+                int productId = await clsProductsData.AddProduct(_Product.ToDto(), conn, tx);
 
 
                 if (productId <= 0)
                     throw new ConflictException("Product creation failed");
 
                 _LessonsData.ProductId = productId;
-                int lessonId = clsLessonsData.AddLesson(_LessonsData, conn, tx);
+                int lessonId = await clsLessonsData.AddLesson(_LessonsData, conn, tx);
 
                 if (lessonId <= 0)
                     throw new ConflictException("Lesson creation failed");
@@ -170,11 +172,11 @@ namespace EduCore_BusinessLayer
             });
         }
 
-        bool _UpdateLesson()
+        async Task<bool> _UpdateLesson()
         {
-            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            return await clsGeneralData.ExecuteTransaction(async(conn, tx) =>
             {
-                DtoProduct oldProduct = clsProductsData.GetProductById(_LessonsData.ProductId);
+                DtoProduct oldProduct = await clsProductsData.GetProductById(_LessonsData.ProductId);
 
                 if (oldProduct == null)
                     throw new NotFoundException("Product not found");
@@ -183,13 +185,13 @@ namespace EduCore_BusinessLayer
 
                 if (productChanged)
                 {
-                    bool updatedProduct = clsProductsData.UpdateProduct(_Product.ToDto(), conn, tx);
+                    bool updatedProduct = await clsProductsData.UpdateProduct(_Product.ToDto(), conn, tx);
 
                     if (!updatedProduct)
                         throw new ConflictException("Failed to update product");
                 }
 
-                bool updatedLesson = clsLessonsData.UpdateLesson(_LessonsData, conn, tx);
+                bool updatedLesson = await clsLessonsData.UpdateLesson(_LessonsData, conn, tx);
 
                 if (!updatedLesson)
                     throw new ConflictException("Failed to update lesson");
@@ -198,61 +200,61 @@ namespace EduCore_BusinessLayer
             });
         }
 
-        public bool Save()
+        public async Task<bool> Save()
         {
             switch (_Mode)
             {
                 case enMode.Add:
                     _ValidateForAdd();
-                    return _AddLesson();
+                    return await _AddLesson();
 
                 case enMode.Update:
                     _ValidateForUpdate();
-                    return _UpdateLesson();
+                    return await _UpdateLesson();
 
                 default:
                     return false;
             }
         }
 
-        private bool ControlDelete(int adminId,bool UnDelete = false)
+        private async Task<bool> ControlDelete(int adminId,bool UnDelete = false)
         {
-            if (!clsUsersRoles.IsUserAdmin(adminId))
+            if (!(await clsUsersRoles.IsUserAdmin(adminId)))
                 throw new ConflictException("this user is not permitted to delete course");
 
-            if (_Product.Unpublish())
-                return UnDelete ? clsLessonsData.UnDeleteLesson(Id,adminId) : clsLessonsData.DeleteLesson(Id, adminId);
+            if (await _Product.Unpublish())
+                return UnDelete ? await clsLessonsData.UnDeleteLesson(Id,adminId) : await clsLessonsData.DeleteLesson(Id, adminId);
             return false;
         }
 
-        public bool Delete(int adminId)
+        public async Task<bool> Delete(int adminId)
         {
-            return ControlDelete(adminId);
+            return await ControlDelete(adminId);
         }
 
-        public bool UnDelete(int adminId)
+        public async Task<bool> UnDelete(int adminId)
         {
-            return ControlDelete(adminId, true);
+            return await ControlDelete(adminId, true);
         }
-        public static List<LessonsWithOutCoursesViewModel> GetIndependntLessons(int pageNumber,int pageSize)
+        public static async Task<List<LessonsWithOutCoursesViewModel>> GetIndependntLessons(int pageNumber,int pageSize)
         {
-            return clsLessonsData.GetAllLessonsWithOutCourses(pageNumber, pageSize);
+            return await clsLessonsData.GetAllLessonsWithOutCourses(pageNumber, pageSize);
         }
 
-        public static List<DtoLessons> GetAllLessons(int pageNumber, int pageSize,bool includeDeleted = false)
+        public static async Task<List<DtoLessons>> GetAllLessons(int pageNumber, int pageSize,bool includeDeleted = false)
         {
             if (includeDeleted)
-                return clsLessonsData.GetAllLessonsIncludeDeleted(pageNumber, pageSize);
+                return await clsLessonsData.GetAllLessonsIncludeDeleted(pageNumber, pageSize);
             else
-                return clsLessonsData.GetAllLessons(pageNumber, pageSize);
+                return await clsLessonsData.GetAllLessons(pageNumber, pageSize);
         }
 
-        public static List<LessonsByCourseViewModel> GetLessonsByCourse(int courseId)
+        public static async Task<List<LessonsByCourseViewModel>> GetLessonsByCourse(int courseId)
         {
             
-            if (clsCourse.IsCourseExist(courseId))
+            if (await clsCourse.IsCourseExist(courseId))
                 throw new NotFoundException("Course not found or has been deleted");
-            return clsLessonsData.GetLessonsByCourse(courseId);
+            return await clsLessonsData.GetLessonsByCourse(courseId);
         }
     }
 }

@@ -17,6 +17,7 @@ namespace EduCore_BusinessLayer
         DtoCourse _CourseData;
         public int Id => _CourseData.Id;
         public string Name => _Product.Name;
+        public int ProductId => _CourseData.ProductId;
         public DateTime CreatedAt => _Product.CreatedAt;
         public DateTime UpdatedAt => _Product.UpdatedAt;
         public decimal BasePrice => _Product.BasePrice;
@@ -40,14 +41,12 @@ namespace EduCore_BusinessLayer
 
         private clsCourse(DtoCourse course)
         {
-            clsProduct product = clsProduct.Find(course.ProductId);
-            if (product == null)
-                throw new NotFoundException("There is no product for this Id");
-            _Product = product;
+            _Product = new clsProduct();
             _CourseData = course;
             _Mode = enMode.Update;
-
         }
+
+
         // setters
 
         // product setter 
@@ -65,9 +64,9 @@ namespace EduCore_BusinessLayer
             _Product.SetThumbnailUrl(thumbnailUrl);
         }
 
-        public void SetCreatedByAdmin(int AdminId)
+        public async Task AssignCreatedByAdminAsync(int AdminId)
         {
-            _Product.SetCreatedByAdmin(AdminId);
+           await _Product.SetCreatedByAdmin(AdminId);
         }
 
         public void SetSummary(string summary)
@@ -81,15 +80,25 @@ namespace EduCore_BusinessLayer
            _CourseData.CoverImageUrl = clsValidation.ValidateUrl(url, "cover image Url");
         }
 
-        public static clsCourse Find(int courseId, bool includeDeleted = false)
+        public static async Task<clsCourse> Find(int courseId, bool includeDeleted = false)
         {
             if (courseId <= 0)
                 throw new ValidationException("course id is not valid");
-            DtoCourse dtoCourse = includeDeleted ? clsCoursesData.GetCourseByIdIncludeDeleted(courseId) : clsCoursesData.GetCourseById(courseId);
+
+            DtoCourse dtoCourse = includeDeleted ? await clsCoursesData.GetCourseByIdIncludeDeleted(courseId) : await clsCoursesData.GetCourseById(courseId);
+
             if (dtoCourse == null)
                 throw new NotFoundException("There is no course with this Id");
 
             clsCourse course = new clsCourse(dtoCourse);
+            
+            clsProduct product = await clsProduct.Find(course._CourseData.ProductId);
+
+            if (product is null)
+                throw new NotFoundException("There is no product for this Id");
+
+
+            course._Product = product;
             return course;
         }
 
@@ -125,35 +134,36 @@ namespace EduCore_BusinessLayer
                 throw new Exception("Base price is required");
         }
 
-        bool _AddCourse()
+        async Task<bool> _AddCourse()
         {
-            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            return await clsGeneralData.ExecuteTransaction(async (conn, tx) =>
             {
 
-                int productId = clsProductsData.AddProduct(_Product.ToDto(),conn,tx);
+                int productId = await clsProductsData.AddProduct(_Product.ToDto(),conn,tx);
 
 
                 if (productId <= 0)
                     throw new Exception("Product creation failed");
-
+                
+                _Product.SetId(productId);
                 _CourseData.ProductId = productId;
-                int courseId = clsCoursesData.AddCourse(_CourseData,conn,tx);
+                int courseId = await clsCoursesData.AddCourse(_CourseData,conn,tx);
 
                 if (courseId <= 0)
                     throw new Exception("Course creation failed");
 
-
+                _CourseData.Id = courseId;
                 _Mode = enMode.Update;
                 return true;
             });
 
         }
 
-        bool _UpdateCourse()
+        async Task<bool> _UpdateCourse()
         {
-            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            return await clsGeneralData.ExecuteTransaction(async (conn, tx) =>
             {
-                DtoProduct oldProduct = clsProductsData.GetProductById(_CourseData.ProductId);
+                DtoProduct oldProduct = await clsProductsData.GetProductById(_CourseData.ProductId);
 
                 if (oldProduct == null)
                     throw new Exception("Product not found");
@@ -162,13 +172,13 @@ namespace EduCore_BusinessLayer
 
                 if (productChanged)
                 {
-                    bool updatedProduct = clsProductsData.UpdateProduct(_Product.ToDto(), conn, tx);
+                    bool updatedProduct = await clsProductsData.UpdateProduct(_Product.ToDto(), conn, tx);
 
                     if (!updatedProduct)
                         throw new Exception("Failed to update product");
                 }
 
-                bool updatedCourse = clsCoursesData.UpdateCourse(_CourseData, conn, tx);
+                bool updatedCourse = await clsCoursesData.UpdateCourse(_CourseData, conn, tx);
 
                 if (!updatedCourse)
                     throw new Exception("Failed to update course");
@@ -177,58 +187,69 @@ namespace EduCore_BusinessLayer
             });
         }
         
-        public bool Save()
+        public async Task<bool> Save()
         {
             switch (_Mode)
             {
                 case enMode.Add:
                     _ValidateForAdd();
-                    return _AddCourse();
+                    return await _AddCourse();
 
                 case enMode.Update:
                     _ValidateForUpdate();
-                    return _UpdateCourse();
+                    return await  _UpdateCourse();
 
                 default:
                     return false;
             }
         }
 
-        private bool ControlDelete(int adminId,bool UnDelete = false)
+        private async Task<bool> ControlDelete(int adminId,bool UnDelete = false)
         {
-            if (!clsUsersRoles.IsUserAdmin(adminId))
+            if (!(await clsUsersRoles.IsUserAdmin(adminId)))
                 throw new ConflictException("this user is not permitted to delete course");
 
-            if (_Product.Unpublish())
+            return await clsGeneralData.ExecuteTransaction(async (conn, tx) =>
             {
-                return UnDelete ? clsCoursesData.UnDelete(Id,adminId) : clsCoursesData.DeleteCourse(Id, adminId);
-            }
-            return false;
+                if (UnDelete)
+                {
+                    return await clsCoursesData.UnDelete(Id, adminId, conn, tx);
+                }
+
+                bool unpublished = await _Product.Unpublish(conn, tx);
+
+                if (!unpublished)
+                    return false;
+
+                return await clsCoursesData.DeleteCourse(Id, adminId, conn, tx);
+            });
+
+            
         }
 
-        public bool UnDelete(int adminId)
+        public async Task<bool> UnDelete(int adminId)
         {
-            return ControlDelete(adminId,true);
+            return await ControlDelete(adminId,true);
         }
-        public bool Delete(int adminId)
+        public async Task<bool> Delete(int adminId)
         {
-            return ControlDelete(adminId);
+            return await ControlDelete(adminId);
         }
-        public static List<DtoCourse> GetAllCourses(int pageNumber,int pageSize, bool evenDeletedIncluded = false)
+        public static async Task<List<DtoCourse>> GetAllCourses(int pageNumber,int pageSize, bool evenDeletedIncluded = false)
         {
             if (evenDeletedIncluded)
-                return clsCoursesData.GetAllCoursesIncludeDeleted(pageNumber, pageSize);
+                return await clsCoursesData.GetAllCoursesIncludeDeleted(pageNumber, pageSize);
             else
-                return clsCoursesData.GetAllCourses(pageNumber, pageSize);
+                return await clsCoursesData.GetAllCourses(pageNumber, pageSize);
         }
 
-        public static List<CourseWithInstructorViewModel> GetAllCoursesWithInstructors(int pageNumber,int pageSize)
+        public static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructors(int pageNumber,int pageSize)
         {
-                return clsCoursesData.GetAllCoursesWithInstructorViewModel(pageNumber, pageSize);
+                return await clsCoursesData.GetAllCoursesWithInstructorViewModel(pageNumber, pageSize);
         }
 
-        public static bool IsCourseExist(int courseId) {
-            return clsCoursesData.CourseExists(courseId);
+        public static async Task<bool> IsCourseExist(int courseId) {
+            return await clsCoursesData.CourseExists(courseId);
         }
     }
 }

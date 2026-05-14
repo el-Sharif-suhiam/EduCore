@@ -12,7 +12,7 @@ namespace EduCore_DataAccess
 {
     public class clsUsersData
     {
-        private static DtoUser GetUserInternal(string whereClause, SqlParameter parameter)
+        private static async Task<DtoUser> GetUserInternal(string whereClause, SqlParameter parameter)
         {
             DtoUser user = null;
 
@@ -26,11 +26,11 @@ namespace EduCore_DataAccess
             {
                 sqlCommand.Parameters.Add(parameter);
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         int idIndex = reader.GetOrdinal("Id");
                         int nameIndex = reader.GetOrdinal("Name");
@@ -48,7 +48,7 @@ namespace EduCore_DataAccess
                             BirthDate = reader.GetDateTime(birthDateIndex),
                             Email = reader.GetString(emailIndex),
                             PasswordHash = reader.GetString(passwordIndex),
-                            RefreshTokenHash = reader.GetString(refreshHashIndex),
+                            RefreshTokenHash = reader.IsDBNull(refreshHashIndex) ? null : reader.GetString(refreshHashIndex),
                             RefreshTokenExpiresAt = reader.GetDateTime(refreshExpIndex),
                             RefreshTokenRevokedAt = reader.IsDBNull(revokedIndex)
                                 ? null
@@ -60,24 +60,24 @@ namespace EduCore_DataAccess
 
             return user;
         }
-        public static DtoUser GetUserById(int id)
+        public static async Task<DtoUser> GetUserById(int id)
         {
-            return GetUserInternal(
+            return await GetUserInternal(
                 "Id = @Id",
                 new SqlParameter("@Id", SqlDbType.Int) { Value = id }
             );
         }
 
-        public static DtoUser GetUserByEmail(string email)
+        public static async Task<DtoUser> GetUserByEmail(string email)
         {
-            return GetUserInternal(
+            return await GetUserInternal(
                 "Email = @Email",
                 new SqlParameter("@Email", SqlDbType.NVarChar, 254) { Value = email }
             );
         }
         
 
-        private static  List<UsersViewModel> GetAllUsersByPageInternal(int pageNumber, int pageSize, enRoles userRole, bool IncludeNonActive = false)
+        private static async  Task<List<UsersViewModel>> GetAllUsersByPageInternal(int pageNumber, int pageSize, enRoles userRole, bool IncludeNonActive = false)
         {
             if (pageNumber < 1) pageNumber = 1;
             if(pageSize <= 0) pageSize = 10;
@@ -112,9 +112,9 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
                 sqlCommand.Parameters.Add("@RoleName", SqlDbType.NVarChar).Value = userRole.ToString();
 
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
-                using (SqlDataReader reader = sqlCommand.ExecuteReader())
+                using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
                     int IdIndex = reader.GetOrdinal("Id");
                     int nameIndex = reader.GetOrdinal("Name");
@@ -123,7 +123,7 @@ namespace EduCore_DataAccess
                     int CreatedAtIndex = reader.GetOrdinal("CreatedAt");
                     int isActiveIndex = reader.GetOrdinal("IsActive");
                     int roleNameIndex = reader.GetOrdinal("RoleName");
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
 
                         users.Add(new UsersViewModel
@@ -143,13 +143,13 @@ namespace EduCore_DataAccess
             return users;
         }
 
-        public static List<UsersViewModel> GetAllUsers(int pageNumber, int pageSize, enRoles userRole)
-            => GetAllUsersByPageInternal(pageNumber, pageSize,userRole);
+        public static async Task<List<UsersViewModel>> GetAllUsers(int pageNumber, int pageSize, enRoles userRole)
+            => await GetAllUsersByPageInternal(pageNumber, pageSize,userRole);
 
-        public static List<UsersViewModel> GetAllUsersIncludeNonActive(int pageNumber, int pageSize, enRoles userRole)
-            => GetAllUsersByPageInternal(pageNumber, pageSize,userRole, true);
+        public static async Task<List<UsersViewModel>> GetAllUsersIncludeNonActive(int pageNumber, int pageSize, enRoles userRole)
+            => await GetAllUsersByPageInternal(pageNumber, pageSize,userRole, true);
 
-        public static  int AddUser(DtoUser user,SqlConnection conn, SqlTransaction tx)
+        public static async Task<int> AddUser(DtoUser user,SqlConnection conn, SqlTransaction tx)
             {
                 int UserID = -1;
 
@@ -167,9 +167,9 @@ namespace EduCore_DataAccess
                     sqlCommand.Parameters.Add("@PasswordHash", SqlDbType.NVarChar).Value =  user.PasswordHash;
                     sqlCommand.Parameters.Add("@RefreshTokenHash", SqlDbType.NVarChar).Value = user.RefreshTokenHash;
                     sqlCommand.Parameters.Add("@RefreshTokenExpiresAt", SqlDbType.DateTime2).Value = user.RefreshTokenExpiresAt;
-                sqlCommand.Parameters.Add("@RefreshTokenRevokedAt", SqlDbType.DateTime2).Value = (object?)user.RefreshTokenRevokedAt ?? DBNull.Value;
+                    sqlCommand.Parameters.Add("@RefreshTokenRevokedAt", SqlDbType.DateTime2).Value = (object?)user.RefreshTokenRevokedAt ?? DBNull.Value;
 
-                object result = sqlCommand.ExecuteScalar();
+                object result = await sqlCommand.ExecuteScalarAsync();
 
                 UserID = result != null ? Convert.ToInt32(result) : -1;
 
@@ -181,13 +181,13 @@ namespace EduCore_DataAccess
 
 
         
-        public static  bool UpdateUser(DtoUser user)
+        public static async Task<bool> UpdateUser(DtoUser user)
         {
             string query = @"UPDATE Users
                             SET Name = @Name, BirthDate = @BirthDate, Email = @Email, 
                             PasswordHash =  @PasswordHash,RefreshTokenHash = @RefreshTokenHash,RefreshTokenExpiresAt = @RefreshTokenExpiresAt,
                             RefreshTokenRevokedAt = @RefreshTokenRevokedAt
-                            WHERE UserID = @Id And IsActive = 1;";
+                            WHERE Id = @Id And IsActive = 1;";
 
 
             int rowAffected = 0;
@@ -204,20 +204,20 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@PasswordHash", SqlDbType.NVarChar).Value = user.PasswordHash;
                 sqlCommand.Parameters.Add("@RefreshTokenHash", SqlDbType.NVarChar).Value = user.RefreshTokenHash;
                 sqlCommand.Parameters.Add("@RefreshTokenExpiresAt", SqlDbType.DateTime2).Value = user.RefreshTokenExpiresAt;
-                sqlCommand.Parameters.Add("@RefreshTokenRevokedAt", SqlDbType.DateTime2).Value = user.RefreshTokenRevokedAt;
-                sqlConnection.Open();
+                sqlCommand.Parameters.Add("@RefreshTokenRevokedAt", SqlDbType.DateTime2).Value = (object?)user.RefreshTokenRevokedAt ?? DBNull.Value;
+                await sqlConnection.OpenAsync();
 
 
-                rowAffected = sqlCommand.ExecuteNonQuery();
+                rowAffected = await sqlCommand.ExecuteNonQueryAsync();
             }
 
             return (rowAffected > 0);
         }
-        public static  bool DeactivateUser(int id)
+        public static async Task<bool> DeactivateUser(int id)
         {
             string query = @"UPDATE Users
                                 SET IsActive = 0
-                                WHERE UserID = @Id;";
+                                WHERE Id = @Id;";
 
 
             int rowAffected = 0;
@@ -228,15 +228,15 @@ namespace EduCore_DataAccess
 
 
                 sqlCommand.Parameters.Add("@Id", SqlDbType.Int).Value = id;
-                sqlConnection.Open();
+                await sqlConnection.OpenAsync();
 
 
-                rowAffected = sqlCommand.ExecuteNonQuery();
+                rowAffected = await sqlCommand.ExecuteNonQueryAsync();
             }
 
             return (rowAffected > 0);
         }
-        public static  bool IsEmailExist(string email)
+        public static async Task<bool> IsEmailExist(string email)
         {
             string query = @"SELECT TOP 1 result = 1 FROM Users WHERE Email = @Email";
 
@@ -244,9 +244,9 @@ namespace EduCore_DataAccess
             using (SqlCommand cmd = new SqlCommand(query, sqlConnection))
             {
                 cmd.Parameters.AddWithValue("@Email", email);
-                sqlConnection.Open();
-                object result = cmd.ExecuteScalar();
-                return result != null && int.TryParse(result.ToString(), out int exists) && exists == 1;
+                await sqlConnection.OpenAsync();
+                object result = await cmd.ExecuteScalarAsync();
+                return result != null;
             }
         }
 

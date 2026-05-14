@@ -4,5 +4,5 @@ using System.Text;
 
 namespace Common.Enums
 {
-    public enum enOrderStatus {Pending,Completed,Cancelled}
+    public enum enOrderStatus {Pending,Completed,Cancelled,Empty}
 }

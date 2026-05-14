@@ -43,14 +43,14 @@ namespace EduCore_BusinessLayer
         }
 
 
-        public static clsProgress Find(int userId, int lessonId)
+        public static async Task<clsProgress> Find(int userId, int lessonId)
         {
             if (userId <= 0)
                 throw new ValidationException("User id is not valid");
             if (lessonId <= 0)
                 throw new ValidationException("Lesson id is not valid");
 
-            DtoProgress dto = clsProgressData.GetProgress(userId, lessonId);
+            DtoProgress dto = await clsProgressData.GetProgress(userId, lessonId);
 
             if (dto is null)
                 throw new NotFoundException("No progress found for this user and lesson");
@@ -59,37 +59,37 @@ namespace EduCore_BusinessLayer
         }
 
 
-        public bool Save()
+        public async Task<bool> Save()
         {
-            return clsProgressData.UpsertProgress(_ProgressData);
+            return await clsProgressData.UpsertProgress(_ProgressData);
         }
 
 
-        public static bool MarkAsComplete(int userId, int lessonId)
+        public static async Task<bool> MarkAsComplete(int userId, int lessonId)
         {
             clsProgress progress = new clsProgress(userId, lessonId);
             progress.SetComplete(true);
-            return progress.Save();
+            return await progress.Save();
         }
 
-        public static bool MarkAsIncomplete(int userId, int lessonId)
+        public static async Task<bool> MarkAsIncomplete(int userId, int lessonId)
         {
             clsProgress progress = new clsProgress(userId, lessonId);
             progress.SetComplete(false);
-            return progress.Save();
+            return await progress.Save();
         }
 
-        public static CourseProgressViewModel GetCourseProgress(int userId, int courseId)
+        public static async Task<CourseProgressViewModel> GetCourseProgress(int userId, int courseId)
         {
-            if (!clsCoursesData.CourseExists(courseId))
+            if (!(await clsCoursesData.CourseExists(courseId)))
                 throw new NotFoundException("Course not found");
 
-            return clsProgressData.GetCourseProgress(userId, courseId);
+            return await clsProgressData.GetCourseProgress(userId, courseId);
         }
 
-        public static bool IsCourseComplated(int userId, int courseId)
+        public static async Task<bool> IsCourseComplated(int userId, int courseId)
         {
-            CourseProgressViewModel courseProgress = GetCourseProgress(userId, courseId);
+            CourseProgressViewModel courseProgress = await GetCourseProgress(userId, courseId);
             return courseProgress.ProgressPercentage == 100;
         }
         //////////////////////////////////////////////////////// تذكير بكتابة منطق لكتابة الشهادة

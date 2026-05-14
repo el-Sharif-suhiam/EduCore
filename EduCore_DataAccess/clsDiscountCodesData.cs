@@ -10,7 +10,7 @@ namespace EduCore_DataAccess
 {
     public class clsDiscountCodesData
     {
-        public static short AddDiscountCode(DtoDiscountCode dto)
+        public static async Task<short> AddDiscountCode(DtoDiscountCode dto)
         {
             string query = @"INSERT INTO DiscountCodes
                              (DiscountCode, DiscountRate, CreatedById, ExpireAt, AllowedUseNumber, TotalUserNumber)
@@ -28,14 +28,14 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@AllowedUse", SqlDbType.SmallInt).Value = (object?)dto.AllowedUseNumber ?? DBNull.Value;
                 cmd.Parameters.Add("@TotalUsers", SqlDbType.SmallInt).Value = (object?)dto.TotalUsedNumber ?? DBNull.Value;
 
-                con.Open();
-                var result = cmd.ExecuteScalar();
+                await con.OpenAsync();
+                var result = await cmd.ExecuteScalarAsync();
 
                 return (result != null && short.TryParse(result.ToString(), out short id)) ? id : (short)-1;
             }
         }
 
-        public static DtoDiscountCode GetDiscountCodeById(short id)
+        public static async Task<DtoDiscountCode> GetDiscountCodeById(short id)
         {
             string query = @"SELECT Id, DiscountCode, DiscountRate, CreatedById, ExpireAt,
                                 AllowedUseNumber, TotalUserNumber
@@ -47,9 +47,9 @@ namespace EduCore_DataAccess
             {
                 cmd.Parameters.Add("@Id", SqlDbType.SmallInt).Value = id;
 
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int discountCodeIndex = reader.GetOrdinal("DiscountCode");
@@ -58,7 +58,7 @@ namespace EduCore_DataAccess
                     int expireAtIndex = reader.GetOrdinal("ExpireAt");
                     int allowedUseIndex = reader.GetOrdinal("AllowedUseNumber");
                     int totalUsedIndex = reader.GetOrdinal("TotalUserNumber");
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         return new DtoDiscountCode
                         {
@@ -77,7 +77,7 @@ namespace EduCore_DataAccess
             return null;
         }
 
-        public static bool UpdateDiscountCode(DtoDiscountCode dto)
+        public static async Task<bool> UpdateDiscountCode(DtoDiscountCode dto)
         {
             string query = @"UPDATE DiscountCodes
                             SET DiscountCode = @Code,
@@ -97,12 +97,12 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@AllowedUse", SqlDbType.SmallInt).Value = (object?)dto.AllowedUseNumber ?? DBNull.Value;
                 cmd.Parameters.Add("@TotalUsers", SqlDbType.SmallInt).Value = (object?)dto.TotalUsedNumber ?? DBNull.Value;
 
-                con.Open();
-                return cmd.ExecuteNonQuery() > 0;
+                await con.OpenAsync();
+                return await cmd.ExecuteNonQueryAsync() > 0;
             }
         }
 
-        public static bool DeleteDiscountCode(short id)
+        public static async Task<bool> DeleteDiscountCode(short id)
         {
             string query = @"DELETE FROM DiscountCodes WHERE Id = @Id;";
 
@@ -111,12 +111,12 @@ namespace EduCore_DataAccess
             {
                 cmd.Parameters.Add("@Id", SqlDbType.SmallInt).Value = id;
 
-                con.Open();
-                return cmd.ExecuteNonQuery() > 0;
+                await con.OpenAsync();
+                return await cmd.ExecuteNonQueryAsync() > 0;
             }
         }
 
-        public static List<DtoDiscountCode> GetValidDiscountCodes()
+        public static async Task<List<DtoDiscountCode>> GetValidDiscountCodes()
         {
             List<DtoDiscountCode> discounts = new List<DtoDiscountCode>();
             string query = @"SELECT Id, DiscountCode, DiscountRate, CreatedById, ExpireAt,
@@ -128,9 +128,9 @@ namespace EduCore_DataAccess
             using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand cmd = new SqlCommand(query, con))
             {
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int discountCodeIndex = reader.GetOrdinal("DiscountCode");
@@ -140,7 +140,7 @@ namespace EduCore_DataAccess
                     int allowedUseIndex = reader.GetOrdinal("AllowedUseNumber");
                     int totalUsedIndex = reader.GetOrdinal("TotalUserNumber");
                     
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         discounts.Add(new DtoDiscountCode
                         {

@@ -10,7 +10,7 @@ namespace EduCore_DataAccess
 {
     public class clsLessonsData
     {
-        public static int AddLesson(DtoLessons lesson, SqlConnection conn, SqlTransaction tx)
+        public static async Task<int> AddLesson(DtoLessons lesson, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"INSERT INTO Lessons 
                         (ProductId, Title, VideoUrl, BodyText, InstructorId)
@@ -30,7 +30,7 @@ namespace EduCore_DataAccess
 
                 command.Parameters.Add("@InstructorId", SqlDbType.Int).Value = lesson.InstructorId;
 
-                var result = command.ExecuteScalar();
+                var result = await command.ExecuteScalarAsync();
 
                 lessonId = result != null ? Convert.ToInt32(result) : -1;
 
@@ -40,7 +40,7 @@ namespace EduCore_DataAccess
         }
 
 
-        private static DtoLessons GetLessonInternal(int lessonId, bool IncludeDeleted = false)
+        private static async Task<DtoLessons> GetLessonInternal(int lessonId, bool IncludeDeleted = false)
         {
             if (lessonId <= 0) return null;
 
@@ -58,11 +58,11 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = lessonId;
                 command.Parameters.Add("@IncludeDeleted", SqlDbType.Bit).Value = IncludeDeleted;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         int idIndex = reader.GetOrdinal("Id");
                         int productIndex = reader.GetOrdinal("ProductId");
@@ -93,13 +93,13 @@ namespace EduCore_DataAccess
             return lesson;
         }
 
-        public static DtoLessons GetLessonById(int lessonId)
-            => GetLessonInternal(lessonId);
+        public static async Task<DtoLessons> GetLessonById(int lessonId)
+            => await GetLessonInternal(lessonId);
 
-        public static DtoLessons GetLessonByIdIncludeDeleted(int lessonId)
-            => GetLessonInternal(lessonId, true);
+        public static async Task<DtoLessons> GetLessonByIdIncludeDeleted(int lessonId)
+            => await GetLessonInternal(lessonId, true);
 
-        public static bool UpdateLesson(DtoLessons lesson, SqlConnection conn, SqlTransaction tx)
+        public static async Task<bool> UpdateLesson(DtoLessons lesson, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Lessons
                          SET Title = @Title,
@@ -122,13 +122,13 @@ namespace EduCore_DataAccess
 
                 command.Parameters.Add("@InstructorId", SqlDbType.Int).Value = lesson.InstructorId;
 
-                rows = command.ExecuteNonQuery();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
 
-        private static bool ControlDeleteLesson(int lessonId, int AdminId, bool UnDelete = false)
+        private static async Task<bool> ControlDeleteLesson(int lessonId, int AdminId, bool UnDelete = false)
         {
             string query = @"UPDATE Lessons
                          SET IsDeleted = 1,
@@ -152,24 +152,23 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = lessonId;
                 command.Parameters.Add("@AdminId", SqlDbType.Int).Value = AdminId;
 
-                connection.Open();
-                rows = command.ExecuteNonQuery();
+                await connection.OpenAsync();
+                rows = await command.ExecuteNonQueryAsync();
             }
 
             return rows > 0;
         }
-
-        public static bool DeleteLesson(int lessonId,int adminId)
+        public static async Task<bool> DeleteLesson(int lessonId,int adminId)
         {
-            return ControlDeleteLesson(lessonId, adminId);
+            return await ControlDeleteLesson(lessonId, adminId);
         }
 
-        public static bool UnDeleteLesson(int lessonId, int adminId)
+        public static async Task<bool> UnDeleteLesson(int lessonId, int adminId)
         {
-            return ControlDeleteLesson(lessonId,adminId,true);
+            return await ControlDeleteLesson(lessonId,adminId,true);
         }
 
-        private static List<DtoLessons> GetAllLessonsInternal(int pageNumber, int pageSize, bool IncludeDeleted = false)
+        private static async Task<List<DtoLessons>> GetAllLessonsInternal(int pageNumber, int pageSize, bool IncludeDeleted = false)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -191,9 +190,9 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
                 command.Parameters.Add("@IncludeDeleted", SqlDbType.Bit).Value = IncludeDeleted;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int productIndex = reader.GetOrdinal("ProductId");
@@ -205,7 +204,7 @@ namespace EduCore_DataAccess
                     int deletedByIndex = reader.GetOrdinal("DeletedById");
                     int instructorIndex = reader.GetOrdinal("InstructorId");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         lessons.Add(new DtoLessons
                         {
@@ -226,13 +225,13 @@ namespace EduCore_DataAccess
             return lessons;
         }
 
-        public static List<DtoLessons> GetAllLessons(int pageNumber, int pageSize)
-            => GetAllLessonsInternal(pageNumber, pageSize);
+        public static async Task<List<DtoLessons>> GetAllLessons(int pageNumber, int pageSize)
+            => await GetAllLessonsInternal(pageNumber, pageSize);
 
-        public static List<DtoLessons> GetAllLessonsIncludeDeleted(int pageNumber, int pageSize)
-            => GetAllLessonsInternal(pageNumber, pageSize, true);
+        public static async Task<List<DtoLessons>> GetAllLessonsIncludeDeleted(int pageNumber, int pageSize)
+            => await GetAllLessonsInternal(pageNumber, pageSize, true);
 
-        public static List<LessonsWithOutCoursesViewModel> GetAllLessonsWithOutCourses(int pageNumber, int pageSize)
+        public static async Task<List<LessonsWithOutCoursesViewModel>> GetAllLessonsWithOutCourses(int pageNumber, int pageSize)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -250,9 +249,9 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 command.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
 
-                connection.Open();
+               await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int nameIndex = reader.GetOrdinal("Name");
@@ -264,7 +263,7 @@ namespace EduCore_DataAccess
                     int instructorIdIndex = reader.GetOrdinal("InstructorId");
                     int instructorNameIndex = reader.GetOrdinal("InstructorId");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         lessons.Add(new LessonsWithOutCoursesViewModel
                         {
@@ -285,7 +284,7 @@ namespace EduCore_DataAccess
             return lessons;
         }
 
-        public static List<LessonsByCourseViewModel> GetLessonsByCourse(int courseId)
+        public static async Task<List<LessonsByCourseViewModel>> GetLessonsByCourse(int courseId)
         {
             List<LessonsByCourseViewModel> lessons = new List<LessonsByCourseViewModel>();
 
@@ -298,9 +297,9 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
 
-                connection.Open();
+                await connection.OpenAsync();
 
-                using (SqlDataReader reader = command.ExecuteReader())
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int nameIndex = reader.GetOrdinal("Name");
@@ -313,7 +312,7 @@ namespace EduCore_DataAccess
                     int instructorNameIndex = reader.GetOrdinal("InstructorId");
                     int courseIdIndex = reader.GetOrdinal("CourseId");
 
-                    while (reader.Read())
+                    while (await reader.ReadAsync())
                     {
                         lessons.Add(new LessonsByCourseViewModel
                         {

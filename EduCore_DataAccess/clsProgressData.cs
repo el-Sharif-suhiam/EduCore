@@ -11,7 +11,7 @@ namespace EduCore_DataAccess
 {
     public class clsProgressData
     {
-        public static bool UpsertProgress(DtoProgress progress)
+        public static async Task<bool> UpsertProgress(DtoProgress progress)
         {
             string query = @"IF EXISTS (SELECT 1 FROM Progress WHERE UserId = @UserId AND LessonId = @LessonId)
                             BEGIN
@@ -37,12 +37,12 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@IsComplete", SqlDbType.Bit)
                     .Value = (object?)progress.IsComplete ?? DBNull.Value;
 
-                con.Open();
-                return cmd.ExecuteNonQuery() > 0;
+                await con.OpenAsync();
+                return await cmd.ExecuteNonQueryAsync() > 0;
             }
         }
 
-        public static DtoProgress GetProgress(int userId, int lessonId)
+        public static async Task<DtoProgress> GetProgress(int userId, int lessonId)
         {
             string query = @"SELECT UserId, LessonId, CompletedDate, IsComplete
                          FROM Progress
@@ -54,18 +54,23 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = userId;
                 cmd.Parameters.Add("@LessonId", SqlDbType.Int).Value = lessonId;
 
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
+                        int userIdIndex = reader.GetOrdinal("UserId");
+                        int lessonIdIndex = reader.GetOrdinal("LessonId");
+                        int completedDateIndex = reader.GetOrdinal("CompletedDate");
+                        int isCompleteIndex = reader.GetOrdinal("IsComplete");
+
                         return new DtoProgress
                         {
-                            UserId = reader.GetInt32(0),
-                            LessonId = reader.GetInt32(1),
-                            CompletedDate = reader.IsDBNull(2) ? null : reader.GetDateTime(2),
-                            IsComplete = reader.IsDBNull(3) ? null : reader.GetBoolean(3)
+                            UserId = reader.GetInt32(userIdIndex),
+                            LessonId = reader.GetInt32(lessonIdIndex),
+                            CompletedDate = reader.IsDBNull(completedDateIndex) ? null : reader.GetDateTime(completedDateIndex),
+                            IsComplete = reader.IsDBNull(isCompleteIndex) ? null : reader.GetBoolean(isCompleteIndex)
                         };
                     }
                 }
@@ -75,7 +80,7 @@ namespace EduCore_DataAccess
         }
 
 
-        public static CourseProgressViewModel GetCourseProgress(int userId, int courseId)
+        public static async Task<CourseProgressViewModel> GetCourseProgress(int userId, int courseId)
         {
             string query = @"SELECT 
                                  l.Id,
@@ -101,18 +106,23 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = userId;
                 cmd.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
 
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
-                    while (reader.Read())
+                    int titleIndex = reader.GetOrdinal("Title");
+                    int lessonIdIndex = reader.GetOrdinal("LessonId");
+                    int completedDateIndex = reader.GetOrdinal("CompletedDate");
+                    int isCompleteIndex = reader.GetOrdinal("IsComplete");
+
+                    while (await reader.ReadAsync())
                     {
                         result.Lessons.Add(new LessonProgressVM
                         {
-                            LessonId = reader.GetInt32(0),
-                            Title = reader.GetString(1),
-                            IsComplete = !reader.IsDBNull(2) && reader.GetBoolean(2),
-                            CompletedDate = reader.IsDBNull(3) ? null : reader.GetDateTime(3)
+                            LessonId = reader.GetInt32(lessonIdIndex),
+                            Title = reader.GetString(titleIndex),
+                            IsComplete = !reader.IsDBNull(isCompleteIndex) && reader.GetBoolean(isCompleteIndex),
+                            CompletedDate = reader.IsDBNull(completedDateIndex) ? null : reader.GetDateTime(completedDateIndex)
                         });
                     }
                 }

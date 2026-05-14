@@ -8,29 +8,29 @@ namespace EduCore_BusinessLayer
 {
     public class clsUsersRoles
     {
-        public static bool RegistInstructor(int userId)
+        public static async Task<bool> RegistInstructor(int userId)
         {
-            return clsUserRolesData.AddRoleToUser(userId, enRoles.Instructor);
+            return await clsUserRolesData.AddRoleToUser(userId, enRoles.Instructor);
         }
 
-        public static bool RemoveInstructor(int userId) { 
-            return clsUserRolesData.RemoveRoleFromUser(userId, enRoles.Instructor);
+        public static async Task<bool> RemoveInstructor(int userId) { 
+            return await clsUserRolesData.RemoveRoleFromUser(userId, enRoles.Instructor);
         }
 
-        public static bool AddAdmin(int userId) {
-            return clsUserRolesData.AddRoleToUser(userId, enRoles.Admin);
+        public static async Task<bool> AddAdmin(int userId) {
+            return await clsUserRolesData.AddRoleToUser(userId, enRoles.Admin);
         }
 
-        public static bool RemoveAdmin(int userId) {
-            return clsUserRolesData.RemoveRoleFromUser(userId, enRoles.Admin);
+        public static async Task<bool> RemoveAdmin(int userId) {
+            return await clsUserRolesData.RemoveRoleFromUser(userId, enRoles.Admin);
         }
 
-        public static bool IsUserAdmin(int userId) {
-            return clsUserRolesData.IsUserAdmin(userId);
+        public static async Task<bool> IsUserAdmin(int userId) {
+            return await clsUserRolesData.IsUserAdmin(userId);
         }
 
-        public static bool IsUserInstructor(int userId) {
-            return clsUserRolesData.IsUserInstructor(userId);
+        public static async Task<bool> IsUserInstructor(int userId) {
+            return await clsUserRolesData.IsUserInstructor(userId);
         }
     }
 }

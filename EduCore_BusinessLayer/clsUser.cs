@@ -124,17 +124,17 @@ namespace EduCore_BusinessLayer
             clsUser user = new clsUser(dtoUser);
             return user;
         }
-        public static clsUser Find(int userId)
+        public static async Task<clsUser> Find(int userId)
         {
-            DtoUser DtoUser = clsUsersData.GetUserById(userId);
+            DtoUser DtoUser = await clsUsersData.GetUserById(userId);
 
             return _FindInternal(DtoUser);
             
         }
 
-        public static clsUser Find(string email)
+        public static async Task<clsUser> Find(string email)
         {
-            DtoUser dtoUser = clsUsersData.GetUserByEmail(email);
+            DtoUser dtoUser = await clsUsersData.GetUserByEmail(email);
             return _FindInternal(dtoUser);
         }
 
@@ -167,11 +167,11 @@ namespace EduCore_BusinessLayer
         }
 
 
-        bool _AddUser()
+        async Task<bool> _AddUser()
         {
-            return clsGeneralData.ExecuteTransaction((conn, tx) =>
+            return await clsGeneralData.ExecuteTransaction(async(conn, tx) =>
             {
-                int userId = clsUsersData.AddUser(_userData, conn, tx);
+                int userId = await clsUsersData.AddUser(_userData, conn, tx);
 
                 if (userId <= 0)
                     throw new ConflictException("User creation failed");
@@ -179,7 +179,7 @@ namespace EduCore_BusinessLayer
                 _userData.Id = userId;
 
 
-                bool roleAdded = clsUserRolesData.AddRoleToUser(userId,enRoles.Student, conn, tx);
+                bool roleAdded = await clsUserRolesData.AddRoleToUser(userId,enRoles.Student, conn, tx);
 
                 if (!roleAdded)
                     throw new ConflictException("Failed to assign role");
@@ -188,58 +188,58 @@ namespace EduCore_BusinessLayer
                 return true;
             });
         }
-        bool _UpdateUser()
+        async Task<bool> _UpdateUser()
         {
-            return clsUsersData.UpdateUser(_userData);
+            return await clsUsersData.UpdateUser(_userData);
         }
 
-        public bool Save()
+        public async Task<bool> Save()
         {
             switch (_Mode)
             {
                 case enMode.Add:
                     ValidateForAdd();
-                    if (clsUsersData.IsEmailExist(_userData.Email))
+                    if (await clsUsersData.IsEmailExist(_userData.Email))
                         throw new ConflictException("Email already exists");
-                    return _AddUser();
+                    return await _AddUser();
                 case enMode.Update:
-                    return _UpdateUser();
+                    return await _UpdateUser();
                 default: return false;
             }
         }
 
-        public bool IsEmailExist( string email)
+        public async Task<bool> IsEmailExist( string email)
         {
-            return clsUsersData.IsEmailExist(email);
+            return await clsUsersData.IsEmailExist(email);
         }
         
-        public static bool DeleteUser(int id)
+        public static async Task<bool> DeleteUser(int id)
         {
-            return clsUsersData.DeactivateUser(id);
+            return await clsUsersData.DeactivateUser(id);
         }
 
-        public static List<UsersViewModel> GetAllStudents(int pageNumber,int pageSize, bool IncludeNonActive = false)
+        public static async Task<List<UsersViewModel>> GetAllStudents(int pageNumber,int pageSize, bool IncludeNonActive = false)
         {
             if (IncludeNonActive)
-                return clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Student);
+                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Student);
             else
-                return clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Student);
+                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Student);
         }
 
-        public static List<UsersViewModel> GetAllInstructor(int pageNumber, int pageSize, bool IncludeNonActive = false)
+        public static async Task<List<UsersViewModel>> GetAllInstructor(int pageNumber, int pageSize, bool IncludeNonActive = false)
         {
             if (IncludeNonActive)
-                return clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Instructor);
+                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Instructor);
             else
-                return clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Instructor);
+                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Instructor);
         }
 
-        public static List<UsersViewModel> GetAllAdmin(int pageNumber, int pageSize, bool IncludeNonActive = false)
+        public static async Task<List<UsersViewModel>> GetAllAdmin(int pageNumber, int pageSize, bool IncludeNonActive = false)
         {
             if (IncludeNonActive)
-                return clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Admin);
+                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Admin);
             else
-                return clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Admin);
+                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Admin);
         }
 
     }

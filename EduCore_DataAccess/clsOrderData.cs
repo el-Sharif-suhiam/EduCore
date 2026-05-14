@@ -12,7 +12,7 @@ namespace EduCore_DataAccess
 {
     public class clsOrderData
     {
-        public static int CreateOrder(DtoOrder order, SqlConnection conn, SqlTransaction tx)
+        public static async Task<int> CreateOrder(DtoOrder order, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"INSERT INTO Orders (UserId, TotalPrice, Status)
                              VALUES (@UserId, @TotalPrice, @Status);
@@ -28,13 +28,13 @@ namespace EduCore_DataAccess
                     .Value = order.Status.ToString();
 
 
-                var result = cmd.ExecuteScalar();
+                var result = await cmd.ExecuteScalarAsync();
 
                 return (result != null && int.TryParse(result.ToString(), out int id)) ? id : -1;
             }
         }
 
-        public static DtoOrder GetOrderById(int orderId)
+        public static async Task<DtoOrder> GetOrderById(int orderId)
         {
             string query = @"SELECT Id, UserId, TotalPrice, Status, CreatedAt
                          FROM Orders
@@ -45,9 +45,9 @@ namespace EduCore_DataAccess
             {
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = orderId;
 
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int userIndex = reader.GetOrdinal("UserId");
@@ -55,7 +55,7 @@ namespace EduCore_DataAccess
                     int statusIndex = reader.GetOrdinal("Status");
                     int createdAtIndex = reader.GetOrdinal("CreatedAt");
 
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         return new DtoOrder
                         {
@@ -72,7 +72,7 @@ namespace EduCore_DataAccess
             return null;
         }
 
-        public static bool UpdateStatus(int orderId, string status)
+        public static async Task<bool> UpdateStatus(int orderId, string status)
         {
             string query = @"UPDATE Orders
                          SET Status = @Status
@@ -84,12 +84,12 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = orderId;
                 cmd.Parameters.Add("@Status", SqlDbType.VarChar, 50).Value = status.ToString();
 
-                con.Open();
-                return cmd.ExecuteNonQuery() > 0;
+                await con.OpenAsync();
+                return await cmd.ExecuteNonQueryAsync() > 0;
             }
         }
 
-        public static bool UpdateTotal(int orderId, decimal total,SqlConnection conn, SqlTransaction tx)
+        public static async Task<bool> UpdateTotal(int orderId, decimal total,SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Orders
                          SET TotalPrice = @Total
@@ -100,12 +100,12 @@ namespace EduCore_DataAccess
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = orderId;
                 cmd.Parameters.Add("@Total", SqlDbType.Decimal).Value = total;
 
-                return cmd.ExecuteNonQuery() > 0;
+                return await cmd.ExecuteNonQueryAsync() > 0;
             }
         }
 
 
-        public static DtoOrder GetPendingOrderForUser(int UserId)
+        public static async Task<DtoOrder> GetPendingOrderForUser(int UserId)
         {
             string query = @"SELECT Id, UserId, TotalPrice, Status, CreatedAt
                          FROM Orders
@@ -116,22 +116,22 @@ namespace EduCore_DataAccess
             {
                 cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = UserId;
 
-                con.Open();
+                await con.OpenAsync();
 
-                using (SqlDataReader reader = cmd.ExecuteReader())
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
                     int userIndex = reader.GetOrdinal("UserId");
                     int totalPriceIndex = reader.GetOrdinal("TotalPrice");
                     int statusIndex = reader.GetOrdinal("Status");
                     int createdAtIndex = reader.GetOrdinal("CreatedAt");
-                    if (reader.Read())
+                    if (await reader.ReadAsync())
                     {
                         return new DtoOrder
                         {
                             Id = reader.GetInt32(idIndex),
                             UserId = reader.GetInt32(userIndex),
-                            TotalPrice = reader.IsDBNull(totalPriceIndex) ? null : reader.GetDecimal(totalPriceIndex),
+                            TotalPrice = reader.GetDecimal(totalPriceIndex),
                             Status = (enOrderStatus)Enum.Parse(typeof(enOrderStatus), reader.GetString(statusIndex)),
                             CreatedAt = reader.GetDateTime(createdAtIndex)
                         };
