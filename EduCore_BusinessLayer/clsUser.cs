@@ -37,9 +37,10 @@ namespace EduCore_BusinessLayer
         public string Email => _userData.Email;
         public string Name => _userData.Name;
         public DateTime CreatedAt => _userData.CreatedAt;
-        public DateTime? BirthDate => _userData.BirthDate;
+        public DateTime BirthDate => _userData.BirthDate;
         public DateTime? RefreshTokenExpiresAt => _userData.RefreshTokenExpiresAt;
         public DateTime? RefreshTokenRevokedAt => _userData.RefreshTokenRevokedAt;
+        public List<string> Roles => _userData.Roles;
 
         // setters 
 
@@ -99,12 +100,19 @@ namespace EduCore_BusinessLayer
              return BCrypt.Net.BCrypt.Verify(refreshToken, _userData.RefreshTokenHash);
          }
         
-         public void SetRefreshRevokedAt(DateTime date)
+         public void SetRefreshRevokedAt(DateTime? date)
          {
-             if (date > DateTime.UtcNow.AddMinutes(1))
-                 throw new ValidationException("Invalid revoked date");
-        
-             _userData.RefreshTokenRevokedAt = DateTime.SpecifyKind(date, DateTimeKind.Utc);
+            if (date == null)
+            {
+                _userData.RefreshTokenRevokedAt = null;
+            }
+            else
+            {
+                if (date > DateTime.UtcNow.AddMinutes(1))
+                    throw new ValidationException("Invalid revoked date");
+
+                _userData.RefreshTokenRevokedAt = DateTime.SpecifyKind((DateTime)date, DateTimeKind.Utc);
+            }
          }
         
          public void SetRefreshExpiredAt(DateTime date)
@@ -116,26 +124,26 @@ namespace EduCore_BusinessLayer
          }
     
 
-        private static clsUser _FindInternal(DtoUser dtoUser)
-        {
-            if (dtoUser == null)
-                throw new NotFoundException("There is no user with this credentials");
-
-            clsUser user = new clsUser(dtoUser);
-            return user;
-        }
+        
         public static async Task<clsUser> Find(int userId)
         {
             DtoUser DtoUser = await clsUsersData.GetUserById(userId);
 
-            return _FindInternal(DtoUser);
-            
+            if (DtoUser == null)
+                throw new NotFoundException("There is no user with this id");
+
+            clsUser user = new clsUser(DtoUser);
+            return user;            
         }
 
         public static async Task<clsUser> Find(string email)
         {
             DtoUser dtoUser = await clsUsersData.GetUserByEmail(email);
-            return _FindInternal(dtoUser);
+            if (dtoUser == null)
+                throw new UnauthorizedAccessException("Invalid credentials");
+
+            clsUser user = new clsUser(dtoUser);
+            return user;
         }
 
         private void ValidateForAdd()
@@ -167,7 +175,7 @@ namespace EduCore_BusinessLayer
         }
 
 
-        async Task<bool> _AddUser()
+        async Task<bool> _AddUser(string? ip, string? userAgent)
         {
             return await clsGeneralData.ExecuteTransaction(async(conn, tx) =>
             {
@@ -184,16 +192,35 @@ namespace EduCore_BusinessLayer
                 if (!roleAdded)
                     throw new ConflictException("Failed to assign role");
 
+                await clsAudit.LogAsync(userId,
+                                        enAuditActionType.CreateUser, 
+                                        "User",
+                                        userId,
+                                        $"New user created: {_userData.Email}",ip,userAgent,
+                                        conn,
+                                        tx);
                 _Mode = enMode.Update;
                 return true;
             });
         }
-        async Task<bool> _UpdateUser()
+        async Task<bool> _UpdateUser(string? ip, string? userAgent)
         {
-            return await clsUsersData.UpdateUser(_userData);
+
+            bool result = await clsUsersData.UpdateUser(_userData);
+
+            if (!result)
+                throw new ConflictException("Update failed");
+
+            await clsAudit.LogAsync(
+                Id,
+                enAuditActionType.UpdateUser,
+                "User",
+                _userData.Id,
+                $"User {_userData.Id} updated",ip, userAgent);
+            return result;
         }
 
-        public async Task<bool> Save()
+        public async Task<bool> Save(string? ipAddress, string? userAgent)
         {
             switch (_Mode)
             {
@@ -201,21 +228,33 @@ namespace EduCore_BusinessLayer
                     ValidateForAdd();
                     if (await clsUsersData.IsEmailExist(_userData.Email))
                         throw new ConflictException("Email already exists");
-                    return await _AddUser();
+                    return await _AddUser(ipAddress,userAgent);
                 case enMode.Update:
-                    return await _UpdateUser();
+                    return await _UpdateUser(ipAddress,userAgent);
                 default: return false;
             }
         }
 
-        public async Task<bool> IsEmailExist( string email)
+        public static async Task<bool> IsEmailExist( string email)
         {
             return await clsUsersData.IsEmailExist(email);
         }
-        
-        public static async Task<bool> DeleteUser(int id)
+
+        public static async Task<bool> DeleteUser(int id, int actionByUserId)
         {
-            return await clsUsersData.DeactivateUser(id);
+            bool result = await clsUsersData.DeactivateUser(id);
+
+            if (!result)
+                throw new ConflictException("Failed to delete user");
+
+            await clsAudit.LogAsync(
+                actionByUserId,
+                enAuditActionType.DeleteUser,
+                "User",
+                id,
+                $"User {id} was deleted/deactivated");
+
+            return result;
         }
 
         public static async Task<List<UsersViewModel>> GetAllStudents(int pageNumber,int pageSize, bool IncludeNonActive = false)

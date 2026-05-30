@@ -12,13 +12,13 @@ namespace EduCore_DataAccess
 {
     public class clsOrderData
     {
-        public static async Task<int> CreateOrder(DtoOrder order, SqlConnection conn, SqlTransaction tx)
+        public static async Task<int> CreateOrder(DtoOrder order)
         {
             string query = @"INSERT INTO Orders (UserId, TotalPrice, Status)
                              VALUES (@UserId, @TotalPrice, @Status);
                              SELECT SCOPE_IDENTITY();";
-
-            using (SqlCommand cmd = new SqlCommand(query, conn,tx))
+            using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString)) 
+            using (SqlCommand cmd = new SqlCommand(query, conn))
             {
                 cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = order.UserId;
                 cmd.Parameters.Add("@TotalPrice", SqlDbType.Decimal)
@@ -61,7 +61,7 @@ namespace EduCore_DataAccess
                         {
                             Id = reader.GetInt32(idIndex),
                             UserId = reader.GetInt32(userIndex),
-                            TotalPrice = reader.IsDBNull(totalPriceIndex) ? null : reader.GetDecimal(totalPriceIndex),
+                            TotalPrice =  reader.GetDecimal(totalPriceIndex),
                             Status = (enOrderStatus)Enum.Parse(typeof(enOrderStatus), reader.GetString(statusIndex)),
                             CreatedAt = reader.GetDateTime(createdAtIndex)
                         };

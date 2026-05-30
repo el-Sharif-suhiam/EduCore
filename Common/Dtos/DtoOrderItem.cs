@@ -12,6 +12,9 @@ namespace Common.Dtos
         public int ProductId { get; set; }
 
         public decimal? PriceAtPurchase { get; set; }
+        public string Name { get; set; }
+        public string Summary { get; set; }
+        public string ProductType { get; set; }
 
     }
 

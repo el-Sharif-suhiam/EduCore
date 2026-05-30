@@ -33,12 +33,12 @@
 	Name NVARCHAR(120) NOT NULL,
 	CreatedAt DATE DEFAULT CAST(GETDATE() AS DATE),
 	UpdatedAt DATE,
-	BasePrice SMALLMONEY NOT NULL,
-	CreatedByAdmin Int Not NULL,
+	BasePrice DECIMAL(9,2) NOT NULL,
+	CreatedByUser Int Not NULL,
 	ThumbnailUrl NVARCHAR(500),
 	Summary nvarchar(300),
 	IsPublished bit DEFAULT 0,
-	FOREIGN KEY (CreatedByAdmin) REFERENCES Users(Id)
+	FOREIGN KEY (CreatedByUser) REFERENCES Users(Id)
 	)
 
 	CREATE TABLE Courses (
@@ -70,19 +70,21 @@
 	DeletedAt DATE NULL,
 	DeletedById INT NUll ,
 	InstructorId int,
+    CourseId int NULL,
+    FOREIGN KEY (CourseId) REFERENCES Courses(Id),
 	FOREIGN KEY (ProductId) REFERENCES Products(Id),
 	FOREIGN KEY (DeletedById) REFERENCES Users(Id),
 	FOREIGN KEY (InstructorId) REFERENCES Users(Id)
 	)
 	
-
-	CREATE TABLE CoursesLessons(
-	CourseId int Not Null,
-	LessonId Int Not Null,
-	PRIMARY KEY (CourseId,LessonId),
-	CONSTRAINT FK_CoursesL FOREIGN KEY (CourseId) REFERENCES Courses(Id),
-	CONSTRAINT FK_LessonL FOREIGN KEY (LessonId) REFERENCES Lessons(Id),
-	)
+    
+	--CREATE TABLE CoursesLessons(
+	--CourseId int Not Null,
+	--LessonId Int Not Null,
+	--PRIMARY KEY (CourseId,LessonId),
+	--CONSTRAINT FK_CoursesL FOREIGN KEY (CourseId) REFERENCES Courses(Id),
+	--CONSTRAINT FK_LessonL FOREIGN KEY (LessonId) REFERENCES Lessons(Id),
+	--)
 
 	CREATE TABLE Bundles (
 	Id smallInt PRIMARY KEY IDENTITY(1,1),
@@ -122,7 +124,7 @@
 	CREATE TABLE Orders(
 	Id INT PRIMARY KEY IDENTITY(1,1) NOT NULL,
 	UserId INT NOT NULL,
-	TotalPrice SmallMoney,
+	TotalPrice DECIMAL(9,2),
 	Status varchar(50),
 	CreatedAt DATETIME DEFAULT GETDATE(),
 	FOREIGN KEY (UserId) REFERENCES Users(Id),
@@ -133,28 +135,71 @@
 	Id INT PRIMARY KEY IDENTITY(1,1) NOT NULL,
 	OrderId INT NOT NULL,
 	ProductId INT NOT NULL,
-	PriceAtPurchase SmallMoney,
+	PriceAtPurchase DECIMAL(9,2),
 	FOREIGN KEY (ProductId) REFERENCES Products(Id),
 	FOREIGN KEY (OrderId) REFERENCES Orders(Id),
 	UNIQUE (OrderId, ProductId)
 	)
 	CREATE UNIQUE INDEX UX_Order_Product
 ON OrderItems(OrderId, ProductId);
-	CREATE TABLE Payments (
-	Id INT PRIMARY KEY IDENTITY(1,1) NOT NULL,
-	OrderId Int NOT NULL,
-	PaidAt DATE DEFAULT GETDATE(),
-	Price smallmoney not null,
-	DiscountId SmallInt NULL,
-	DiscountPrice smallmoney NULL,
-	PaymentMethod NVARCHAR(50),
-	Status VARCHAR(50),
-	TransactionId NVARCHAR(200),
-	PayedPrice AS (Price - ISNULL(DiscountPrice,0)) PERSISTED,
-	FOREIGN KEY (OrderId) REFERENCES Orders(Id),
-	FOREIGN KEY (DiscountId) REFERENCES DiscountCodes(Id)
-	)
 
+CREATE TABLE Payments
+(
+    Id INT PRIMARY KEY IDENTITY(1,1),
+
+    OrderId INT NOT NULL,
+
+    CreatedAt DATETIME2 NOT NULL
+    DEFAULT SYSUTCDATETIME(),
+
+    PaidAt DATETIME2 NULL,
+
+    Price DECIMAL(18,2) NOT NULL,
+
+    DiscountId SMALLINT NULL,
+
+    DiscountPrice DECIMAL(18,2) NULL,
+
+    PaymentMethod NVARCHAR(50) NOT NULL,
+
+    Status VARCHAR(50) NOT NULL
+    DEFAULT 'Pending',
+
+    TransactionId NVARCHAR(200) NULL,
+
+    IdempotencyKey VARCHAR(255) NOT NULL,
+
+    FinalPrice AS
+    (
+        Price - ISNULL(DiscountPrice,0)
+    ) PERSISTED,
+
+    FOREIGN KEY (OrderId)
+    REFERENCES Orders(Id),
+
+    FOREIGN KEY (DiscountId)
+    REFERENCES DiscountCodes(Id),
+
+    CHECK (Price >= 0),
+
+    CHECK (DiscountPrice >= 0),
+
+    CHECK (Price >= ISNULL(DiscountPrice,0)),
+
+    CHECK (
+        Status IN
+        ('Pending','Succeeded','Failed','Expired','Cancelled')
+    )
+);
+
+
+CREATE UNIQUE INDEX UX_Payments_IdempotencyKey
+ON Payments(IdempotencyKey);
+
+CREATE UNIQUE INDEX UX_Payments_TransactionId
+ON Payments(TransactionId)
+WHERE TransactionId IS NOT NULL;
+	
 	CREATE TABLE Enrollments (
     Id INT PRIMARY KEY IDENTITY(1,1),
     UserId INT NOT NULL,
@@ -171,6 +216,34 @@ ON OrderItems(OrderId, ProductId);
 
     CONSTRAINT UQ_User_Product UNIQUE (UserId, ProductId)
 	)
+
+    
+    CREATE TABLE Audits (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    UserId INT NOT NULL,
+    ActionType NVARCHAR(100) NOT NULL,
+    EntityType VARCHAR(50) NOT NULL,
+    EntityId INT NOT NULL,
+    Description NVARCHAR(300) NOT NULL,
+    DoneAt DATETIME2 DEFAULT SYSUTCDATETIME(),
+    IpAddress VARCHAR(45) NULL,
+    UserAgent NVARCHAR(500) NULL,
+    FOREIGN KEY (UserId) REFERENCES Users(Id)
+);
+
+    CREATE TABLE Logs(
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    LogType NVARCHAR(30) NOT NULL,
+    Message NVARCHAR(MAX) NOT NULL,
+    Source NVARCHAR(200) NULL,
+    IpAddress VARCHAR(45) NULL,
+    UserAgent NVARCHAR(500) NULL,
+    RequestPath NVARCHAR(300) NULL,
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    );
+
+
+
 
 	CREATE INDEX idx_user_lesson 
 	ON Progress (UserId, LessonId);
@@ -246,7 +319,7 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
-        DECLARE @PriceAtPurchase SMALLMONEY;
+        DECLARE @PriceAtPurchase DECIMAL(9,2);
 
         SELECT @PriceAtPurchase = BasePrice
         FROM Products
@@ -257,7 +330,7 @@ BEGIN
 
         DECLARE @OrderItemId INT = SCOPE_IDENTITY();
 
-        DECLARE @NewTotal SMALLMONEY;
+        DECLARE @NewTotal DECIMAL(9,2);
 
         SELECT @NewTotal = ISNULL(SUM(PriceAtPurchase),0)
         FROM OrderItems
@@ -299,7 +372,7 @@ BEGIN
         WHERE OrderId = @OrderId
           AND ProductId = @ProductId;
 
-        DECLARE @NewTotal SMALLMONEY;
+        DECLARE @NewTotal DECIMAL(9,2);
 
         SELECT @NewTotal = ISNULL(SUM(PriceAtPurchase),0)
         FROM OrderItems
@@ -320,6 +393,169 @@ BEGIN
     END TRY
     BEGIN CATCH
         ROLLBACK;
+        THROW;
+    END CATCH
+END
+
+
+
+
+
+CREATE PROCEDURE SP_CreateNewPayment
+    @OrderId INT,
+    @IdempotencyKey VARCHAR(255),
+    @DiscountId SMALLINT = NULL,
+    @paymentMethod NVARCHAR(60)
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+        -- =========================
+        -- 2. جلب بيانات الطلب
+        -- =========================
+        DECLARE @TotalPrice DECIMAL(9,2);
+        DECLARE @OrderStatus VARCHAR(50);
+
+        SELECT 
+            @TotalPrice = TotalPrice,
+            @OrderStatus = Status
+        FROM Orders
+        WHERE Id = @OrderId;
+
+        IF @TotalPrice IS NULL
+            THROW 50001, 'Order not found', 1;
+
+        IF @OrderStatus <> 'Pending'
+            THROW 50002, 'Order is not valid for payment', 1;
+
+        -- =========================
+        -- 3. حساب الخصم
+        -- =========================
+        DECLARE @DiscountPrice DECIMAL(9,2) = 0;
+
+        IF @DiscountId IS NOT NULL AND @DiscountId > 0
+        BEGIN
+            DECLARE 
+                @ExpireAt DATETIME,
+                @DiscountRate DECIMAL(9,2),
+                @AllowedUseNumber INT,
+                @UsedCount INT;
+
+            SELECT 
+                @ExpireAt = ExpireAt,
+                @DiscountRate = DiscountRate,
+                @AllowedUseNumber = AllowedUseNumber,
+                @UsedCount = TotalUserNumber
+            FROM DiscountCodes
+            WHERE Id = @DiscountId;
+
+            -- انتهاء الصلاحية
+            IF @ExpireAt IS NOT NULL AND @ExpireAt <= SYSUTCDATETIME()
+                THROW 50003, 'Discount expired', 1;
+
+            -- حد الاستخدام
+            IF @AllowedUseNumber <> 0 AND @UsedCount >= @AllowedUseNumber
+                THROW 50004, 'Discount limit reached', 1;
+
+            SET @DiscountPrice = (@TotalPrice * @DiscountRate) / 100;
+        END
+
+        -- =========================
+        -- 4. إدخال الدفع
+        -- =========================
+        INSERT INTO Payments
+        (
+            OrderId,
+            Price,
+            DiscountId,
+            DiscountPrice,
+            PaymentMethod,
+            Status,
+            TransactionId,
+            IdempotencyKey
+        )
+        OUTPUT 
+            INSERTED.Id AS PaymentId,
+            INSERTED.FinalPrice
+        VALUES
+        (
+            @OrderId,
+            @TotalPrice,
+            @DiscountId,
+            @DiscountPrice,
+            @paymentMethod,
+            'Pending',
+            NULL,
+            @IdempotencyKey
+        );
+
+END
+
+
+CREATE PROCEDURE SP_CreateEnrollmentsFromPaidOrder
+    @OrderId INT,
+    @PaymentId INT,
+    @ExpireAt DATETIME2
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+
+        DECLARE @UserId INT;
+        DECLARE @PaymentStatus VARCHAR(50);
+
+        -- جلب صاحب الطلب
+        SELECT @UserId = O.UserId
+        FROM Orders O
+        WHERE O.Id = @OrderId;
+
+        IF @UserId IS NULL
+            THROW 50001, 'Order not found', 1;
+
+        -- التحقق من أن الدفع ناجح وينتمي لنفس الطلب
+        SELECT @PaymentStatus = P.Status
+        FROM Payments P
+        WHERE P.Id = @PaymentId
+          AND P.OrderId = @OrderId;
+
+        IF @PaymentStatus IS NULL
+            THROW 50002, 'Payment not found for this order', 1;
+
+        IF @PaymentStatus <> 'Succeeded'
+            THROW 50003, 'Payment is not succeeded', 1;
+
+        -- 1) إرجاع كل عناصر الطلب
+        SELECT 
+            OI.Id,
+            OI.OrderId,
+            OI.ProductId,
+            OI.PriceAtPurchase
+        FROM OrderItems OI
+        WHERE OI.OrderId = @OrderId;
+
+        -- 2) إنشاء enrollments لكل منتج في الطلب
+        INSERT INTO Enrollments
+            (UserId, ProductId, EnrolledAt, ExpireAt, PaymentId)
+        SELECT DISTINCT
+            @UserId,
+            OI.ProductId,
+            SYSUTCDATETIME(),
+            @ExpireAt,
+            @PaymentId
+        FROM OrderItems OI
+        WHERE OI.OrderId = @OrderId
+          AND NOT EXISTS
+          (
+              SELECT 1
+              FROM Enrollments E
+              WHERE E.UserId = @UserId
+                AND E.ProductId = OI.ProductId
+          );
+
+    END TRY
+    BEGIN CATCH
         THROW;
     END CATCH
 END

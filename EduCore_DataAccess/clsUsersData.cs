@@ -12,14 +12,17 @@ namespace EduCore_DataAccess
 {
     public class clsUsersData
     {
-        private static async Task<DtoUser> GetUserInternal(string whereClause, SqlParameter parameter)
+        
+        private static async Task<DtoUser?> GetUserInternal(string whereClause, SqlParameter parameter)
         {
-            DtoUser user = null;
+            DtoUser? user = null;
 
-            string query = $@"SELECT Id, Name, BirthDate, Email, PasswordHash, 
-                                     RefreshTokenHash, RefreshTokenExpiresAt, RefreshTokenRevokedAt
-                              FROM Users
-                              WHERE {whereClause} AND IsActive = 1";
+            string query = $@"SELECT U.Id,U.Name,U.BirthDate,U.Email,U.PasswordHash,
+                              U.RefreshTokenHash,U.RefreshTokenExpiresAt,U.RefreshTokenRevokedAt, R.Name AS Role
+                              FROM Users U
+                              LEFT JOIN UserRoles UR ON UR.UserId = U.Id
+                              LEFT JOIN Roles R ON UR.RoleId = R.RoleId
+                              WHERE {whereClause} AND U.IsActive = 1;";
 
             using (SqlConnection sqlConnection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand sqlCommand = new SqlCommand(query, sqlConnection))
@@ -30,37 +33,48 @@ namespace EduCore_DataAccess
 
                 using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
-                    if (await reader.ReadAsync())
-                    {
-                        int idIndex = reader.GetOrdinal("Id");
-                        int nameIndex = reader.GetOrdinal("Name");
-                        int birthDateIndex = reader.GetOrdinal("BirthDate");
-                        int emailIndex = reader.GetOrdinal("Email");
-                        int passwordIndex = reader.GetOrdinal("PasswordHash");
-                        int refreshHashIndex = reader.GetOrdinal("RefreshTokenHash");
-                        int refreshExpIndex = reader.GetOrdinal("RefreshTokenExpiresAt");
-                        int revokedIndex = reader.GetOrdinal("RefreshTokenRevokedAt");
+                    int idIndex = reader.GetOrdinal("Id");
+                    int nameIndex = reader.GetOrdinal("Name");
+                    int birthDateIndex = reader.GetOrdinal("BirthDate");
+                    int emailIndex = reader.GetOrdinal("Email");
+                    int passwordIndex = reader.GetOrdinal("PasswordHash");
+                    int refreshHashIndex = reader.GetOrdinal("RefreshTokenHash");
+                    int refreshExpIndex = reader.GetOrdinal("RefreshTokenExpiresAt");
+                    int revokedIndex = reader.GetOrdinal("RefreshTokenRevokedAt");
+                    int roleIndex = reader.GetOrdinal("Role");
 
-                        user = new DtoUser
+                    while (await reader.ReadAsync())
+                    {
+                        if (user == null)
                         {
-                            Id = reader.GetInt32(idIndex),
-                            Name = reader.GetString(nameIndex),
-                            BirthDate = reader.GetDateTime(birthDateIndex),
-                            Email = reader.GetString(emailIndex),
-                            PasswordHash = reader.GetString(passwordIndex),
-                            RefreshTokenHash = reader.IsDBNull(refreshHashIndex) ? null : reader.GetString(refreshHashIndex),
-                            RefreshTokenExpiresAt = reader.GetDateTime(refreshExpIndex),
-                            RefreshTokenRevokedAt = reader.IsDBNull(revokedIndex)
-                                ? null
-                                : reader.GetDateTime(revokedIndex),
-                        };
+                            user = new DtoUser
+                            {
+                                Id = reader.GetInt32(idIndex),
+                                Name = reader.GetString(nameIndex),
+                                BirthDate = reader.GetDateTime(birthDateIndex),
+                                Email = reader.GetString(emailIndex),
+                                PasswordHash = reader.GetString(passwordIndex),
+                                RefreshTokenHash = reader.IsDBNull(refreshHashIndex) ? null : reader.GetString(refreshHashIndex),
+                                RefreshTokenExpiresAt = reader.IsDBNull(refreshExpIndex) ? null : reader.GetDateTime(refreshExpIndex),
+                                RefreshTokenRevokedAt = reader.IsDBNull(revokedIndex) ? null : reader.GetDateTime(revokedIndex),
+                                Roles = new List<string>()
+                            };
+                        }
+
+                        if (!reader.IsDBNull(roleIndex))
+                        {
+                            string role = reader.GetString(roleIndex);
+
+                            if (!user.Roles.Contains(role))
+                                user.Roles.Add(role);
+                        }
                     }
                 }
             }
 
             return user;
         }
-        public static async Task<DtoUser> GetUserById(int id)
+        public static async Task<DtoUser?> GetUserById(int id)
         {
             return await GetUserInternal(
                 "Id = @Id",
@@ -68,7 +82,7 @@ namespace EduCore_DataAccess
             );
         }
 
-        public static async Task<DtoUser> GetUserByEmail(string email)
+        public static async Task<DtoUser?> GetUserByEmail(string email)
         {
             return await GetUserInternal(
                 "Email = @Email",

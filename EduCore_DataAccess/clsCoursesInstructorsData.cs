@@ -97,5 +97,28 @@ namespace EduCore_DataAccess
         
     }
 
+        public static async Task<bool> IsInstructorHasThisCourse(int courseId, int instructorId)
+        {
+
+            const string query = @"SELECT CAST(
+                                CASE WHEN EXISTS (
+                                    CoursesInstructors
+                                WHERE CourseId = @CourseId AND InstructorId = @InstructorId
+                                )
+                                THEN 1 ELSE 0 END
+                            AS BIT)";
+
+            using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.Add("@CourseId", SqlDbType.Int).Value = courseId;
+                command.Parameters.Add("@InstructorId", SqlDbType.Int).Value = instructorId;
+                await connection.OpenAsync();
+
+                object? result = await command.ExecuteScalarAsync();
+                return result != null && (bool)result;
+            }
+        }
+
     }
 }

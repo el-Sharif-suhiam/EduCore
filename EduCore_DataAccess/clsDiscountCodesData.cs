@@ -77,6 +77,49 @@ namespace EduCore_DataAccess
             return null;
         }
 
+        public static async Task<DtoDiscountCode> GetDiscountCodeByCode(string code)
+        {
+            string query = @"SELECT Id, DiscountCode, DiscountRate, CreatedById, ExpireAt,
+                                AllowedUseNumber, TotalUserNumber
+                         FROM DiscountCodes
+                         WHERE DiscountCode = @DiscountCode;";
+
+            using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand cmd = new SqlCommand(query, con))
+            {
+                cmd.Parameters.Add("@DiscountCode", SqlDbType.NVarChar).Value = code;
+
+                await con.OpenAsync();
+
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                {
+                    int idIndex = reader.GetOrdinal("Id");
+                    int discountCodeIndex = reader.GetOrdinal("DiscountCode");
+                    int discountRateIndex = reader.GetOrdinal("DiscountRate");
+                    int createdByIdIndex = reader.GetOrdinal("CreatedById");
+                    int expireAtIndex = reader.GetOrdinal("ExpireAt");
+                    int allowedUseIndex = reader.GetOrdinal("AllowedUseNumber");
+                    int totalUsedIndex = reader.GetOrdinal("TotalUserNumber");
+                    if (await reader.ReadAsync())
+                    {
+                        return new DtoDiscountCode
+                        {
+                            Id = reader.GetInt16(idIndex),
+                            DiscountCode = reader.GetString(discountCodeIndex),
+                            DiscountRate = reader.IsDBNull(discountRateIndex) ? null : reader.GetDecimal(discountRateIndex),
+                            CreatedById = reader.GetInt32(createdByIdIndex),
+                            ExpireAt = reader.IsDBNull(expireAtIndex) ? null : reader.GetDateTime(expireAtIndex),
+                            AllowedUseNumber = reader.IsDBNull(allowedUseIndex) ? null : reader.GetInt16(allowedUseIndex),
+                            TotalUsedNumber = reader.IsDBNull(totalUsedIndex) ? null : reader.GetInt16(totalUsedIndex)
+                        };
+                    }
+                }
+            }
+
+            return null;
+        }
+
+
         public static async Task<bool> UpdateDiscountCode(DtoDiscountCode dto)
         {
             string query = @"UPDATE DiscountCodes

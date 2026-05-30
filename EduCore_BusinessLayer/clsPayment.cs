@@ -1,0 +1,410 @@
+﻿//using Common.Dtos;
+//using Common.Enums;
+//using Common.Exceptions;
+//using Common.Utils;
+//using EduCore_DataAccess;
+//using Microsoft.Data.SqlClient;
+//using System;
+//using System.Collections.Generic;
+//using System.ComponentModel.DataAnnotations;
+//using System.Threading.Tasks;
+
+//namespace EduCore_BusinessLayer
+//{
+//    public class clsPayment
+//    {
+//        private DtoPayment _Payment;
+
+//        public int Id => _Payment.Id;
+//        public int OrderId => _Payment.OrderId;
+//        public string? PaymentMethod => _Payment.PaymentMethod;
+//        public enPaymentStatus Status => _Payment.Status;
+//        public string? TransactionId => _Payment.TransactionId;
+//        public string IdempotencyKey => _Payment.IdempotencyKey;
+//        public decimal FinalPrice => _Payment.FinalPrice;
+
+//        public bool IsPending => Status == enPaymentStatus.Pending;
+//        public bool IsSucceeded => Status == enPaymentStatus.Succeeded;
+//        public bool IsFailed => Status == enPaymentStatus.Failed;
+//        public bool IsExpired => Status == enPaymentStatus.Expired;
+
+//        public clsPayment()
+//        {
+//            _Payment = new DtoPayment
+//            {
+//                Status = enPaymentStatus.Pending
+//            };
+
+//        }
+
+//        private clsPayment(DtoPayment payment)
+//        {
+//            _Payment = payment ?? throw new ArgumentNullException(nameof(payment));
+
+//        }
+
+
+
+//        public void SetPaymentMethod(string? paymentMethod)
+//        {
+//            if (string.IsNullOrWhiteSpace(paymentMethod))
+//            {
+//                _Payment.PaymentMethod = null;
+//                return;
+//            }
+
+//            _Payment.PaymentMethod = paymentMethod.Trim();
+//        }
+
+//        public static async Task<clsPayment> FindAsync(int id)
+//        {
+//            if (id <= 0)
+//                throw new ValidationException("Payment id is not valid.");
+
+//            DtoPayment? payment = await clsPaymentData.GetPaymentByIdAsync(id);
+
+//            if (payment == null)
+//                throw new NotFoundException("Payment not found.");
+
+//            return new clsPayment(payment);
+//        }
+
+//        public static async Task<List<DtoPayment>> GetAllPaymentsAsync(int pageNumber, int pageSize)
+//        {
+//            return await clsPaymentData.GetAllPayments(pageNumber, pageSize);
+//        }
+
+//        public static async Task<List<DtoPayment>> GetAllPaymentsForUserAsync(int pageNumber, int pageSize, int userId)
+//        {
+//            if (userId <= 0)
+//                throw new ValidationException("User id is not valid.");
+
+//            return await clsPaymentData.GetAllPaymentsForUser(pageNumber, pageSize, userId);
+//        }
+
+//        public async Task<bool> CreatePayment(int orderId, string IdempotencyKey, short? discountId = null)
+//        {
+//            clsOrder order = await clsOrder.Find(orderId);
+//            if (order.Status != enOrderStatus.Pending || order.TotalPrice <= 0)
+//                throw new ValidationException("this order is not valid for payment!");
+
+//            DtoPaymentInitRespone respone = await clsPaymentData.CreatePaymentAsync(orderId, IdempotencyKey,_Payment.PaymentMethod ,discountId);
+
+//            if (respone == null)
+//                throw new ConflictException("Error when making payment");
+//            _Payment.Id = respone.Id;
+//            return respone.Id > 0;
+//        }
+
+
+//        public async Task<bool> MarkAsSucceededAsync(
+//            string transactionId,
+//            SqlConnection conn,
+//            SqlTransaction tx,
+//            DateTime? paidAt = null)
+//        {
+//            if (_Payment.Id <= 0)
+//                throw new ValidationException("Invalid payment id.");
+
+//            if (string.IsNullOrWhiteSpace(transactionId))
+//                throw new ValidationException("Transaction id is required.");
+
+//            if (_Payment.Status != enPaymentStatus.Pending)
+//                return false;
+
+//            string cleanTransactionId = transactionId.Trim();
+
+//            DateTime finalPaidAt = paidAt ?? DateTime.UtcNow;
+
+//            bool updated =
+//                await clsPaymentData.UpdateStatusWithTransaction(
+//                    _Payment.Id,
+//                    enPaymentStatus.Succeeded,
+//                    cleanTransactionId,
+//                    finalPaidAt,
+//                    conn,
+//                    tx);
+
+//            if (!updated)
+//                throw new ConflictException(
+//                    "Failed to update payment status.");
+
+//            _Payment.Status = enPaymentStatus.Succeeded;
+//            _Payment.TransactionId = cleanTransactionId;
+//            _Payment.PaidAt = finalPaidAt;
+
+//            return true;
+//        }
+//        public async Task<bool> MarkAsFailedAsync(string? transactionId = null)
+//        {
+//            if (_Payment.Id <= 0)
+//                throw new ValidationException("Invalid payment id.");
+
+//            if (_Payment.Status == enPaymentStatus.Failed)
+//                return true;
+
+//            bool updated = await clsPaymentData.UpdateStatus(
+//                _Payment.Id,
+//                enPaymentStatus.Failed,
+//                string.IsNullOrWhiteSpace(transactionId) ? _Payment.TransactionId : transactionId.Trim(),
+//                null
+//            );
+
+//            if (!updated)
+//                throw new ConflictException("Failed to update payment status.");
+
+//            _Payment.Status = enPaymentStatus.Failed;
+
+//            if (!string.IsNullOrWhiteSpace(transactionId))
+//                _Payment.TransactionId = transactionId.Trim();
+
+//            return true;
+//        }
+
+//        public async Task<bool> MarkAsExpiredAsync()
+//        {
+//            if (_Payment.Id <= 0)
+//                throw new ValidationException("Invalid payment id.");
+
+//            if (_Payment.Status == enPaymentStatus.Expired)
+//                return true;
+
+//            bool updated = await clsPaymentData.UpdateStatus(
+//                _Payment.Id,
+//                enPaymentStatus.Expired,
+//                null,
+//                null
+//            );
+
+//            if (!updated)
+//                throw new ConflictException("Failed to update payment status.");
+
+//            _Payment.Status = enPaymentStatus.Expired;
+//            return true;
+//        }
+//    }
+//}
+
+
+
+
+using Common.Dtos;
+using Common.Enums;
+using Common.Exceptions;
+using Common.Utils;
+using EduCore_DataAccess;
+using Microsoft.Data.SqlClient;
+using System.ComponentModel.DataAnnotations;
+
+namespace EduCore_BusinessLayer
+{
+    public class clsPayment
+    {
+        private DtoPayment _Payment;
+
+        public int Id => _Payment.Id;
+        public int OrderId => _Payment.OrderId;
+        public string? PaymentMethod => _Payment.PaymentMethod;
+        public enPaymentStatus Status => _Payment.Status;
+        public string? TransactionId => _Payment.TransactionId;
+        public string IdempotencyKey => _Payment.IdempotencyKey;
+        public decimal FinalPrice => _Payment.FinalPrice;
+
+        public bool IsPending => Status == enPaymentStatus.Pending;
+        public bool IsSucceeded => Status == enPaymentStatus.Succeeded;
+        public bool IsFailed => Status == enPaymentStatus.Failed;
+        public bool IsExpired => Status == enPaymentStatus.Expired;
+
+        public clsPayment()
+        {
+            _Payment = new DtoPayment
+            {
+                Status = enPaymentStatus.Pending
+            };
+        }
+
+        private clsPayment(DtoPayment payment)
+        {
+            _Payment = payment
+                ?? throw new ArgumentNullException(nameof(payment));
+        }
+
+        public void SetPaymentMethod(string? paymentMethod)
+        {
+            _Payment.PaymentMethod =
+                string.IsNullOrWhiteSpace(paymentMethod)
+                    ? null
+                    : paymentMethod.Trim();
+        }
+
+
+        public static async Task<clsPayment> FindAsync(int id)
+        {
+            if (id <= 0)
+                throw new ValidationException("Payment id is not valid.");
+
+            var payment =
+                await clsPaymentData.GetPaymentByIdAsync(id);
+
+            if (payment is null)
+                throw new NotFoundException("Payment not found.");
+
+            return new clsPayment(payment);
+        }
+
+        private static string GenerateIdempotencyKey()
+        {
+            return Guid.NewGuid().ToString("N");
+        }
+        public async Task<bool> CreatePayment(
+            int orderId,
+            short? discountId = null)
+        {
+            clsOrder order = await clsOrder.Find(orderId);
+
+            if (order.Status != enOrderStatus.Pending)
+                throw new ValidationException("Order is not valid for payment");
+
+            if (order.TotalPrice <= 0)
+                throw new ValidationException("Order total is invalid");
+            string idempotencyKey = GenerateIdempotencyKey();
+
+            var response =
+                await clsPaymentData.CreatePaymentAsync(
+                    orderId,
+                    idempotencyKey,
+                    _Payment.PaymentMethod,
+                    discountId);
+
+            if (response is null)
+                throw new ConflictException("Error creating payment");
+
+            _Payment.Id = response.Id;
+
+            await clsAudit.LogAsync(
+                userId: order.UserId,
+                actionType: enAuditActionType.CreatePayment,
+                entityType: "Payment",
+                entityId: response.Id,
+                description: $"Payment created for order {orderId}");
+
+            return response.Id > 0;
+        }
+
+        public async Task<bool> MarkAsSucceededAsync(
+            int userId,
+            string transactionId,
+            SqlConnection conn,
+            SqlTransaction tx,
+            DateTime? paidAt = null)
+        {
+            if (_Payment.Id <= 0)
+                throw new ValidationException("Invalid payment id.");
+
+            if (string.IsNullOrWhiteSpace(transactionId))
+                throw new ValidationException("Transaction id is required.");
+
+            if (_Payment.Status == enPaymentStatus.Succeeded)
+                return true;
+
+            if (_Payment.Status != enPaymentStatus.Pending)
+                throw new ConflictException("Payment already processed");
+
+            string cleanTransactionId = transactionId.Trim();
+            DateTime finalPaidAt = paidAt ?? DateTime.UtcNow;
+
+            bool updated =
+                await clsPaymentData.UpdateStatusWithTransaction(
+                    _Payment.Id,
+                    enPaymentStatus.Succeeded,
+                    cleanTransactionId,
+                    finalPaidAt,
+                    conn,
+                    tx);
+
+            if (!updated)
+                throw new ConflictException("Failed to update payment status");
+
+            _Payment.Status = enPaymentStatus.Succeeded;
+            _Payment.TransactionId = cleanTransactionId;
+            _Payment.PaidAt = finalPaidAt;
+
+            await clsAudit.LogAsync(
+                userId,
+                enAuditActionType.PaymentSucceeded,
+                "Payment",
+                _Payment.Id,
+                $"Payment succeeded. TransactionId: {cleanTransactionId}",
+                null,null,
+                conn,
+                tx);
+
+            return updated;
+        }
+
+
+        public async Task<bool> MarkAsFailedAsync(
+            int userId,
+            string? transactionId = null)
+        {
+            if (_Payment.Id <= 0)
+                throw new ValidationException("Invalid payment id.");
+
+            if (_Payment.Status == enPaymentStatus.Failed)
+                return true;
+
+            bool updated =
+                await clsPaymentData.UpdateStatus(
+                    _Payment.Id,
+                    enPaymentStatus.Failed,
+                    transactionId,
+                    null);
+
+            if (!updated)
+                throw new ConflictException("Failed to update payment status");
+
+            _Payment.Status = enPaymentStatus.Failed;
+
+            await clsAudit.LogAsync(
+                userId,
+                enAuditActionType.PaymentFailed,
+                "Payment",
+                _Payment.Id,
+                "Payment failed");
+
+            return updated;
+        }
+
+
+        public async Task<bool> MarkAsExpiredAsync(
+            int userId)
+        {
+            if (_Payment.Id <= 0)
+                throw new ValidationException("Invalid payment id.");
+
+            if (_Payment.Status == enPaymentStatus.Expired)
+                return true;
+
+            bool updated =
+                await clsPaymentData.UpdateStatus(
+                    _Payment.Id,
+                    enPaymentStatus.Expired,
+                    null,
+                    null);
+
+            if (!updated)
+                throw new ConflictException("Failed to update payment status");
+
+            _Payment.Status = enPaymentStatus.Expired;
+
+            await clsAudit.LogAsync(
+                userId,
+                enAuditActionType.PaymentExpired,
+                "Payment",
+                _Payment.Id,
+                "Payment expired");
+
+            return updated;
+        }
+    }
+}

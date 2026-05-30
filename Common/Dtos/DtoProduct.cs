@@ -12,9 +12,10 @@ namespace Common.Dtos
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public decimal BasePrice  { get; set; }
-        public int CreatedByAdmin { get; set; }
+        public int CreatedByUser { get; set; }
         public string? ThumbnailUrl { get; set; }
         public string? Summary { get; set; }
         public bool IsPublished  { get; set; }
+
     }
 }

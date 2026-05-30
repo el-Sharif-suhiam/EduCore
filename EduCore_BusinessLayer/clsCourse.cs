@@ -21,7 +21,7 @@ namespace EduCore_BusinessLayer
         public DateTime CreatedAt => _Product.CreatedAt;
         public DateTime UpdatedAt => _Product.UpdatedAt;
         public decimal BasePrice => _Product.BasePrice;
-        public clsUser CreatedByAdmin => _Product.CreatedByAdmin;
+        public clsUser CreatedByUser=> _Product.CreatedByUser;
         public string? ThumbnailUrl => _Product.ThumbnailUrl;
         public bool IsPublished => _Product.IsPublished;
         public string? Summary => _Product.Summary;
@@ -64,9 +64,9 @@ namespace EduCore_BusinessLayer
             _Product.SetThumbnailUrl(thumbnailUrl);
         }
 
-        public async Task AssignCreatedByAdminAsync(int AdminId)
+        public async Task AssignCreatedByUserAsync(int AdminId)
         {
-           await _Product.SetCreatedByAdmin(AdminId);
+           await _Product.SetCreatedByUser(AdminId);
         }
 
         public void SetSummary(string summary)
@@ -80,18 +80,14 @@ namespace EduCore_BusinessLayer
            _CourseData.CoverImageUrl = clsValidation.ValidateUrl(url, "cover image Url");
         }
 
-        public static async Task<clsCourse> Find(int courseId, bool includeDeleted = false)
+        static async Task<clsCourse> InternalFind(DtoCourse dtoCourse)
         {
-            if (courseId <= 0)
-                throw new ValidationException("course id is not valid");
-
-            DtoCourse dtoCourse = includeDeleted ? await clsCoursesData.GetCourseByIdIncludeDeleted(courseId) : await clsCoursesData.GetCourseById(courseId);
 
             if (dtoCourse == null)
                 throw new NotFoundException("There is no course with this Id");
 
             clsCourse course = new clsCourse(dtoCourse);
-            
+
             clsProduct product = await clsProduct.Find(course._CourseData.ProductId);
 
             if (product is null)
@@ -101,13 +97,31 @@ namespace EduCore_BusinessLayer
             course._Product = product;
             return course;
         }
+        public static async Task<clsCourse> Find(int courseId, bool includeDeleted = false)
+        {
+            if (courseId <= 0)
+                throw new ValidationException("course id is not valid");
 
+            DtoCourse dtoCourse = includeDeleted ? await clsCoursesData.GetCourseByIdIncludeDeleted(courseId) : await clsCoursesData.GetCourseById(courseId);
+
+           return await InternalFind(dtoCourse);
+        }
+
+        public static async Task<clsCourse> FindByProductId(int productId)
+        {
+            if (productId <= 0)
+                throw new ValidationException("course id is not valid");
+
+            DtoCourse dtoCourse = await clsCoursesData.GetCoursebyProductId(productId);
+            return await InternalFind(dtoCourse);
+
+        }
         private void _ValidateForAdd()
         {
             if (_CourseData == null || _Product == null)
                 throw new Exception("Course data is missing");
 
-            if (CreatedByAdmin.Id <= 0)
+            if (CreatedByUser.Id <= 0)
                 throw new Exception("CreatedByAdmin is required");
 
             if (string.IsNullOrWhiteSpace(Name))
@@ -153,6 +167,19 @@ namespace EduCore_BusinessLayer
                     throw new Exception("Course creation failed");
 
                 _CourseData.Id = courseId;
+
+
+                string auditMessage = "Create course";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.CreateCourse,
+                                "Course",
+                                Id,
+                                auditMessage);
+                
+
                 _Mode = enMode.Update;
                 return true;
             });
@@ -183,6 +210,17 @@ namespace EduCore_BusinessLayer
                 if (!updatedCourse)
                     throw new Exception("Failed to update course");
 
+
+
+                string auditMessage = "Update course";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.UpdateCourse,
+                                "Course",
+                                Id,
+                                auditMessage);
                 return true;
             });
         }
@@ -229,11 +267,41 @@ namespace EduCore_BusinessLayer
 
         public async Task<bool> UnDelete(int adminId)
         {
-            return await ControlDelete(adminId,true);
+
+
+            bool result = await ControlDelete(adminId,true);
+
+
+            if (result)
+            {
+                string auditMessage = "UnDelete course";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.UnDeleteCourse,
+                                "Course",
+                                Id,
+                                auditMessage);
+            }
+            return result;
         }
         public async Task<bool> Delete(int adminId)
         {
-            return await ControlDelete(adminId);
+            bool result = await ControlDelete(adminId);
+
+            if (result)
+            {
+                string auditMessage = "Delete course";
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.DeleteCourse,
+                                "Course",
+                                Id,
+                                auditMessage);
+            }
+            return result;
         }
         public static async Task<List<DtoCourse>> GetAllCourses(int pageNumber,int pageSize, bool evenDeletedIncluded = false)
         {
@@ -250,6 +318,11 @@ namespace EduCore_BusinessLayer
 
         public static async Task<bool> IsCourseExist(int courseId) {
             return await clsCoursesData.CourseExists(courseId);
+        }
+
+        public async Task<bool> AssignLessonToCourse(int lessonId)
+        {
+            return await clsCoursesData.AssignLessonToCourse(Id, lessonId);
         }
     }
 }

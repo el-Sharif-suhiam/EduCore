@@ -22,7 +22,7 @@ namespace EduCore_BusinessLayer
         public DateTime CreatedAt => _Product.CreatedAt;
         public DateTime UpdatedAt => _Product.UpdatedAt;
         public decimal BasePrice => _Product.BasePrice;
-        public clsUser CreatedByAdmin => _Product.CreatedByAdmin;
+        public clsUser CreatedByUser => _Product.CreatedByUser;
         public string? ThumbnailUrl => _Product.ThumbnailUrl;
         public bool IsPublished => _Product.IsPublished;
         public string? Summary => _Product.Summary;
@@ -53,9 +53,9 @@ namespace EduCore_BusinessLayer
         public void SetThumbnailUrl(string thumbnailUrl)
             => _Product.SetThumbnailUrl(thumbnailUrl);
 
-        public async Task AssignCreatedByAdminAsync(int AdminId)
+        public async Task AssignCreatedByUserAsync(int AdminId)
         {
-            await _Product.SetCreatedByAdmin(AdminId);
+            await _Product.SetCreatedByUser(AdminId);
         }
 
         public void SetSummary(string? summary)
@@ -86,7 +86,7 @@ namespace EduCore_BusinessLayer
             if (_BundleData is null || _Product is null)
                 throw new Exception("Bundle data is missing");
 
-            if (CreatedByAdmin.Id <= 0)
+            if (CreatedByUser.Id <= 0)
                 throw new Exception("CreatedByAdmin is required");
 
             if (string.IsNullOrWhiteSpace(Name))
@@ -131,6 +131,17 @@ namespace EduCore_BusinessLayer
                 if (bundleId <= 0)
                     throw new Exception("Bundle creation failed");
                 _BundleData.Id = bundleId;
+
+                string auditMessage = "Create Bundle";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.CreateBundle,
+                                "Bundle",
+                                Id,
+                                auditMessage);
+                
                 _Mode = enMode.Update;
                 return true;
             });
@@ -159,6 +170,16 @@ namespace EduCore_BusinessLayer
 
                 if (!updatedBundle)
                     throw new Exception("Failed to update bundle");
+
+                string auditMessage = "Update Bundle";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.UpdateBundle,
+                                "Bundle",
+                                Id,
+                                auditMessage);
 
                 return true;
             });

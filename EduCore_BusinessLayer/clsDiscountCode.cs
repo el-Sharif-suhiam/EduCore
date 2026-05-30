@@ -3,8 +3,6 @@ using Common.Enums;
 using Common.Exceptions;
 using Common.Utils;
 using EduCore_DataAccess;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 
 namespace EduCore_BusinessLayer
@@ -22,7 +20,6 @@ namespace EduCore_BusinessLayer
         public short? AllowedUseNumber => _DiscountData.AllowedUseNumber;
         public short? TotalUsedNumber => _DiscountData.TotalUsedNumber;
 
-        // كود غير محدود الاستخدام إذا كان AllowedUseNumber = 0
         public bool IsUnlimited => AllowedUseNumber == 0;
 
         public bool IsExpired => ExpireAt.HasValue && ExpireAt.Value < DateTime.Now;
@@ -30,7 +27,6 @@ namespace EduCore_BusinessLayer
         public bool IsValid =>
             !IsExpired &&
             (IsUnlimited || (AllowedUseNumber > TotalUsedNumber));
-
 
         public clsDiscountCode()
         {
@@ -44,10 +40,10 @@ namespace EduCore_BusinessLayer
             _Mode = enMode.Update;
         }
 
-
         public void SetCode(string code)
         {
-            _DiscountData.DiscountCode = clsValidation.ValidateString(code, "DiscountCode");
+            _DiscountData.DiscountCode =
+                clsValidation.ValidateString(code, "DiscountCode");
         }
 
         public void SetDiscountRate(decimal? rate)
@@ -79,9 +75,9 @@ namespace EduCore_BusinessLayer
             if (allowedUse.HasValue && allowedUse < 0)
                 throw new ValidationException("Allowed use number cannot be negative");
 
-            // 0 = unlimited
             _DiscountData.AllowedUseNumber = allowedUse;
         }
+
 
 
         public static async Task<clsDiscountCode> Find(short id)
@@ -97,67 +93,63 @@ namespace EduCore_BusinessLayer
             return new clsDiscountCode(dto);
         }
 
-
-        private void _ValidateForAdd()
+        public static async Task<clsDiscountCode> Find(string code)
         {
-            if (_DiscountData is null)
-                throw new Exception("Discount code data is missing");
 
-            if (string.IsNullOrWhiteSpace(Code))
-                throw new ValidationException("Discount code is required");
+            string validString = clsValidation.ValidateString(code, "Dicount code");
+            DtoDiscountCode dto = await clsDiscountCodesData.GetDiscountCodeByCode(validString);
 
-            if (CreatedById <= 0)
-                throw new ValidationException("CreatedById is required");
+            if (dto is null)
+                throw new NotFoundException("No discount code found with this id");
 
-            if (DiscountRate.HasValue && (DiscountRate <= 0 || DiscountRate > 100))
-                throw new ValidationException("Discount rate must be between 1 and 100");
-
-            if (ExpireAt.HasValue && ExpireAt.Value <= DateTime.Now)
-                throw new ValidationException("Expiry date must be in the future");
-
-            if (AllowedUseNumber.HasValue && AllowedUseNumber < 0)
-                throw new ValidationException("Allowed use number cannot be negative");
+            return new clsDiscountCode(dto);
         }
-
-        private void _ValidateForUpdate()
-        {
-            if (Id <= 0)
-                throw new ValidationException("Invalid discount code id");
-
-            _ValidateForAdd();
-        }
-
-
         private async Task<bool> _Add()
         {
-            short newId = await clsDiscountCodesData.AddDiscountCode(_DiscountData);
+            short newId =
+                await clsDiscountCodesData.AddDiscountCode(_DiscountData);
 
             if (newId <= 0)
                 throw new Exception("Failed to add discount code");
 
             _DiscountData.Id = newId;
             _Mode = enMode.Update;
-            return true;
+
+            await clsAudit.LogAsync(
+                _DiscountData.CreatedById,
+                enAuditActionType.CreateDiscount,
+                "DiscountCode",
+                newId,
+                $"Created discount code '{Code}'");
+
+            return newId > 0;
         }
 
         private async Task<bool> _Update()
         {
-            if (!(await clsDiscountCodesData.UpdateDiscountCode(_DiscountData)))
+            bool result = await clsDiscountCodesData.UpdateDiscountCode(_DiscountData);
+            if (!result)
                 throw new Exception("Failed to update discount code");
 
-            return true;
+            await clsAudit.LogAsync(
+                _DiscountData.CreatedById,
+                enAuditActionType.UpdateDiscount,
+                "DiscountCode",
+                Id,
+                $"Updated discount code '{Code}'");
+
+            return result;
         }
+
 
         public async Task<bool> Save()
         {
             switch (_Mode)
             {
                 case enMode.Add:
-                    _ValidateForAdd();
                     return await _Add();
 
                 case enMode.Update:
-                    _ValidateForUpdate();
                     return await _Update();
 
                 default:
@@ -165,24 +157,35 @@ namespace EduCore_BusinessLayer
             }
         }
 
-
         public async Task<bool> Delete()
         {
-            return await clsDiscountCodesData.DeleteDiscountCode(Id);
-        }
+            bool result =
+                await clsDiscountCodesData.DeleteDiscountCode(Id);
 
-
-        public static async Task<List<DtoDiscountCode>> GetValidDiscountCodes()
-            => await clsDiscountCodesData.GetValidDiscountCodes();
-
-        public static async Task<bool> IsCodeValid(short id)
-        {
-            DtoDiscountCode dto = await clsDiscountCodesData.GetDiscountCodeById(id);
-
-            if (dto is null)
+            if (!result)
                 return false;
 
-            return new clsDiscountCode(dto).IsValid;
+            await clsAudit.LogAsync(
+                CreatedById,
+                enAuditActionType.DeleteDiscount,
+                "DiscountCode",
+                Id,
+                $"Deleted discount code '{Code}'");
+
+            return result;
         }
+
+        public static async Task<List<DtoDiscountCode>> GetValidDiscountCodes() 
+            => await clsDiscountCodesData.GetValidDiscountCodes(); 
+        
+        public static async Task<bool> IsCodeValid(short id) { 
+            DtoDiscountCode dto = await clsDiscountCodesData.GetDiscountCodeById(id);
+            if (dto is null) 
+                return false;
+            
+            return new clsDiscountCode(dto).IsValid; 
+        }
+        // باقي الكود بدون تغيير...
     }
 }
+

@@ -87,5 +87,22 @@ namespace EduCore_DataAccess
         {
             return await CheckUserRole(userId, enRoles.Instructor);
         }
+
+        public static async Task<bool> IsUserInstructorOrSuperAdmin(int userId)
+        {
+            string query = @"SELECT TOP 1 result = 1  FROM Users U
+                            JOIN UserRoles UR ON UR.UserId = Id
+                            JOIN Roles R ON R.RoleId = UR.RoleId 
+                            WHERE IsActive = 1 AND U.Id = @UserId AND R.Name = 'Instructor' AND R.Name = 'SuperAdmin'";
+            using (SqlConnection sqlConnection = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand cmd = new SqlCommand(query, sqlConnection))
+            {
+                cmd.Parameters.Add("@UserId", SqlDbType.Int).Value = userId;
+                await sqlConnection.OpenAsync();
+                object result = await cmd.ExecuteScalarAsync();
+                return result != null && int.TryParse(result.ToString(), out int exists) && exists == 1;
+            }
+        }
+
     }
 }

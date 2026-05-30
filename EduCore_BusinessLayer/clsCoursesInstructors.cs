@@ -1,29 +1,120 @@
-﻿using Common.Utils;
+﻿using Common.Enums;
+using Common.Utils;
 using Common.ViewModels;
 using EduCore_DataAccess;
-using System;
-using System.Collections.Generic;
-using System.Text;
 
 namespace EduCore_BusinessLayer
 {
     public class clsCoursesInstructors
     {
-        public static async Task<bool> AddInstructorToCourse(int  courseId, int userId)
+ 
+        public static async Task<bool> AddInstructorToCourse(
+            int courseId,
+            int userId,
+            int actionByUserId,
+            string? ipAddress = null,
+            string? userAgent = null)
         {
-            if (await clsUsersRoles.IsUserInstructor(userId))
-                return await clsCoursesInstructorsData.AddInstructorToCourse(courseId, userId);
-            else
+            clsValidation.ValidatePositiveInt(courseId, "CourseId");
+            clsValidation.ValidatePositiveInt(userId, "UserId");
+            clsValidation.ValidatePositiveInt(actionByUserId, "ActionByUserId");
+
+            bool isInstructor =
+                await clsUsersRoles.IsUserInstructor(userId);
+
+            if (!isInstructor)
                 return false;
+
+            bool result =
+                await clsCoursesInstructorsData.AddInstructorToCourse(
+                    courseId,
+                    userId);
+
+            if (!result)
+                return false;
+
+            await clsAudit.LogAsync(
+                actionByUserId,
+                enAuditActionType.UpdateCourse,
+                "Course",
+                courseId,
+                $"Assigned instructor id {userId} to course id {courseId}",
+                ipAddress,
+                userAgent);
+
+            return true;
         }
 
-        public static async Task<bool> RemoveInstructorFromCourse(int courseId, int userId) { 
-            return await clsCoursesInstructorsData.RemoveInstructorFromCourse(courseId, userId);
+        public static async Task<bool> RemoveInstructorFromCourse(
+            int courseId,
+            int userId,
+            int actionByUserId,
+            string? ipAddress = null,
+            string? userAgent = null)
+        {
+            clsValidation.ValidatePositiveInt(courseId, "CourseId");
+            clsValidation.ValidatePositiveInt(userId, "UserId");
+            clsValidation.ValidatePositiveInt(actionByUserId, "ActionByUserId");
+
+            bool result =
+                await clsCoursesInstructorsData.RemoveInstructorFromCourse(
+                    courseId,
+                    userId);
+
+            if (!result)
+                return false;
+
+            await clsAudit.LogAsync(
+                actionByUserId,
+                enAuditActionType.UpdateCourse,
+                "Course",
+                courseId,
+                $"Removed instructor id {userId} from course id {courseId}",
+                ipAddress,
+                userAgent);
+
+            return true;
         }
 
-        public static async Task<List<UsersViewModel>> GetAllCourseInstructor(int courseId) {
-            return await clsCoursesInstructorsData.GetInstructorsForCourseById(courseId);
+
+        public static async Task<List<UsersViewModel>>
+            GetAllCourseInstructor(int courseId)
+        {
+            clsValidation.ValidatePositiveInt(courseId, "CourseId");
+
+            return await clsCoursesInstructorsData
+                .GetInstructorsForCourseById(courseId);
         }
 
+
+        public static async Task<bool> IsInstrctorHasThisCourse(
+            int courseId,
+            int userId)
+        {
+            clsValidation.ValidatePositiveInt(courseId, "CourseId");
+            clsValidation.ValidatePositiveInt(userId, "UserId");
+
+            return await clsCoursesInstructorsData
+                .IsInstructorHasThisCourse(courseId, userId);
+        }
+
+        public static async Task<bool> IsInstructorOwnProduct(
+     int userId,
+     int productId,
+     enProductType productType)
+        {
+            switch (productType)
+            {
+                case enProductType.Lesson:
+                    clsLesson lesson = await clsLesson.Find(productId);
+                    return lesson.InstructorId == userId;
+
+                case enProductType.Course:
+                    return await clsCoursesInstructors.IsInstructorOwnProduct(productId, userId, productType);
+
+                default:
+                    return false;
+            }
+        }
     }
 }

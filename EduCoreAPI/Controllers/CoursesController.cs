@@ -1,0 +1,364 @@
+﻿using Common.Dtos;
+using Common.Enums;
+using Common.Exceptions;
+using Common.ViewModels;
+using EduCore_BusinessLayer;
+using EduCore_DataAccess;
+using EduCoreAPI.Authorization.Resources;
+using EduCoreAPI.Helpers;
+using EduCoreAPI.Helpers.Dtos.RequestDto;
+using EduCoreAPI.Helpers.Mappers;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.ModelBinding.Validation;
+using System.Security.Claims;
+
+namespace EduCoreAPI.Controllers
+{
+    [Route("api/courses")]
+    [ApiController]
+    public class CoursesController : ControllerBase
+    {
+        // =========================
+        // GET: All Courses
+        // =========================
+        [AllowAnonymous]
+        [HttpGet]
+        public async Task<ActionResult<List<DtoCourse>>> GetAllCourses(
+            [FromQuery] PageRequest pageRequest)
+        {
+            clsApiValidators.ValidatePaging(pageRequest);
+
+            var courses = await clsCourse.GetAllCourses(
+                pageRequest.PageNumber,
+                pageRequest.PageSize);
+
+            return Ok(courses);
+        }
+
+        // =========================
+        // GET: All Courses With Instructors
+        // =========================
+        [AllowAnonymous]
+        [HttpGet("with-instructors")]
+        public async Task<ActionResult<List<CourseWithInstructorViewModel>>> GetAllCoursesWithInstructors(
+            [FromQuery] PageRequest pageRequest)
+        {
+            clsApiValidators.ValidatePaging(pageRequest);
+
+            var courses = await clsCourse.GetAllCoursesWithInstructors(
+                pageRequest.PageNumber,
+                pageRequest.PageSize);
+
+            return Ok(courses);
+        }
+
+        // =========================
+        // GET: by id
+        // =========================
+        [AllowAnonymous]
+        [HttpGet("{id:int}")]
+        public async Task<ActionResult> GetCourseById([FromRoute] int id)
+        {
+            clsCourse course = await clsCourse.Find(id);
+            return Ok(CourseMapper.ToCourseRespone(course));
+        }
+
+        // =========================
+        // POST: Create Course
+        // =========================
+        [Authorize(Roles = "Instructor,Admin,SuperAdmin")]
+        [HttpPost]
+        public async Task<ActionResult> CreateCourse([FromBody] CourseRequest request)
+        {
+            var newCourse = new clsCourse();
+
+            newCourse.SetName(request.Name);
+            newCourse.SetBasePrice(request.BasePrice);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedStudentId = int.Parse(userId);
+
+            await newCourse.AssignCreatedByUserAsync(authenticatedStudentId);
+
+            if (request.Summary is not null)
+                newCourse.SetSummary(request.Summary);
+
+            if (request.ThumbnailUrl is not null)
+                newCourse.SetThumbnailUrl(request.ThumbnailUrl);
+
+            if (request.CoverImageUrl is not null)
+                newCourse.SetCoverImageUrl(request.CoverImageUrl);
+
+            bool result = await newCourse.Save();
+
+            if (!result)
+                throw new ConflictException("Failed to create course");
+
+            return CreatedAtAction(
+                nameof(GetCourseById),
+                new { id = newCourse.Id },
+                new
+                {
+                    newCourse.Id,
+                    newCourse.Name,
+                    newCourse.BasePrice
+                    
+                });
+        }
+
+        // =========================
+        // PUT: Update Course
+        // =========================
+        [Authorize(Roles = "Instructor,Admin,SuperAdmin")]
+        [HttpPut("{id:int}")]
+        public async Task<ActionResult> UpdateCourse([FromRoute] int id,[FromBody] CourseRequest request)
+        {
+            clsCourse course = await clsCourse.Find(id);
+
+            if (request.Name is not null)
+                course.SetName(request.Name);
+
+            if (request.BasePrice > 0)
+                course.SetBasePrice(request.BasePrice);
+
+            if (request.Summary is not null)
+                course.SetSummary(request.Summary);
+
+            if (request.ThumbnailUrl is not null)
+                course.SetThumbnailUrl(request.ThumbnailUrl);
+
+            if (request.CoverImageUrl is not null)
+                course.SetCoverImageUrl(request.CoverImageUrl);
+
+            bool result = await course.Save();
+
+            if (!result)
+                throw new ConflictException("Failed to update course");
+
+            return Ok(new {
+                course.Id,
+                course.Name,
+                course.BasePrice,
+                course.Summary,
+                course.ThumbnailUrl,
+                course.CoverImageUrl
+            });
+        }
+        // =========================
+        // POST: Add Lesson To Course
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPost("{id:int}/lessons")]
+        public async Task<ActionResult> AddNewLessonToCourse([FromRoute] int courseId, [FromBody] LessonRequest lessonRequest)
+        {
+            clsCourse course = await clsCourse.Find(courseId);
+            clsLesson newLesson = new clsLesson();
+            newLesson.SetName(lessonRequest.Name);
+            newLesson.SetTitle(lessonRequest.Title);
+            newLesson.SetBasePrice(0);
+            newLesson.SetBodyText(lessonRequest.BodyText);
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedId = int.Parse(userId);
+
+            await newLesson.AssignCreatedByUserAsync(authenticatedId);
+            if (lessonRequest.VideoUrl is not null)
+                newLesson.SetVideoUrl(lessonRequest.VideoUrl);
+
+            if (lessonRequest.ThumbnailUrl is not null)
+                newLesson.SetThumbnailUrl(lessonRequest.ThumbnailUrl);
+
+            if (lessonRequest.Summary is not null)
+                newLesson.SetSummary(lessonRequest.Summary);
+           await newLesson.SetCourseId(courseId);
+
+            bool makeLessonResult = await newLesson.Save();
+
+            if (!makeLessonResult)
+                throw new ConflictException("Failed to create lesson");
+
+            return Ok(new
+            {
+                newLesson.Id, 
+                newLesson.Name,
+                newLesson.Title,
+                newLesson.CourseId
+            });
+        }
+
+        // =========================
+        // PUT: Update Course Lesson
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPut("{courseId:int}/lessons/{lessonId}")]
+
+        public async Task<ActionResult> UpdateLesson(
+            [FromRoute] int courseId,
+            [FromRoute] int lessonId,
+            [FromBody] LessonRequest request, [FromServices] IAuthorizationService authorizationService)
+        {
+            clsLesson lesson = await clsLesson.FindWithCourseId(lessonId ,courseId);
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                Id = lessonId,
+                Type = enProductType.Lesson
+            };
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
+            if (request.Name is not null)
+                lesson.SetName(request.Name);
+
+            if (request.Title is not null)
+                lesson.SetTitle(request.Title);
+
+            if (request.BasePrice > 0)
+                lesson.SetBasePrice(request.BasePrice);
+
+            if (request.VideoUrl is not null)
+                lesson.SetVideoUrl(request.VideoUrl);
+
+            if (request.BodyText is not null)
+                lesson.SetBodyText(request.BodyText);
+
+            if (request.ThumbnailUrl is not null)
+                lesson.SetThumbnailUrl(request.ThumbnailUrl);
+
+            if (request.Summary is not null)
+                lesson.SetSummary(request.Summary);
+
+            bool result = await lesson.Save();
+
+            if (!result)
+                throw new ConflictException("Failed to update lesson");
+
+            return Ok(new
+            {
+                lesson.Id,
+                lesson.Title,
+                lesson.Name,
+                lesson.BasePrice
+            });
+        }
+
+
+        // =========================
+        // GET: Get all lessons for Course
+        // =========================
+        [AllowAnonymous]
+        [HttpGet("{id:int}/lessons")]
+        public async Task<ActionResult> GetLessonsByCourse([FromRoute] int courseId)
+        {
+            var lessons = await clsLesson.GetLessonsByCourse(courseId);
+            return Ok(lessons);
+        }
+       
+        // =========================
+        // DELETE: Course
+        // =========================
+        //[HttpDelete("{id:int}")]
+        //public async Task<ActionResult> DeleteCourse(
+        //    [FromRoute] int id)
+        //{
+        //    clsCourse course = await clsCourse.Find(id);
+
+        //    bool result = await course.Delete(adminId);
+
+        //    if (!result)
+        //        throw new ConflictException("Failed to delete course");
+
+        //    return Ok(courseMapper.ToCourseResponse(course));
+        //}
+
+        // =========================
+        // PUT: Restore Course
+        // =========================
+        //[HttpPut("{id:int}/restore")]
+        //public async Task<ActionResult> UnDeleteCourse(
+        //    [FromRoute] int id,
+        //    [FromQuery] int adminId)
+        //{
+        //    clsCourse course = await clsCourse.Find(id, includeDeleted: true);
+
+        //    bool result = await course.UnDelete(adminId);
+
+        //    if (!result)
+        //        throw new ConflictException("Failed to restore course");
+
+        //    return Ok(courseMapper.ToCourseResponse(course));
+        //}
+
+        // =========================
+        // GET: Course Exists
+        // =========================
+        [HttpGet("{id:int}/exists")]
+        public async Task<ActionResult> CourseExists([FromRoute] int id)
+        {
+            var exists = await clsCourse.IsCourseExist(id);
+            return Ok(new { exists });
+        }
+
+        // =========================
+        // POST: Assign Instrucctor To Course
+        // =========================
+        [Authorize("Admin,SuperAdmin")]
+        [HttpPost("{id:int}/instructors")]
+        public async Task<ActionResult> AssginInstructorToCourse([FromRoute] int courseId, [FromQuery] int instructorId)
+        {
+            clsUser user = await clsUser.Find(instructorId);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int actionbyId = int.Parse(userId);
+
+            bool result = await clsCoursesInstructors.AddInstructorToCourse(courseId, instructorId,actionbyId);
+
+            if (!result)
+                throw new ConflictException("error in assgin instructor to course");
+
+            return Ok(new
+            {
+                user.Id,
+                user.Name,
+                user.Email
+            });
+        }
+
+        // =========================
+        // GET: GET Course Instructors
+        // =========================
+        [Authorize("Admin,SuperAdmin")]
+        [HttpGet("{id:int}/instructors")]
+        public async Task<ActionResult> GetCourseInstructors([FromRoute] int courseId)
+        {
+            var instructors = await clsCoursesInstructors.GetAllCourseInstructor(courseId); 
+            return Ok(instructors);
+        }
+
+        // =========================
+        // DELETE: DELETE Instructor From Course
+        // =========================
+        [Authorize("Admin,SuperAdmin")]
+        [HttpDelete("{id:int}/instructors")]
+        public async Task<ActionResult> RemoveInstructorFromCourse([FromRoute] int courseId, [FromQuery] int instructorId)
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int actionbyId = int.Parse(userId);
+
+            bool result = await clsCoursesInstructors.RemoveInstructorFromCourse(courseId,instructorId,actionbyId);
+            if (!result)
+                throw new ConflictException("something went wrong while deleting the instructor");
+            return Ok(new { success = result });
+        }
+
+
+
+    }
+}
+

@@ -21,7 +21,7 @@ namespace EduCore_BusinessLayer
         public DateTime CreatedAt => _Product.CreatedAt;
         public DateTime UpdatedAt => _Product.UpdatedAt;
         public decimal BasePrice => _Product.BasePrice;
-        public clsUser CreatedByAdmin => _Product.CreatedByAdmin;
+        public clsUser CreatedByUser => _Product.CreatedByUser;
         public string? ThumbnailUrl => _Product.ThumbnailUrl;
         public bool IsPublished => _Product.IsPublished;
         public string? Summary => _Product.Summary;
@@ -74,9 +74,9 @@ namespace EduCore_BusinessLayer
             _Product.SetThumbnailUrl(thumbnailUrl);
         }
 
-        public async Task AssignCreatedByAdminAsync(int AdminId)
+        public async Task AssignCreatedByUserAsync(int AdminId)
         {
-            await _Product.SetCreatedByAdmin(AdminId);
+            await _Product.SetCreatedByUser(AdminId);
         }
 
         public void SetSummary(string summary)
@@ -101,12 +101,24 @@ namespace EduCore_BusinessLayer
             _LessonsData.BodyText = clsValidation.ValidateString(bodyText, "Body Text");
         }
 
+        public async Task SetCourseId(int? courseId)
+        {
+            if (courseId is null)
+                _LessonsData.CourseId = null;
+
+            bool result = await clsCourse.IsCourseExist((int)courseId);
+            if (result)
+                throw new NotFoundException("There is no course with id");
+
+            _LessonsData.CourseId = clsValidation.ValidatePositiveInt((int)courseId,"course Id");
+        }
+
         private void _ValidateForAdd()
         {
             if (_LessonsData == null || _Product == null)
                 throw new ValidationException("Lesson data is missing");
 
-            if (CreatedByAdmin.Id <= 0)
+            if (CreatedByUser.Id <= 0)
                 throw new ValidationException("CreatedByAdmin is required");
 
             if (string.IsNullOrWhiteSpace(Name))
@@ -132,12 +144,9 @@ namespace EduCore_BusinessLayer
             if (BasePrice <= 0)
                 throw new ValidationException("Base price is required");
         }
-        public static async Task<clsLesson> Find(int lessonId, bool includeDeleted = false)
+       
+        private static async Task<clsLesson> InternalFind(DtoLessons dtoLesson)
         {
-            if (lessonId <= 0)
-                throw new ValidationException("Lesson id is not valid");
-
-            DtoLessons dtoLesson = includeDeleted ?  await clsLessonsData.GetLessonByIdIncludeDeleted(lessonId) : await clsLessonsData.GetLessonById(lessonId);
             if (dtoLesson == null)
                 throw new NotFoundException("There is no lesson with this Id");
 
@@ -148,7 +157,32 @@ namespace EduCore_BusinessLayer
             lesson._Product = product;
             return lesson;
         }
-        
+        public static async Task<clsLesson> Find(int lessonId, bool includeDeleted = false)
+        {
+            if (lessonId <= 0)
+                throw new ValidationException("Lesson id is not valid");
+
+            DtoLessons dtoLesson = includeDeleted ? await clsLessonsData.GetLessonByIdIncludeDeleted(lessonId) : await clsLessonsData.GetLessonById(lessonId);
+            return await InternalFind(dtoLesson);
+        }
+        public static async Task<clsLesson> FindbyProductId(int productId)
+        {
+            if (productId <= 0)
+                throw new ValidationException("Lesson id is not valid");
+
+            DtoLessons dtoLesson =  await clsLessonsData.GetLessonByProductId(productId);
+            return await InternalFind(dtoLesson);
+        }
+
+        public static async Task<clsLesson> FindWithCourseId(int lessonId, int courseId, bool includeDeleted = false)
+        {
+            DtoLessons dtoLesson = await clsLessonsData.GetLessonWithCourseById(lessonId, courseId);
+            return await InternalFind(dtoLesson);
+        }
+
+
+
+
         async Task<bool> _AddLesson()
         {
             return await clsGeneralData.ExecuteTransaction(async (conn, tx) =>
@@ -166,10 +200,25 @@ namespace EduCore_BusinessLayer
                 if (lessonId <= 0)
                     throw new ConflictException("Lesson creation failed");
 
+                string auditMessage = "Created independent lesson";
 
+                if (CourseId == null)
+                    auditMessage = $"Created a new lesson associated with course id: { CourseId}";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.CreateLesson,
+                                "Lesson",
+                                lessonId,
+                                auditMessage,
+                                null,null,
+                                conn,tx);
                 _Mode = enMode.Update;
                 return true;
             });
+
+
         }
 
         async Task<bool> _UpdateLesson()
@@ -196,6 +245,21 @@ namespace EduCore_BusinessLayer
                 if (!updatedLesson)
                     throw new ConflictException("Failed to update lesson");
 
+
+                string auditMessage = "Update independent lesson";
+
+                if (CourseId == null)
+                    auditMessage = $"Update a lesson associated with course id: {CourseId}";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.UpdateLesson,
+                                "Lesson",
+                                _LessonsData.Id,
+                                auditMessage,
+                                null, null,
+                                conn, tx);
                 return true;
             });
         }
@@ -219,7 +283,7 @@ namespace EduCore_BusinessLayer
 
         private async Task<bool> ControlDelete(int adminId,bool UnDelete = false)
         {
-            if (!(await clsUsersRoles.IsUserAdmin(adminId)))
+            if (!(await clsUsersRoles.IsUserInstructorOrSuperAdmin(adminId)))
                 throw new ConflictException("this user is not permitted to delete course");
 
             if (await _Product.Unpublish())
@@ -229,12 +293,48 @@ namespace EduCore_BusinessLayer
 
         public async Task<bool> Delete(int adminId)
         {
-            return await ControlDelete(adminId);
+            bool result = await ControlDelete(adminId);
+            if (result)
+            {
+
+                string auditMessage = "Delete independent lesson";
+
+                if (CourseId == null)
+                    auditMessage = $"Delete alesson associated with course id: {CourseId}";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.CreateLesson,
+                                "Lesson",
+                                Id,
+                                auditMessage);
+            }
+
+            return result;
         }
 
         public async Task<bool> UnDelete(int adminId)
         {
-            return await ControlDelete(adminId, true);
+            bool result = await ControlDelete(adminId, true);
+            if (result)
+            {
+
+                string auditMessage = "UnDelete independent lesson";
+
+                if (CourseId == null)
+                    auditMessage = $"UnDelete alesson associated with course id: {CourseId}";
+
+
+                await clsAudit.LogAsync(
+                                CreatedByUser.Id,
+                                enAuditActionType.UnDeleteLesson,
+                                "Lesson",
+                                Id,
+                                auditMessage);
+            }
+
+            return result;
         }
         public static async Task<List<LessonsWithOutCoursesViewModel>> GetIndependntLessons(int pageNumber,int pageSize)
         {
@@ -256,5 +356,6 @@ namespace EduCore_BusinessLayer
                 throw new NotFoundException("Course not found or has been deleted");
             return await clsLessonsData.GetLessonsByCourse(courseId);
         }
+
     }
 }

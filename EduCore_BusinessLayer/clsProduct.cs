@@ -21,7 +21,7 @@ namespace EduCore_BusinessLayer
         public DateTime CreatedAt => _productData.CreatedAt;
         public DateTime UpdatedAt => _productData.UpdatedAt;
         public decimal BasePrice => _productData.BasePrice;
-        public clsUser CreatedByAdmin { get; private set; }
+        public clsUser CreatedByUser { get; private set; }
         public string? ThumbnailUrl => _productData.ThumbnailUrl;
         public bool IsPublished => _productData.IsPublished;
         public string? Summary => _productData.Summary;
@@ -57,10 +57,10 @@ namespace EduCore_BusinessLayer
                 CreatedAt = _productData.CreatedAt,
                 UpdatedAt = _productData.UpdatedAt,
                 BasePrice = _productData.BasePrice,
-                CreatedByAdmin = _productData.CreatedByAdmin,
+                CreatedByUser = _productData.CreatedByUser,
                 ThumbnailUrl = _productData.ThumbnailUrl,
                 Summary = _productData.Summary,
-                IsPublished = _productData.IsPublished
+                IsPublished = _productData.IsPublished,
             };
         }
 
@@ -85,12 +85,12 @@ namespace EduCore_BusinessLayer
             _productData.ThumbnailUrl = clsValidation.ValidateUrl(url, "thumbnail Url");
         }
 
-        public async Task SetCreatedByAdmin(int adminId)
+        public async Task SetCreatedByUser(int instructorId)
         { 
-            if (await clsUsersRoles.IsUserAdmin(clsValidation.ValidatePositiveInt(adminId, "Admin Id")))
+            if (await clsUsersRoles.IsUserInstructorOrSuperAdmin(clsValidation.ValidatePositiveInt(instructorId, "Admin Id")))
             {
-                _productData.CreatedByAdmin = adminId;
-                CreatedByAdmin = await clsUser.Find(adminId);
+                _productData.CreatedByUser = instructorId;
+                CreatedByUser = await clsUser.Find(instructorId);
             }
             
         }
@@ -103,6 +103,7 @@ namespace EduCore_BusinessLayer
         {
             _productData.Summary = clsValidation.ValidateString(summary, "Summary");
         }
+
 
         public async Task<bool> Publish()
         {
@@ -163,7 +164,7 @@ namespace EduCore_BusinessLayer
             if (_productData == null)
                 throw new ValidationException("Product data is missing");
 
-            if (CreatedByAdmin == null || _productData.CreatedByAdmin <= 0)
+            if (CreatedByUser == null || _productData.CreatedByUser <= 0)
                 throw new ValidationException("CreatedByAdmin is required");
 
             if (string.IsNullOrWhiteSpace(_productData.Name))
@@ -238,8 +239,10 @@ namespace EduCore_BusinessLayer
                 throw new NotFoundException("There is no product with this Id");
             clsProduct product = new clsProduct(dto);
 
-            product.CreatedByAdmin = await clsUser.Find(dto.CreatedByAdmin);
+            product.CreatedByUser = await clsUser.Find(dto.CreatedByUser);
             return product;
         }
+
+      
     }
 }

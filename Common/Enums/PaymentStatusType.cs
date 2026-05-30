@@ -4,5 +4,5 @@ using System.Text;
 
 namespace Common.Enums
 {
-    public enum enPaymentStatus {Pending =0, Success =1  , Failed = 2 }
+    public enum enPaymentStatus {Pending,Succeeded,Failed,Expired,Cancelled }
 }

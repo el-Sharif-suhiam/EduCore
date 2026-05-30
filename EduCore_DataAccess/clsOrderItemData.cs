@@ -84,9 +84,15 @@ namespace EduCore_DataAccess
 
         public static async Task<List<DtoOrderItem>> GetItemsByOrderId(int orderId)
         {
-            string query = @"SELECT Id, OrderId, ProductId, PriceAtPurchase
-                         FROM OrderItems
-                         WHERE OrderId = @OrderId;";
+            string query = @"SELECT OI.Id, OI.OrderId, OI.ProductId, OI.PriceAtPurchase, P.Name, P.Summary,
+                                CASE 
+                                    WHEN P.ProductType = 1 THEN 'Lesson'
+                                    WHEN P.ProductType = 2 THEN 'Course'
+                                    WHEN P.ProductType = 3 THEN 'Bundle'
+                                END AS ProductType
+                            FROM OrderItems OI
+                            JOIN Products P ON P.Id = OI.ProductId
+                            WHERE OrderId = @OrderId;";
 
             List<DtoOrderItem> items = new List<DtoOrderItem>();
 
@@ -103,6 +109,9 @@ namespace EduCore_DataAccess
                     int orderIdIndex = reader.GetOrdinal("OrderId");
                     int productIdIndex = reader.GetOrdinal("ProductId");
                     int priceIndex = reader.GetOrdinal("PriceAtPurchase");
+                    int nameIndex = reader.GetOrdinal("Name");
+                    int summaryIndex = reader.GetOrdinal("Summary");
+                    int productTypeIndex = reader.GetOrdinal("ProductType");
 
                     while (await reader.ReadAsync())
                     {
@@ -111,7 +120,11 @@ namespace EduCore_DataAccess
                             Id = reader.GetInt32(idIndex),
                             OrderId = reader.GetInt32(orderIdIndex),
                             ProductId = reader.GetInt32(productIdIndex),
-                            PriceAtPurchase = reader.IsDBNull(priceIndex) ? null : reader.GetDecimal(priceIndex)
+                            PriceAtPurchase = reader.IsDBNull(priceIndex) ? null : reader.GetDecimal(priceIndex),
+                            Name = reader.GetString(nameIndex),
+                            Summary = reader.GetString(summaryIndex),
+                            ProductType = reader.GetString(productTypeIndex)
+                            
                         });
                     }
                 }

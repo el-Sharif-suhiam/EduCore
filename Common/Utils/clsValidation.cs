@@ -84,6 +84,7 @@ namespace Common.Utils
 
         public static int ValidatePositiveInt(int value, string variableName = "Value", int minValue = 1)
         {
+            
             if (value < minValue)
                 throw new ValidationException($"{variableName} must be greater than or equal to {minValue}.");
 
@@ -141,7 +142,7 @@ namespace Common.Utils
             return password;
         }
 
-       
+        
     }
    
 }

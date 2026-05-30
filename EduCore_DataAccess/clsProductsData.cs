@@ -48,7 +48,7 @@ namespace EduCore_DataAccess
                             CreatedAt = reader.GetDateTime(createdIndex),
                             UpdatedAt = reader.GetDateTime(updatedIndex),
                             BasePrice = reader.GetDecimal(priceIndex),
-                            CreatedByAdmin = reader.GetInt32(adminIndex),
+                            CreatedByUser = reader.GetInt32(adminIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbIndex) ? null : reader.GetString(thumbIndex),
                             Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
                             IsPublished = reader.GetBoolean(publishedIndex)
@@ -96,7 +96,7 @@ namespace EduCore_DataAccess
                             CreatedAt = reader.GetDateTime(createdIndex),
                             UpdatedAt = reader.GetDateTime(updatedIndex),
                             BasePrice = reader.GetDecimal(priceIndex),
-                            CreatedByAdmin = reader.GetInt32(adminIndex),
+                            CreatedByUser = reader.GetInt32(adminIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbIndex) ? null : reader.GetString(thumbIndex),
                             Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
                             IsPublished = reader.GetBoolean(publishedIndex)
@@ -148,7 +148,7 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@ProductType", SqlDbType.TinyInt).Value = product.Name;
                 sqlCommand.Parameters.Add("@Name", SqlDbType.NVarChar).Value = product.Name;
                 sqlCommand.Parameters.Add("@BasePrice", SqlDbType.Decimal).Value = product.BasePrice;
-                sqlCommand.Parameters.Add("@CreatedByAdmin", SqlDbType.Int).Value = product.CreatedByAdmin;
+                sqlCommand.Parameters.Add("@CreatedByAdmin", SqlDbType.Int).Value = product.CreatedByUser;
                 sqlCommand.Parameters.Add("@ThumbnailUrl", SqlDbType.NVarChar,500).Value = product.ThumbnailUrl;
                 sqlCommand.Parameters.Add("@Summary", SqlDbType.NVarChar,300).Value = product.Summary;
                 sqlCommand.Parameters.Add("@IsPublished", SqlDbType.Bit).Value = product.IsPublished;

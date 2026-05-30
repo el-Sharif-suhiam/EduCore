@@ -10,38 +10,23 @@ namespace EduCore_DataAccess
     public class clsEnrollmentsData
     {
 
-        public static async Task<int> AddEnrollment(DtoEnrollment enrollment)
+        public static async Task<bool> AddEnrollment(DtoEnrollmentDataRequest enrollment, SqlConnection conn, SqlTransaction tx)
         {
-            string query = @"INSERT INTO Enrollments (UserId, ProductId, EnrolledAt, ExpireAt, PaymentId)
-                            VALUES (@UserId, @ProductId, @EnrolledAt, @ExpireAt, @PaymentId);
-                            SELECT SCOPE_IDENTITY();";
 
-            int id = -1;
-
-            using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
-            using (SqlCommand command = new SqlCommand(query, connection))
+            using (SqlCommand command = new SqlCommand("SP_CreateEnrollmentsFromPaidOrder", conn, tx))
             {
-                command.Parameters.Add("@UserId", SqlDbType.Int).Value = enrollment.UserId;
-                command.Parameters.Add("@ProductId", SqlDbType.Int).Value = enrollment.ProductId;
-                command.Parameters.Add("@EnrolledAt", SqlDbType.DateTime).Value =
-                    enrollment.EnrolledAt == default ? DateTime.Now : enrollment.EnrolledAt;
-
-                command.Parameters.Add("@ExpireAt", SqlDbType.Date).Value =
-                    (object?)enrollment.ExpireAt ?? DBNull.Value;
-
+                command.CommandType = CommandType.StoredProcedure;
+                command.Parameters.Add("@OrderId", SqlDbType.Int).Value = enrollment.orderId;
                 command.Parameters.Add("@PaymentId", SqlDbType.Int).Value = enrollment.PaymentId;
 
-                await connection.OpenAsync();
+                command.Parameters.Add("@ExpireAt", SqlDbType.DateTime2)
+                    .Value = (object?)enrollment.ExpireAt ?? DBNull.Value;
 
-                object result = await command.ExecuteScalarAsync();
+                int rowsAffected = await command.ExecuteNonQueryAsync();
 
-                if (result != null && int.TryParse(result.ToString(), out int newId))
-                {
-                    id = newId;
-                }
+                return rowsAffected > 0;
+
             }
-
-            return id;
         }
 
         public static async Task<DtoEnrollment> GetEnrollmentByUserId(int Id)
@@ -50,14 +35,14 @@ namespace EduCore_DataAccess
 
             string query = @"SELECT Id, UserId, ProductId, EnrolledAt, ExpireAt, PaymentId
                             FROM Enrollments
-                            WHERE Id = @Id";
+                            WHERE UserId = @UserId";
 
             DtoEnrollment enrollment = null;
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                command.Parameters.Add("@Id", SqlDbType.Int).Value = Id;
+                command.Parameters.Add("@UserId", SqlDbType.Int).Value = Id;
 
                 await connection.OpenAsync();
 
@@ -90,10 +75,10 @@ namespace EduCore_DataAccess
             return enrollment;
         }
 
-        public static async Task<bool> IsEnrollmentExists(int userId, int productId)
+        public static async Task<bool> IsUserEnrolled(int userId, int productId)
         {
             string query = @"SELECT 1 FROM Enrollments
-                        WHERE UserId = @UserId AND ProductId = @ProductId";
+                        WHERE UserId = @UserId AND ProductId = @ProductId AND ExpireAt < SYSUTCDATETIME();";
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
