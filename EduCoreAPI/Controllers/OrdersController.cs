@@ -4,6 +4,7 @@ using EduCore_BusinessLayer;
 using Microsoft.AspNetCore.Mvc;
 using EduCoreAPI.Helpers.Models.RequestModels;
 using EduCoreAPI.Helpers.Mappers;
+using Microsoft.AspNetCore.Authorization;
 namespace EduCoreAPI.Controllers
 {
     [Route("api/orders")]
@@ -13,10 +14,19 @@ namespace EduCoreAPI.Controllers
         // =========================
         // GET: Order by Id
         // =========================
+        [Authorize]
         [HttpGet("{id:int}")]
-        public async Task<ActionResult> GetOrderById([FromRoute] int id)
+        public async Task<ActionResult> GetOrderById([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
         {
             clsOrder order = await clsOrder.Find(id);
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               order.UserId,
+               "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
             return Ok(OrderMapper.ToOrderResponse(order));
         }
 
@@ -24,10 +34,19 @@ namespace EduCoreAPI.Controllers
         // GET: Pending Order For User
         // يجلب الكارت الحالي للمستخدم
         // =========================
+        [Authorize]
         [HttpGet("cart/{userId:int}")]
-        public async Task<ActionResult> GetCart([FromRoute] int userId)
+        public async Task<ActionResult> GetCart([FromRoute] int userId, [FromServices] IAuthorizationService authorizationService)
         {
             clsOrder order = await clsOrder.FindOrderbyUserId(userId);
+            var authResult = await authorizationService.AuthorizeAsync(
+              User,
+              order.UserId,
+              "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
             return Ok(OrderMapper.ToOrderResponse(order));
         }
 
@@ -35,15 +54,21 @@ namespace EduCoreAPI.Controllers
         // POST: Add Item To Order
         // يضيف منتج للكارت
         // =========================
-        
+        [Authorize]
         [HttpPost("{Orderid:int}/items/{ItemId:int}")]
         public async Task<ActionResult> AddItemToOrder(
             [FromRoute] int Orderid,
-            [FromRoute] int ItemId)
+            [FromRoute] int ItemId, [FromServices] IAuthorizationService authorizationService)
         {
             clsOrder order = await clsOrder.Find(Orderid);
 
+            var authResult = await authorizationService.AuthorizeAsync(
+             User,
+             order.UserId,
+             "UserOwnerOrAdmin");
 
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
             bool result = await order.AddItemToOrder(ItemId);
 
             if (!result)
@@ -56,13 +81,20 @@ namespace EduCoreAPI.Controllers
         // DELETE: Remove Item From Order
         // يحذف منتج من الكارت
         // =========================
+        [Authorize]
         [HttpDelete("{id:int}/items/{productId:int}")]
         public async Task<ActionResult> RemoveItemFromOrder(
             [FromRoute] int id,
-            [FromRoute] int productId)
+            [FromRoute] int productId, [FromServices] IAuthorizationService authorizationService)
         {
             clsOrder order = await clsOrder.Find(id);
+            var authResult = await authorizationService.AuthorizeAsync(
+             User,
+             order.UserId,
+             "UserOwnerOrAdmin");
 
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
             bool result = await order.DeleteItemFromOrder(productId);
 
             if (!result)
@@ -75,10 +107,18 @@ namespace EduCoreAPI.Controllers
         // PUT: Complete Order
         // إتمام عملية الشراء
         // =========================
+        [Authorize]
         [HttpPut("{id:int}/complete")]
-        public async Task<ActionResult> CompleteOrder([FromRoute] int id)
+        public async Task<ActionResult> CompleteOrder([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
         {
             clsOrder order = await clsOrder.Find(id);
+            var authResult = await authorizationService.AuthorizeAsync(
+           User,
+           order.UserId,
+           "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
 
             bool result = await order.MarkAsCompleted();
 
@@ -92,11 +132,18 @@ namespace EduCoreAPI.Controllers
         // PUT: Cancel Order
         // إلغاء الطلب
         // =========================
+        [Authorize]
         [HttpPut("{id:int}/cancel")]
-        public async Task<ActionResult> CancelOrder([FromRoute] int id)
+        public async Task<ActionResult> CancelOrder([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
         {
             clsOrder order = await clsOrder.Find(id);
+            var authResult = await authorizationService.AuthorizeAsync(
+           User,
+           order.UserId,
+           "UserOwnerOrAdmin");
 
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
             bool result = await order.Cancel();
 
             if (!result)

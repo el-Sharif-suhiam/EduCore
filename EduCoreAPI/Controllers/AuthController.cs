@@ -100,15 +100,11 @@ namespace EduCoreAPI.Controllers
             if (!isUpdated)
                 throw new Exception("Something went wrong after trying to update refresh token");
 
-
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            int actionbyId = int.Parse(userId);
-
             await clsAudit.LogAsync(
-           actionbyId,
+           user.Id,
            enAuditActionType.Login,
            "User",
-           actionbyId,
+           user.Id,
            $"User Logged in:",
            ip,
            userAgent);
@@ -215,14 +211,12 @@ namespace EduCoreAPI.Controllers
             if (!isUpdated)
                 throw new Exception("Something went wrong after trying to update refresh token");
 
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            int actionbyId = int.Parse(userId);
 
             await clsAudit.LogAsync(
-           actionbyId,
+           user.Id,
            enAuditActionType.Logout,
            "User",
-           actionbyId,
+           user.Id,
            $"User Logged out:",
            ip,
            userAgent);

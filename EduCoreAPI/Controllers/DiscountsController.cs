@@ -51,6 +51,7 @@ namespace EduCoreAPI.Controllers
         // =========================
         // GET: Is Code Valid
         // =========================
+        [Authorize]
         [HttpGet("{id:int}/is-valid")]
         public async Task<ActionResult> IsCodeValid([FromRoute] short id)
         {

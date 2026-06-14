@@ -14,6 +14,7 @@ var builder = WebApplication.CreateBuilder(args);
 // JWT Authentication Configuration
 // ===============================
 
+DotNetEnv.Env.Load();
 
 // Register authentication services in the dependency injection container.
 // JwtBearerDefaults.AuthenticationScheme tells ASP.NET Core that
@@ -51,7 +52,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
             // The secret key used to validate the JWT signature.
             // This must be the same key used when generating the token.
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes("THIS_IS_A_VERY_SECRET_KEY_123456"))
+                Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_SECRET_KEY")))
         };
     });
 

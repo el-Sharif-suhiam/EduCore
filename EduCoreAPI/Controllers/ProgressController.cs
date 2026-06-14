@@ -1,24 +1,42 @@
 ﻿using Common.Exceptions;
 using Common.ViewModels;
 using EduCore_BusinessLayer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 
 namespace EduCoreAPI.Controllers
 {
     [Route("api/progress")]
     [ApiController]
+    [Authorize]
     public class ProgressController : ControllerBase
     {
+        private int CurrentUserId
+        {
+            get
+            {
+                string? userId =
+                    User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                if (!int.TryParse(userId, out int currentUserId))
+                    throw new UnauthorizedAccessException();
+
+                return currentUserId;
+            }
+        }
+
         // =========================
-        // GET: Progress For Lesson
-        // هل أكمل المستخدم هذا الدرس؟
+        // GET: Lesson Progress
         // =========================
-        [HttpGet("users/{userId:int}/lessons/{lessonId:int}")]
+        [HttpGet("lessons/{lessonId:int}")]
         public async Task<ActionResult> GetLessonProgress(
-            [FromRoute] int userId,
             [FromRoute] int lessonId)
         {
-            clsProgress progress = await clsProgress.Find(userId, lessonId);
+            clsProgress progress =
+                await clsProgress.Find(
+                    CurrentUserId,
+                    lessonId);
 
             return Ok(new
             {
@@ -31,62 +49,83 @@ namespace EduCoreAPI.Controllers
 
         // =========================
         // GET: Course Progress
-        // نسبة إكمال الكورس كاملاً
         // =========================
-        [HttpGet("users/{userId:int}/courses/{courseId:int}")]
-        public async Task<ActionResult<CourseProgressViewModel>> GetCourseProgress(
-            [FromRoute] int userId,
+        [HttpGet("courses/{courseId:int}")]
+        public async Task<ActionResult<CourseProgressViewModel>>
+            GetCourseProgress(
             [FromRoute] int courseId)
         {
-            CourseProgressViewModel progress = await clsProgress.GetCourseProgress(userId, courseId);
+            CourseProgressViewModel progress =
+                await clsProgress.GetCourseProgress(
+                    CurrentUserId,
+                    courseId);
+
             return Ok(progress);
         }
 
         // =========================
         // GET: Is Course Completed
-        // هل أكمل المستخدم الكورس 100%؟
         // =========================
-        [HttpGet("users/{userId:int}/courses/{courseId:int}/is-completed")]
-        public async Task<ActionResult> IsCourseCompleted(
-            [FromRoute] int userId,
+        [HttpGet("courses/{courseId:int}/is-completed")]
+        public async Task<ActionResult>
+            IsCourseCompleted(
             [FromRoute] int courseId)
         {
-            bool isCompleted = await clsProgress.IsCourseComplated(userId, courseId);
-            return Ok(new { isCompleted });
+            bool isCompleted =
+                await clsProgress.IsCourseComplated(
+                    CurrentUserId,
+                    courseId);
+
+            return Ok(new
+            {
+                isCompleted
+            });
         }
 
         // =========================
-        // PUT: Mark Lesson As Complete
-        // إكمال درس
+        // PUT: Complete Lesson
         // =========================
-        [HttpPut("users/{userId:int}/lessons/{lessonId:int}/complete")]
-        public async Task<ActionResult> MarkAsComplete(
-            [FromRoute] int userId,
+        [HttpPut("lessons/{lessonId:int}/complete")]
+        public async Task<ActionResult>
+            MarkAsComplete(
             [FromRoute] int lessonId)
         {
-            bool result = await clsProgress.MarkAsComplete(userId, lessonId);
+            bool result =
+                await clsProgress.MarkAsComplete(
+                    CurrentUserId,
+                    lessonId);
 
             if (!result)
-                throw new ConflictException("Failed to mark lesson as complete");
+                throw new ConflictException(
+                    "Failed to mark lesson as complete");
 
-            return Ok(new { success = result });
+            return Ok(new
+            {
+                success = true
+            });
         }
 
         // =========================
-        // PUT: Mark Lesson As Incomplete
-        // إلغاء إكمال درس
+        // PUT: Incomplete Lesson
         // =========================
-        [HttpPut("users/{userId:int}/lessons/{lessonId:int}/incomplete")]
-        public async Task<ActionResult> MarkAsIncomplete(
-            [FromRoute] int userId,
+        [HttpPut("lessons/{lessonId:int}/incomplete")]
+        public async Task<ActionResult>
+            MarkAsIncomplete(
             [FromRoute] int lessonId)
         {
-            bool result = await clsProgress.MarkAsIncomplete(userId, lessonId);
+            bool result =
+                await clsProgress.MarkAsIncomplete(
+                    CurrentUserId,
+                    lessonId);
 
             if (!result)
-                throw new ConflictException("Failed to mark lesson as incomplete");
+                throw new ConflictException(
+                    "Failed to mark lesson as incomplete");
 
-            return Ok(new { success = result });
+            return Ok(new
+            {
+                success = true
+            });
         }
     }
 }
