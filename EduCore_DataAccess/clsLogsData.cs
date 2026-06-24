@@ -66,17 +66,16 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
         public static async Task<DtoLog?> GetLogByIdAsync(int id)
         {
-            string query = @"
-SELECT
-    Id,
-    LogType,
-    Message,
-    Source,
-    IpAddress,
-    UserAgent,
-    RequestPath
-FROM Logs
-WHERE Id = @Id;";
+            string query = @"SELECT
+                                 Id,
+                                 LogType,
+                                 Message,
+                                 Source,
+                                 IpAddress,
+                                 UserAgent,
+                                 RequestPath
+                             FROM Logs
+                             WHERE Id = @Id;";
 
             using (SqlConnection conn =
                 new SqlConnection(clsDataAccessSettings.ConnectionString))
@@ -122,19 +121,18 @@ WHERE Id = @Id;";
 
             List<DtoLog> logs = new();
 
-            string query = @"
-SELECT
-    Id,
-    LogType,
-    Message,
-    Source,
-    IpAddress,
-    UserAgent,
-    RequestPath
-FROM Logs
-ORDER BY Id DESC
-OFFSET (@PageNumber - 1) * @PageSize ROWS
-FETCH NEXT @PageSize ROWS ONLY;";
+            string query = @"SELECT
+                                Id,
+                                LogType,
+                                Message,
+                                Source,
+                                IpAddress,
+                                UserAgent,
+                                RequestPath
+                            FROM Logs
+                            ORDER BY Id DESC
+                            OFFSET (@PageNumber - 1) * @PageSize ROWS
+                            FETCH NEXT @PageSize ROWS ONLY;";
 
             using (SqlConnection conn =
                 new SqlConnection(clsDataAccessSettings.ConnectionString))
@@ -181,20 +179,19 @@ FETCH NEXT @PageSize ROWS ONLY;";
 
             List<DtoLog> logs = new();
 
-            string query = @"
-SELECT
-    Id,
-    LogType,
-    Message,
-    Source,
-    IpAddress,
-    UserAgent,
-    RequestPath
-FROM Logs
-WHERE LogType = @LogType
-ORDER BY Id DESC
-OFFSET (@PageNumber - 1) * @PageSize ROWS
-FETCH NEXT @PageSize ROWS ONLY;";
+            string query = @"SELECT
+                                Id,
+                                LogType,
+                                Message,
+                                Source,
+                                IpAddress,
+                                UserAgent,
+                                RequestPath
+                            FROM Logs
+                            WHERE LogType = @LogType
+                            ORDER BY Id DESC
+                            OFFSET (@PageNumber - 1) * @PageSize ROWS
+                            FETCH NEXT @PageSize ROWS ONLY;";
 
             using (SqlConnection conn =
                 new SqlConnection(clsDataAccessSettings.ConnectionString))

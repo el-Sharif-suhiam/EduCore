@@ -91,7 +91,7 @@ namespace EduCore_DataAccess
         }
         
 
-        private static async  Task<List<UsersViewModel>> GetAllUsersByPageInternal(int pageNumber, int pageSize, enRoles userRole, bool IncludeNonActive = false)
+        private static async  Task<List<UsersViewModel>> GetAllUsersByPageInternal(int pageNumber, int pageSize, enRoles userRole, bool IncludeNonActive = false, string SearchText = "")
         {
             if (pageNumber < 1) pageNumber = 1;
             if(pageSize <= 0) pageSize = 10;
@@ -102,22 +102,26 @@ namespace EduCore_DataAccess
                             FROM Users U
                             JOIN UserRoles UR ON UR.UserId = Id
                             JOIN Roles R ON R.RoleId = UR.RoleId 
-                            WHERE IsActive = 1 AND R.Name = @RoleName
+                            WHERE (@IsNonActiveIncluded = 1 OR IsActive = 1) AND R.Name = @RoleName
+                            AND ( @SearchText IS NULL OR U.Name LIKE @SearchText 
+                            OR Email LIKE @SearchText)
                             ORDER BY CreatedAt DESC
                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                             FETCH NEXT @RowsPerPage ROWS ONLY;";
-            if (IncludeNonActive)
-            {
-                query = @"SELECT Id, U.Name, BirthDate, Email , U.CreatedAt, R.Name As RoleName, 
-                            IsActive
-                            FROM Users U
-                            JOIN UserRoles UR ON UR.UserId = Id
-                            JOIN Roles R ON R.RoleId = UR.RoleId 
-                            WHERE R.Name = @RoleName
-                            ORDER BY CreatedAt DESC
-                            OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
-                            FETCH NEXT @RowsPerPage ROWS ONLY;";
-            }
+            //if (IncludeNonActive)
+            //{
+            //    query = @"SELECT Id, U.Name, BirthDate, Email , U.CreatedAt, R.Name As RoleName, 
+            //                IsActive
+            //                FROM Users U
+            //                JOIN UserRoles UR ON UR.UserId = Id
+            //                JOIN Roles R ON R.RoleId = UR.RoleId 
+            //                WHERE R.Name = @RoleName
+            //                AND ( @SearchName IS NULL OR U.Name LIKE @SearchName)
+            //                AND ( @SearchEmail IS NULL OR Email LIKE @SearchEmail)
+            //                ORDER BY CreatedAt DESC
+            //                OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
+            //                FETCH NEXT @RowsPerPage ROWS ONLY;";
+            //}
 
             using (SqlConnection sqlConnection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand sqlCommand = new SqlCommand(query, sqlConnection))
@@ -125,6 +129,8 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
                 sqlCommand.Parameters.Add("@RoleName", SqlDbType.NVarChar).Value = userRole.ToString();
+                sqlCommand.Parameters.Add("@SearchText",SqlDbType.NVarChar).Value = String.IsNullOrWhiteSpace(SearchText) ? DBNull.Value : $"%{SearchText}%";
+                sqlCommand.Parameters.Add("IsNonActiveIncluded", SqlDbType.Bit).Value = IncludeNonActive;
 
                 await sqlConnection.OpenAsync();
 
@@ -157,11 +163,11 @@ namespace EduCore_DataAccess
             return users;
         }
 
-        public static async Task<List<UsersViewModel>> GetAllUsers(int pageNumber, int pageSize, enRoles userRole)
-            => await GetAllUsersByPageInternal(pageNumber, pageSize,userRole);
+        public static async Task<List<UsersViewModel>> GetAllUsers(int pageNumber, int pageSize, enRoles userRole, string SearchText = "")
+            => await GetAllUsersByPageInternal(pageNumber, pageSize,userRole,false,SearchText);
 
-        public static async Task<List<UsersViewModel>> GetAllUsersIncludeNonActive(int pageNumber, int pageSize, enRoles userRole)
-            => await GetAllUsersByPageInternal(pageNumber, pageSize,userRole, true);
+        public static async Task<List<UsersViewModel>> GetAllUsersIncludeNonActive(int pageNumber, int pageSize, enRoles userRole, string SearchText = "")
+            => await GetAllUsersByPageInternal(pageNumber, pageSize,userRole, true, SearchText);
 
         public static async Task<int> AddUser(DtoUser user,SqlConnection conn, SqlTransaction tx)
             {

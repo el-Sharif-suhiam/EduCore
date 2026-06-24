@@ -336,9 +336,9 @@ namespace EduCore_BusinessLayer
 
             return result;
         }
-        public static async Task<List<LessonsWithOutCoursesViewModel>> GetIndependntLessons(int pageNumber,int pageSize)
+        public static async Task<List<LessonsWithOutCoursesViewModel>> GetIndependntLessons(int pageNumber,int pageSize, string searchText = "")
         {
-            return await clsLessonsData.GetAllLessonsWithOutCourses(pageNumber, pageSize);
+            return await clsLessonsData.GetAllLessonsWithOutCourses(pageNumber, pageSize,searchText);
         }
 
         public static async Task<List<DtoLessons>> GetAllLessons(int pageNumber, int pageSize,bool includeDeleted = false)

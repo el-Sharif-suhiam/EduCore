@@ -14,6 +14,7 @@ namespace Common.ViewModels
         public DateTime CreatedAt { get; set; }   // P.CreatedAt
         public string? ThumbnailUrl { get; set; } // P.ThumbnailUrl (nullable)
         public string? CoverImageUrl { get; set; }// C.CoverImageUrl (nullable)
+        public bool IsDeleted { get; set; }
         public List<InstructorsViewModel> CourseInstructors { get; set; }
         
     }

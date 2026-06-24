@@ -43,13 +43,13 @@ namespace EduCoreAPI.Controllers
         [AllowAnonymous]
         [HttpGet("with-instructors")]
         public async Task<ActionResult<List<CourseWithInstructorViewModel>>> GetAllCoursesWithInstructors(
-            [FromQuery] PageRequest pageRequest)
+            [FromQuery] PageRequest pageRequest, string? search)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
             var courses = await clsCourse.GetAllCoursesWithInstructors(
                 pageRequest.PageNumber,
-                pageRequest.PageSize);
+                pageRequest.PageSize,false,search);
 
             return Ok(courses);
         }

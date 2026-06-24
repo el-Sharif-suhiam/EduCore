@@ -37,13 +37,13 @@ namespace EduCoreAPI.Controllers
         // =========================
         [AllowAnonymous]
         [HttpGet]
-        public async Task<ActionResult> GetIndependentLessons([FromQuery] PageRequest pageRequest)
+        public async Task<ActionResult> GetIndependentLessons([FromQuery] PageRequest pageRequest, string? search)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
             var lessons = await clsLesson.GetIndependntLessons(
                 pageRequest.PageNumber,
-                pageRequest.PageSize);
+                pageRequest.PageSize,search);
 
             return Ok(lessons);
         }

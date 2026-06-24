@@ -311,9 +311,12 @@ namespace EduCore_BusinessLayer
                 return await clsCoursesData.GetAllCourses(pageNumber, pageSize);
         }
 
-        public static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructors(int pageNumber,int pageSize)
+        public static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructors(int pageNumber,int pageSize, bool evenDeletedIncluded = false, string searchText = "")
         {
-                return await clsCoursesData.GetAllCoursesWithInstructorViewModel(pageNumber, pageSize);
+            if (!evenDeletedIncluded)
+                return await clsCoursesData.GetAllCoursesWithInstructorViewModel(pageNumber, pageSize,searchText);
+            else
+                return await clsCoursesData.GetAllCoursesWithInstructorViewModelWithDeleted(pageNumber, pageSize,searchText);
         }
 
         public static async Task<bool> IsCourseExist(int courseId) {

@@ -257,28 +257,28 @@ namespace EduCore_BusinessLayer
             return result;
         }
 
-        public static async Task<List<UsersViewModel>> GetAllStudents(int pageNumber,int pageSize, bool IncludeNonActive = false)
+        public static async Task<List<UsersViewModel>> GetAllStudents(int pageNumber,int pageSize, bool IncludeNonActive = false,string searchText = "")
         {
             if (IncludeNonActive)
-                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Student);
+                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Student,searchText);
             else
-                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Student);
+                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Student,searchText);
         }
 
-        public static async Task<List<UsersViewModel>> GetAllInstructor(int pageNumber, int pageSize, bool IncludeNonActive = false)
+        public static async Task<List<UsersViewModel>> GetAllInstructor(int pageNumber, int pageSize, bool IncludeNonActive = false, string searchText = "")
         {
             if (IncludeNonActive)
-                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Instructor);
+                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Instructor,searchText);
             else
-                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Instructor);
+                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Instructor,searchText);
         }
 
-        public static async Task<List<UsersViewModel>> GetAllAdmin(int pageNumber, int pageSize, bool IncludeNonActive = false)
+        public static async Task<List<UsersViewModel>> GetAllAdmin(int pageNumber, int pageSize, bool IncludeNonActive = false, string searchText = "")
         {
             if (IncludeNonActive)
-                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Admin);
+                return await clsUsersData.GetAllUsersIncludeNonActive(pageNumber, pageSize, enRoles.Admin,searchText);
             else
-                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Admin);
+                return await clsUsersData.GetAllUsers(pageNumber, pageSize, enRoles.Admin,searchText);
         }
 
     }

@@ -351,14 +351,15 @@ namespace EduCore_DataAccess
         public static async Task<List<DtoLessons>> GetAllLessonsIncludeDeleted(int pageNumber, int pageSize)
             => await GetAllLessonsInternal(pageNumber, pageSize, true);
 
-        public static async Task<List<LessonsWithOutCoursesViewModel>> GetAllLessonsWithOutCourses(int pageNumber, int pageSize)
+        public static async Task<List<LessonsWithOutCoursesViewModel>> GetAllLessonsWithOutCourses(int pageNumber, int pageSize, string SearchText = "")
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
 
             List<LessonsWithOutCoursesViewModel> lessons = new List<LessonsWithOutCoursesViewModel>();
 
-            string query = @"SELECT * FROM vwLessonsWithOutCourses 
+            string query = @"SELECT * FROM vwLessonsWithOutCourses
+                            WHERE @SearchText IS NULL OR Name LIKE @SearchText OR InstructorName LIKE @SearchText
 	                      ORDER BY CreatedAt
                          OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                          FETCH NEXT @RowsPerPage ROWS ONLY;";
@@ -368,8 +369,10 @@ namespace EduCore_DataAccess
             {
                 command.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 command.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
+                command.Parameters.Add("@SearchText", SqlDbType.NVarChar).Value = String.IsNullOrWhiteSpace(SearchText) ? DBNull.Value : $"%{SearchText}%";
 
-               await connection.OpenAsync();
+
+                await connection.OpenAsync();
 
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {

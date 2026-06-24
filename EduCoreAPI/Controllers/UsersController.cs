@@ -22,13 +22,13 @@ namespace EduCoreAPI.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("students")]
         public async Task<ActionResult<List<UsersViewModel>>> GetStudents(
-            [FromQuery] PageRequest pageRequest)
+            [FromQuery] PageRequest pageRequest,string? search)
         {
              clsApiValidators.ValidatePaging(pageRequest);
 
             var users = await clsUser.GetAllStudents(
                 pageRequest.PageNumber,
-                pageRequest.PageSize);
+                pageRequest.PageSize,false,search);
 
             return Ok(users);
         }
@@ -38,13 +38,13 @@ namespace EduCoreAPI.Controllers
         // =========================
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("admins")]
-        public async Task<ActionResult<List<UsersViewModel>>> GetAdmins([FromQuery] PageRequest pageRequest)
+        public async Task<ActionResult<List<UsersViewModel>>> GetAdmins([FromQuery] PageRequest pageRequest,string? search)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
             var users = await clsUser.GetAllAdmin(
                 pageRequest.PageNumber,
-                pageRequest.PageSize);
+                pageRequest.PageSize,false,search);
 
             return Ok(users);
         }
@@ -55,13 +55,13 @@ namespace EduCoreAPI.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("instructors")]
         public async Task<ActionResult<List<UsersViewModel>>> GetInstructors(
-            [FromQuery] PageRequest pageRequest)
+            [FromQuery] PageRequest pageRequest, string? search)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
             var users = await clsUser.GetAllInstructor(
                 pageRequest.PageNumber,
-                pageRequest.PageSize);
+                pageRequest.PageSize,false,search);
 
             return Ok(users);
         }
