@@ -13,6 +13,7 @@ namespace EduCore_BusinessLayer
             enLogType logType,
             string message,
             string? source = null,
+            string? stackTrace = null,
             string? ipAddress = null,
             string? userAgent = null,
             string? requestPath = null)
@@ -21,6 +22,11 @@ namespace EduCore_BusinessLayer
                 throw new ValidationException("Log message is required.");
 
             message = clsValidation.ValidateString(message, "Message", 4000);
+
+
+
+            if (!string.IsNullOrWhiteSpace(stackTrace))
+                stackTrace = stackTrace ?? "";
 
             if (!string.IsNullOrWhiteSpace(source))
                 source = clsValidation.ValidateString(source, "Source", 200);
@@ -33,6 +39,7 @@ namespace EduCore_BusinessLayer
                 LogType = logType,
                 Message = message,
                 Source = source,
+                StackTrace = stackTrace,
                 IpAddress = ipAddress,
                 UserAgent = userAgent,
                 RequestPath = requestPath

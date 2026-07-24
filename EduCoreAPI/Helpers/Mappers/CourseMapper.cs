@@ -14,7 +14,7 @@ namespace EduCoreAPI.Helpers.Mappers
                 CreatedAt = course.CreatedAt,
                 BasePrice = course.BasePrice,
                 CoverImageUrl = course.CoverImageUrl,
-                CreatedByAdmin = course.CreatedByUser.Name,
+                CreatedByUser = course.CreatedByUser.Name,
                 IsPublished = course.IsPublished,
                 Summary = course.Summary,
                 ThumbnailUrl = course.ThumbnailUrl,

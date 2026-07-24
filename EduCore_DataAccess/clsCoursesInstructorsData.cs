@@ -52,7 +52,7 @@ namespace EduCore_DataAccess
 
             List<UsersViewModel> users = new List<UsersViewModel>();
             string query = @"SELECT U.Id, U.Name, U.BirthDate, U.Email , U.CreatedAt,
-                               R.Name As RoleName,U.IsActive,
+                               R.Name As RoleName,U.IsActive
                              FROM CoursesInstructors CI
                              JOIN Users U ON U.Id = CI.InstructorId
                              JOIN UserRoles UR ON UR.UserId = U.Id
@@ -101,12 +101,17 @@ namespace EduCore_DataAccess
         {
 
             const string query = @"SELECT CAST(
-                                CASE WHEN EXISTS (
-                                    CoursesInstructors
-                                WHERE CourseId = @CourseId AND InstructorId = @InstructorId
-                                )
-                                THEN 1 ELSE 0 END
-                            AS BIT)";
+                                    CASE 
+                                        WHEN EXISTS (
+                                            SELECT 1 
+                                            FROM CoursesInstructors 
+                                            WHERE CourseId = @CourseId AND InstructorId = @InstructorId
+                                        ) 
+                                        THEN 1 
+                                        ELSE 0 
+                                    END 
+                                    AS BIT
+                                ) AS IsInstructorOwner;";
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))

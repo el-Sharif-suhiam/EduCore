@@ -2,11 +2,12 @@ using EduCore_API.Middlewares;
 using EduCoreAPI.Authorization;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
-using Microsoft.AspNetCore.RateLimiting;
-using System.Threading.RateLimiting;
+using QuestPDF.Infrastructure;
 using System.Text;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -15,6 +16,7 @@ var builder = WebApplication.CreateBuilder(args);
 // ===============================
 
 DotNetEnv.Env.Load();
+QuestPDF.Settings.License = LicenseType.Community;
 
 // Register authentication services in the dependency injection container.
 // JwtBearerDefaults.AuthenticationScheme tells ASP.NET Core that
@@ -56,12 +58,6 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
         };
     });
 
-builder.Services.AddSingleton<IAuthorizationHandler, UserOwnerOrAdminHandler>();
-
-builder.Services.AddSingleton<
-    IAuthorizationHandler,
-    UserOwnerOnlyHandler>();
-
 // ===============================
 // Authorization Configuration
 // ===============================
@@ -88,6 +84,22 @@ builder.Services.AddAuthorization(options =>
         policy.Requirements.Add(new InstructorOwnershipRequirement());
     });
 });
+
+builder.Services.AddSingleton<IAuthorizationHandler, UserOwnerOrAdminHandler>();
+
+builder.Services.AddSingleton<
+    IAuthorizationHandler,
+    UserOwnerOnlyHandler>();
+
+
+builder.Services.AddSingleton<
+    IAuthorizationHandler,
+    InstructorOwnershipHandler>();
+
+
+builder.Services.AddSingleton<
+    IAuthorizationHandler,
+    IsUserEnrolledOrAdminHandler>();
 
 builder.Services.AddRateLimiter(options =>
 {

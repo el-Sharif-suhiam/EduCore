@@ -95,14 +95,14 @@ namespace EduCore_DataAccess
         {
             if (pageNumber < 1) pageNumber = 1;
             if(pageSize <= 0) pageSize = 10;
-
+           
             List<UsersViewModel> users = new List<UsersViewModel>();
             string query = @"SELECT Id, U.Name, BirthDate, Email , U.CreatedAt, R.Name As RoleName, 
                             IsActive
                             FROM Users U
                             JOIN UserRoles UR ON UR.UserId = Id
                             JOIN Roles R ON R.RoleId = UR.RoleId 
-                            WHERE (@IsNonActiveIncluded = 1 OR IsActive = 1) AND R.Name = @RoleName
+                            WHERE (@IsNonActiveIncluded = 1 OR IsActive = 1) AND R.Name Like @RoleName
                             AND ( @SearchText IS NULL OR U.Name LIKE @SearchText 
                             OR Email LIKE @SearchText)
                             ORDER BY CreatedAt DESC
@@ -128,7 +128,14 @@ namespace EduCore_DataAccess
             {
                 sqlCommand.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
-                sqlCommand.Parameters.Add("@RoleName", SqlDbType.NVarChar).Value = userRole.ToString();
+
+                if (userRole == enRoles.Admin)
+                {
+                    sqlCommand.Parameters.Add("@RoleName", SqlDbType.NVarChar).Value = "%Admin";
+
+                } else
+                    sqlCommand.Parameters.Add("@RoleName", SqlDbType.NVarChar).Value = userRole.ToString();
+                
                 sqlCommand.Parameters.Add("@SearchText",SqlDbType.NVarChar).Value = String.IsNullOrWhiteSpace(SearchText) ? DBNull.Value : $"%{SearchText}%";
                 sqlCommand.Parameters.Add("IsNonActiveIncluded", SqlDbType.Bit).Value = IncludeNonActive;
 

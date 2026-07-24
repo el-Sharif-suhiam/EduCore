@@ -83,12 +83,11 @@ namespace EduCore_BusinessLayer
         static async Task<clsCourse> InternalFind(DtoCourse dtoCourse)
         {
 
-            if (dtoCourse == null)
+            if (dtoCourse is null)
                 throw new NotFoundException("There is no course with this Id");
 
             clsCourse course = new clsCourse(dtoCourse);
-
-            clsProduct product = await clsProduct.Find(course._CourseData.ProductId);
+            clsProduct product = await clsProduct.Find(dtoCourse.ProductId);
 
             if (product is null)
                 throw new NotFoundException("There is no product for this Id");
@@ -122,7 +121,7 @@ namespace EduCore_BusinessLayer
                 throw new Exception("Course data is missing");
 
             if (CreatedByUser.Id <= 0)
-                throw new Exception("CreatedByAdmin is required");
+                throw new Exception("CreatedByUser is required");
 
             if (string.IsNullOrWhiteSpace(Name))
                 throw new Exception("Name is required");

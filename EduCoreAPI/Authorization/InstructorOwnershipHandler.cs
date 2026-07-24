@@ -7,18 +7,20 @@ using System.Security.Claims;
 
 namespace EduCoreAPI.Authorization
 {
-    public class InstructorOwnershipHandler : AuthorizationHandler<IsUserEnrolledOrAdminRequirement, ProductAccessResource>
+    public class InstructorOwnershipHandler : AuthorizationHandler<InstructorOwnershipRequirement, ProductAccessResource>
     {
         protected override async Task HandleRequirementAsync(
      AuthorizationHandlerContext context,
-     IsUserEnrolledOrAdminRequirement requirement,
+     InstructorOwnershipRequirement requirement,
      ProductAccessResource productAccess)
         {
-            if (context.User.IsInRole("SuperAdmin"))
+            if (context.User.IsInRole("Admin") ||
+                 context.User.IsInRole("SuperAdmin"))
             {
                 context.Succeed(requirement);
                 return;
             }
+
 
             var userId =
                 context.User.FindFirstValue(ClaimTypes.NameIdentifier);
@@ -32,8 +34,6 @@ namespace EduCoreAPI.Authorization
                 bool result = await clsCoursesInstructors.IsInstructorOwnProduct(currentUserId, productAccess.Id, productAccess.Type);
                 if (result)
                     context.Succeed(requirement);
-                else
-                    return;
             }
         }
     }

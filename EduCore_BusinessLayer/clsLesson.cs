@@ -101,13 +101,22 @@ namespace EduCore_BusinessLayer
             _LessonsData.BodyText = clsValidation.ValidateString(bodyText, "Body Text");
         }
 
+        public async Task SetInstructorToLesson(int? instructorId)
+        {
+
+            bool result = await clsUsersRoles.IsUserInstructorOrSuperAdmin((int)instructorId);
+            if (!result)
+                throw new NotFoundException("This user may not exist or it's don't have the permission");
+
+            _LessonsData.InstructorId = clsValidation.ValidatePositiveInt((int)instructorId, "instructor id");
+        }
         public async Task SetCourseId(int? courseId)
         {
             if (courseId is null)
                 _LessonsData.CourseId = null;
 
             bool result = await clsCourse.IsCourseExist((int)courseId);
-            if (result)
+            if (!result)
                 throw new NotFoundException("There is no course with id");
 
             _LessonsData.CourseId = clsValidation.ValidatePositiveInt((int)courseId,"course Id");
@@ -119,13 +128,13 @@ namespace EduCore_BusinessLayer
                 throw new ValidationException("Lesson data is missing");
 
             if (CreatedByUser.Id <= 0)
-                throw new ValidationException("CreatedByAdmin is required");
+                throw new ValidationException("CreatedByUser is required");
 
             if (string.IsNullOrWhiteSpace(Name))
                 throw new ValidationException("Name is required");
             if (string.IsNullOrEmpty(Title))
                 throw new ValidationException("Title is missing"); 
-            if (BasePrice <= 0)
+            if (BasePrice < 0)
                 throw new ValidationException("Base price is required");
         }
 
@@ -141,7 +150,7 @@ namespace EduCore_BusinessLayer
             if (string.IsNullOrEmpty(Title))
                 throw new ValidationException("Title is missing");
 
-            if (BasePrice <= 0)
+            if (BasePrice < 0)
                 throw new ValidationException("Base price is required");
         }
        
@@ -200,6 +209,7 @@ namespace EduCore_BusinessLayer
                 if (lessonId <= 0)
                     throw new ConflictException("Lesson creation failed");
 
+                _LessonsData.Id = lessonId;
                 string auditMessage = "Created independent lesson";
 
                 if (CourseId == null)
@@ -352,7 +362,7 @@ namespace EduCore_BusinessLayer
         public static async Task<List<LessonsByCourseViewModel>> GetLessonsByCourse(int courseId)
         {
             
-            if (await clsCourse.IsCourseExist(courseId))
+            if (!(await clsCourse.IsCourseExist(courseId)))
                 throw new NotFoundException("Course not found or has been deleted");
             return await clsLessonsData.GetLessonsByCourse(courseId);
         }

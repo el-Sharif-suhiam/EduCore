@@ -13,7 +13,7 @@ namespace EduCore_DataAccess
         public static async Task<int> AddLesson(DtoLessons lesson, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"INSERT INTO Lessons 
-                        (ProductId, Title, VideoUrl, BodyText, InstructorId,CourseId)
+                        (ProductId, Title, VideoUrl, BodyText, InstructorId ,CourseId)
                         VALUES 
                         (@ProductId, @Title, @VideoUrl, @BodyText, @InstructorId,@CourseId);
                         SELECT SCOPE_IDENTITY();";
@@ -380,7 +380,7 @@ namespace EduCore_DataAccess
                     int nameIndex = reader.GetOrdinal("Name");
                     int summaryIndex = reader.GetOrdinal("Summary");
                     int basePriceIndex = reader.GetOrdinal("BasePrice");
-                    int createAtIndex = reader.GetOrdinal("CreateAt");
+                    int createdAtIndex = reader.GetOrdinal("CreatedAt");
                     int thumbnailUrlIndex = reader.GetOrdinal("ThumbnailUrl");
                     int isPublishedIndex = reader.GetOrdinal("IsPublished");
                     int instructorIdIndex = reader.GetOrdinal("InstructorId");
@@ -394,7 +394,7 @@ namespace EduCore_DataAccess
                             Name = reader.GetString(nameIndex),
                             Summary = reader.GetString(summaryIndex),
                             BasePrice = reader.GetDecimal(basePriceIndex),
-                            CreateAt = reader.GetDateTime(createAtIndex),
+                            CreatedAt = reader.GetDateTime(createdAtIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbnailUrlIndex) ? null : reader.GetString(thumbnailUrlIndex),
                             IsPublished = reader.GetBoolean(isPublishedIndex),
                             InstructorId = reader.GetInt32(instructorIdIndex),
@@ -428,11 +428,11 @@ namespace EduCore_DataAccess
                     int nameIndex = reader.GetOrdinal("Name");
                     int summaryIndex = reader.GetOrdinal("Summary");
                     int basePriceIndex = reader.GetOrdinal("BasePrice");
-                    int createAtIndex = reader.GetOrdinal("CreateAt");
+                    int createdAtIndex = reader.GetOrdinal("CreatedAt");
                     int thumbnailUrlIndex = reader.GetOrdinal("ThumbnailUrl");
                     int isPublishedIndex = reader.GetOrdinal("IsPublished");
                     int instructorIdIndex = reader.GetOrdinal("InstructorId");
-                    int instructorNameIndex = reader.GetOrdinal("InstructorId");
+                    int instructorNameIndex = reader.GetOrdinal("InstructorName");
                     int courseIdIndex = reader.GetOrdinal("CourseId");
 
                     while (await reader.ReadAsync())
@@ -441,9 +441,9 @@ namespace EduCore_DataAccess
                         {
                             Id = reader.GetInt32(idIndex),
                             Name = reader.GetString(nameIndex),
-                            Summary = reader.GetString(summaryIndex),
+                            Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
                             BasePrice = reader.GetDecimal(basePriceIndex),
-                            CreateAt = reader.GetDateTime(createAtIndex),
+                            CreatedAt = reader.GetDateTime(createdAtIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbnailUrlIndex) ? null : reader.GetString(thumbnailUrlIndex),
                             IsPublished = reader.GetBoolean(isPublishedIndex),
                             InstructorId = reader.GetInt32(instructorIdIndex),

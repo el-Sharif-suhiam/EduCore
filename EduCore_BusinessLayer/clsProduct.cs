@@ -77,7 +77,7 @@ namespace EduCore_BusinessLayer
         public void SetBasePrice(decimal price)
         {
 
-            _productData.BasePrice = clsValidation.ValidatePrice(price);
+            _productData.BasePrice = clsValidation.ValidatePrice(price,"Price",0);
         }
 
         public void SetThumbnailUrl(string? url)
@@ -87,7 +87,7 @@ namespace EduCore_BusinessLayer
 
         public async Task SetCreatedByUser(int instructorId)
         { 
-            if (await clsUsersRoles.IsUserInstructorOrSuperAdmin(clsValidation.ValidatePositiveInt(instructorId, "Admin Id")))
+            if (await clsUsersRoles.IsUserInstructorOrSuperAdmin(clsValidation.ValidatePositiveInt(instructorId, "User Id")))
             {
                 _productData.CreatedByUser = instructorId;
                 CreatedByUser = await clsUser.Find(instructorId);
@@ -165,7 +165,7 @@ namespace EduCore_BusinessLayer
                 throw new ValidationException("Product data is missing");
 
             if (CreatedByUser == null || _productData.CreatedByUser <= 0)
-                throw new ValidationException("CreatedByAdmin is required");
+                throw new ValidationException("CreatedByUser is required");
 
             if (string.IsNullOrWhiteSpace(_productData.Name))
                 throw new ValidationException("Name is required");
@@ -234,7 +234,7 @@ namespace EduCore_BusinessLayer
             if (productId <= 0)
                 throw new ValidationException("Product id is not valid");
            
-            DtoProduct dto = await clsProductsData.GetProductById(productId);
+            DtoProduct? dto = await clsProductsData.GetProductById(productId);
             if (dto == null)
                 throw new NotFoundException("There is no product with this Id");
             clsProduct product = new clsProduct(dto);

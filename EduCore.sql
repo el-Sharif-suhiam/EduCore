@@ -1,5 +1,17 @@
-	CREATE DATABASE EduCore;
-	use EduCore;
+	
+-----------------------------------------------------------
+-- 1) Create Database
+-----------------------------------------------------------
+IF DB_ID('EduCore') IS NULL
+BEGIN
+    CREATE DATABASE EduCore;
+END
+GO
+
+USE EduCore;
+GO
+    
+    
 	CREATE TABLE Users (
 	Id INT PRIMARY KEY IDENTITY(1,1) NOT NULL,
 	Name NVARCHAR(150) NOT NULL,
@@ -9,7 +21,7 @@
 	RefreshTokenHash NVARCHAR(255) NULL,
 	RefreshTokenExpiresAt DATETIME2 Null,
 	RefreshTokenRevokedAt DATETIME2 NULL,
-	IsActive BIT DEFAULT 1,
+	IsActive BIT NOT NULL CONSTRAINT DF_User_IsActive DEFAULT (1),
 	CreatedAt DATETIME Default GETDATE() NOT NULL
 	)
 
@@ -76,15 +88,7 @@
 	FOREIGN KEY (DeletedById) REFERENCES Users(Id),
 	FOREIGN KEY (InstructorId) REFERENCES Users(Id)
 	)
-	
-    
-	--CREATE TABLE CoursesLessons(
-	--CourseId int Not Null,
-	--LessonId Int Not Null,
-	--PRIMARY KEY (CourseId,LessonId),
-	--CONSTRAINT FK_CoursesL FOREIGN KEY (CourseId) REFERENCES Courses(Id),
-	--CONSTRAINT FK_LessonL FOREIGN KEY (LessonId) REFERENCES Lessons(Id),
-	--)
+
 
 	CREATE TABLE Bundles (
 	Id smallInt PRIMARY KEY IDENTITY(1,1),
@@ -141,7 +145,7 @@
 	UNIQUE (OrderId, ProductId)
 	)
 	CREATE UNIQUE INDEX UX_Order_Product
-ON OrderItems(OrderId, ProductId);
+    ON OrderItems(OrderId, ProductId);
 
 CREATE TABLE Payments
 (
@@ -236,13 +240,12 @@ WHERE TransactionId IS NOT NULL;
     LogType NVARCHAR(30) NOT NULL,
     Message NVARCHAR(MAX) NOT NULL,
     Source NVARCHAR(200) NULL,
+    StackTrace NVARCHAR(MAX),
     IpAddress VARCHAR(45) NULL,
     UserAgent NVARCHAR(500) NULL,
     RequestPath NVARCHAR(300) NULL,
-    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME()
+    CreatedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
     );
-
-
 
 
 	CREATE INDEX idx_user_lesson 
@@ -291,14 +294,13 @@ WHERE TransactionId IS NOT NULL;
 	P.CreatedAt, 
 	P.ThumbnailUrl, 
 	P.IsPublished,
-	CL.CourseId,
+	L.CourseId,
 	U.Id AS InstructorId,
     U.Name AS InstructorName
     FROM Lessons L
     JOIN Products P ON P.Id = L.ProductId
-    LEFT JOIN CoursesLessons CL ON L.Id = CL.LessonId
     JOIN Users U ON L.InstructorId = U.Id
-    WHERE CL.CourseId IS NOT NULL AND IsDeleted = 0;
+    WHERE L.CourseId IS NOT NULL AND IsDeleted = 0;
 
 
 

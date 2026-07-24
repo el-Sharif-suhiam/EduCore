@@ -16,6 +16,7 @@ INSERT INTO Logs
     LogType,
     Message,
     Source,
+    StackTrace,
     IpAddress,
     UserAgent,
     RequestPath
@@ -25,6 +26,7 @@ VALUES
     @LogType,
     @Message,
     @Source,
+    @StackTrace,
     @IpAddress,
     @UserAgent,
     @RequestPath
@@ -44,6 +46,10 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
 
                 cmd.Parameters.Add("@Source", SqlDbType.NVarChar, 200)
                     .Value = (object?)log.Source ?? DBNull.Value;
+                
+                cmd.Parameters.Add("@StackTrace", SqlDbType.NVarChar)
+                   .Value = log.StackTrace;
+
 
                 cmd.Parameters.Add("@IpAddress", SqlDbType.VarChar, 45)
                     .Value = (object?)log.IpAddress ?? DBNull.Value;
@@ -71,6 +77,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                                  LogType,
                                  Message,
                                  Source,
+                                 StackTrace
                                  IpAddress,
                                  UserAgent,
                                  RequestPath
@@ -93,6 +100,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                         int logTypeIndex = reader.GetOrdinal("LogType");
                         int messageIndex = reader.GetOrdinal("Message");
                         int sourceIndex = reader.GetOrdinal("Source");
+                        int stackTraceIndex = reader.GetOrdinal("StackTrace");
                         int ipIndex = reader.GetOrdinal("IpAddress");
                         int userAgentIndex = reader.GetOrdinal("UserAgent");
                         int requestPathIndex = reader.GetOrdinal("RequestPath");
@@ -103,6 +111,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                             LogType = Enum.Parse<enLogType>(reader.GetString(logTypeIndex)),
                             Message = reader.GetString(messageIndex),
                             Source = reader.IsDBNull(sourceIndex) ? null : reader.GetString(sourceIndex),
+                            StackTrace = reader.IsDBNull(stackTraceIndex) ? null : reader.GetString(stackTraceIndex),
                             IpAddress = reader.IsDBNull(ipIndex) ? null : reader.GetString(ipIndex),
                             UserAgent = reader.IsDBNull(userAgentIndex) ? null : reader.GetString(userAgentIndex),
                             RequestPath = reader.IsDBNull(requestPathIndex) ? null : reader.GetString(requestPathIndex)
@@ -119,13 +128,14 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 20;
 
-            List<DtoLog> logs = new();
+            List<DtoLog> logs = new List<DtoLog>();
 
             string query = @"SELECT
                                 Id,
                                 LogType,
                                 Message,
                                 Source,
+                                StackTrace,
                                 IpAddress,
                                 UserAgent,
                                 RequestPath
@@ -149,6 +159,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     int logTypeIndex = reader.GetOrdinal("LogType");
                     int messageIndex = reader.GetOrdinal("Message");
                     int sourceIndex = reader.GetOrdinal("Source");
+                    int stackTraceIndex = reader.GetOrdinal("StackTrace");
                     int ipIndex = reader.GetOrdinal("IpAddress");
                     int userAgentIndex = reader.GetOrdinal("UserAgent");
                     int requestPathIndex = reader.GetOrdinal("RequestPath");
@@ -161,6 +172,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                             LogType = Enum.Parse<enLogType>(reader.GetString(logTypeIndex)),
                             Message = reader.GetString(messageIndex),
                             Source = reader.IsDBNull(sourceIndex) ? null : reader.GetString(sourceIndex),
+                            StackTrace = reader.IsDBNull(stackTraceIndex) ? null : reader.GetString(stackTraceIndex),
                             IpAddress = reader.IsDBNull(ipIndex) ? null : reader.GetString(ipIndex),
                             UserAgent = reader.IsDBNull(userAgentIndex) ? null : reader.GetString(userAgentIndex),
                             RequestPath = reader.IsDBNull(requestPathIndex) ? null : reader.GetString(requestPathIndex)
@@ -184,6 +196,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                                 LogType,
                                 Message,
                                 Source,
+                                StackTrace,
                                 IpAddress,
                                 UserAgent,
                                 RequestPath
@@ -209,6 +222,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     int logTypeIndex = reader.GetOrdinal("LogType");
                     int messageIndex = reader.GetOrdinal("Message");
                     int sourceIndex = reader.GetOrdinal("Source");
+                    int stackTraceIndex = reader.GetOrdinal("StackTrace");
                     int ipIndex = reader.GetOrdinal("IpAddress");
                     int userAgentIndex = reader.GetOrdinal("UserAgent");
                     int requestPathIndex = reader.GetOrdinal("RequestPath");
@@ -221,6 +235,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                             LogType = Enum.Parse<enLogType>(reader.GetString(logTypeIndex)),
                             Message = reader.GetString(messageIndex),
                             Source = reader.IsDBNull(sourceIndex) ? null : reader.GetString(sourceIndex),
+                            StackTrace = reader.IsDBNull(stackTraceIndex) ? null : reader.GetString(stackTraceIndex),
                             IpAddress = reader.IsDBNull(ipIndex) ? null : reader.GetString(ipIndex),
                             UserAgent = reader.IsDBNull(userAgentIndex) ? null : reader.GetString(userAgentIndex),
                             RequestPath = reader.IsDBNull(requestPathIndex) ? null : reader.GetString(requestPathIndex)

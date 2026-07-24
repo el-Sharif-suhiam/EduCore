@@ -1,6 +1,7 @@
 ﻿using Common.Dtos;
 using Common.Enums;
 using Common.Exceptions;
+using Common.Utils;
 using Common.ViewModels;
 using EduCore_BusinessLayer;
 using EduCore_DataAccess;
@@ -8,6 +9,7 @@ using EduCoreAPI.Authorization.Resources;
 using EduCoreAPI.Helpers;
 using EduCoreAPI.Helpers.Dtos.RequestDto;
 using EduCoreAPI.Helpers.Mappers;
+using EduCoreAPI.Helpers.Models.RequestModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -26,24 +28,7 @@ namespace EduCoreAPI.Controllers
         [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<List<DtoCourse>>> GetAllCourses(
-            [FromQuery] PageRequest pageRequest)
-        {
-            clsApiValidators.ValidatePaging(pageRequest);
-
-            var courses = await clsCourse.GetAllCourses(
-                pageRequest.PageNumber,
-                pageRequest.PageSize);
-
-            return Ok(courses);
-        }
-
-        // =========================
-        // GET: All Courses With Instructors
-        // =========================
-        [AllowAnonymous]
-        [HttpGet("with-instructors")]
-        public async Task<ActionResult<List<CourseWithInstructorViewModel>>> GetAllCoursesWithInstructors(
-            [FromQuery] PageRequest pageRequest, string? search)
+            [FromQuery] PageRequest pageRequest,string? search)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
@@ -82,13 +67,13 @@ namespace EduCoreAPI.Controllers
 
             await newCourse.AssignCreatedByUserAsync(authenticatedStudentId);
 
-            if (request.Summary is not null)
+            if (!string.IsNullOrWhiteSpace(request.Summary))
                 newCourse.SetSummary(request.Summary);
 
-            if (request.ThumbnailUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.ThumbnailUrl))
                 newCourse.SetThumbnailUrl(request.ThumbnailUrl);
 
-            if (request.CoverImageUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.CoverImageUrl))
                 newCourse.SetCoverImageUrl(request.CoverImageUrl);
 
             bool result = await newCourse.Save();
@@ -113,23 +98,37 @@ namespace EduCoreAPI.Controllers
         // =========================
         [Authorize(Roles = "Instructor,Admin,SuperAdmin")]
         [HttpPut("{id:int}")]
-        public async Task<ActionResult> UpdateCourse([FromRoute] int id,[FromBody] CourseRequest request)
+        public async Task<ActionResult> UpdateCourse([FromRoute] int id,[FromBody] CourseRequest request, [FromServices] IAuthorizationService authorizationService)
         {
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                Id = id,
+                Type = enProductType.Course
+            };
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
             clsCourse course = await clsCourse.Find(id);
 
-            if (request.Name is not null)
+            if (!string.IsNullOrWhiteSpace(request.Name))
                 course.SetName(request.Name);
 
             if (request.BasePrice > 0)
                 course.SetBasePrice(request.BasePrice);
 
-            if (request.Summary is not null)
+            if (!string.IsNullOrWhiteSpace(request.Summary))
                 course.SetSummary(request.Summary);
 
-            if (request.ThumbnailUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.ThumbnailUrl))
                 course.SetThumbnailUrl(request.ThumbnailUrl);
 
-            if (request.CoverImageUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.CoverImageUrl))
                 course.SetCoverImageUrl(request.CoverImageUrl);
 
             bool result = await course.Save();
@@ -151,28 +150,46 @@ namespace EduCoreAPI.Controllers
         // =========================
         [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpPost("{id:int}/lessons")]
-        public async Task<ActionResult> AddNewLessonToCourse([FromRoute] int courseId, [FromBody] LessonRequest lessonRequest)
+        public async Task<ActionResult> AddNewLessonToCourse([FromRoute] int id, [FromBody] CourseLessonRequest cLessonRequest,
+            [FromServices] IAuthorizationService authorizationService)
         {
-            clsCourse course = await clsCourse.Find(courseId);
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                Id = id,
+                Type = enProductType.Course
+            };
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
+            //clsCourse course = await clsCourse.Find(id);
             clsLesson newLesson = new clsLesson();
-            newLesson.SetName(lessonRequest.Name);
-            newLesson.SetTitle(lessonRequest.Title);
+            newLesson.SetName(cLessonRequest.Name);
+            newLesson.SetTitle(cLessonRequest.Title);
             newLesson.SetBasePrice(0);
-            newLesson.SetBodyText(lessonRequest.BodyText);
+            newLesson.SetBodyText(cLessonRequest.BodyText);
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int authenticatedId = int.Parse(userId);
 
             await newLesson.AssignCreatedByUserAsync(authenticatedId);
-            if (lessonRequest.VideoUrl is not null)
-                newLesson.SetVideoUrl(lessonRequest.VideoUrl);
+            if (!string.IsNullOrWhiteSpace(cLessonRequest.VideoUrl))
+                newLesson.SetVideoUrl(cLessonRequest.VideoUrl);
 
-            if (lessonRequest.ThumbnailUrl is not null)
-                newLesson.SetThumbnailUrl(lessonRequest.ThumbnailUrl);
+            if (!string.IsNullOrWhiteSpace(cLessonRequest.ThumbnailUrl))
+                newLesson.SetThumbnailUrl(cLessonRequest.ThumbnailUrl);
 
-            if (lessonRequest.Summary is not null)
-                newLesson.SetSummary(lessonRequest.Summary);
-           await newLesson.SetCourseId(courseId);
+            if (!string.IsNullOrWhiteSpace(cLessonRequest.Summary))
+                newLesson.SetSummary(cLessonRequest.Summary);
+
+            await newLesson.SetInstructorToLesson(authenticatedId);
+            await newLesson.SetCourseId(id);
 
             bool makeLessonResult = await newLesson.Save();
 
@@ -214,25 +231,25 @@ namespace EduCoreAPI.Controllers
             if (!authResult.Succeeded)
                 return Forbid(); // 403
 
-            if (request.Name is not null)
+            if (!string.IsNullOrWhiteSpace(request.Name))
                 lesson.SetName(request.Name);
 
-            if (request.Title is not null)
+            if (!string.IsNullOrWhiteSpace(request.Title))
                 lesson.SetTitle(request.Title);
 
             if (request.BasePrice > 0)
                 lesson.SetBasePrice(request.BasePrice);
 
-            if (request.VideoUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.VideoUrl))
                 lesson.SetVideoUrl(request.VideoUrl);
 
-            if (request.BodyText is not null)
+            if (!string.IsNullOrWhiteSpace(request.BodyText))
                 lesson.SetBodyText(request.BodyText);
 
-            if (request.ThumbnailUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.ThumbnailUrl))
                 lesson.SetThumbnailUrl(request.ThumbnailUrl);
 
-            if (request.Summary is not null)
+            if (!string.IsNullOrWhiteSpace(request.Summary))
                 lesson.SetSummary(request.Summary);
 
             bool result = await lesson.Save();
@@ -255,9 +272,9 @@ namespace EduCoreAPI.Controllers
         // =========================
         [AllowAnonymous]
         [HttpGet("{id:int}/lessons")]
-        public async Task<ActionResult> GetLessonsByCourse([FromRoute] int courseId)
+        public async Task<ActionResult> GetLessonsByCourse([FromRoute] int id)
         {
-            var lessons = await clsLesson.GetLessonsByCourse(courseId);
+            var lessons = await clsLesson.GetLessonsByCourse(id);
             return Ok(lessons);
         }
        
@@ -309,15 +326,15 @@ namespace EduCoreAPI.Controllers
         // =========================
         // POST: Assign Instrucctor To Course
         // =========================
-        [Authorize("Admin,SuperAdmin")]
+        [Authorize(Roles ="Admin,SuperAdmin")]
         [HttpPost("{id:int}/instructors")]
-        public async Task<ActionResult> AssginInstructorToCourse([FromRoute] int courseId, [FromQuery] int instructorId)
+        public async Task<ActionResult> AssginInstructorToCourse([FromRoute] int id, [FromQuery] int instructorId)
         {
             clsUser user = await clsUser.Find(instructorId);
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int actionbyId = int.Parse(userId);
 
-            bool result = await clsCoursesInstructors.AddInstructorToCourse(courseId, instructorId,actionbyId);
+            bool result = await clsCoursesInstructors.AddInstructorToCourse(id, instructorId,actionbyId);
 
             if (!result)
                 throw new ConflictException("error in assgin instructor to course");
@@ -333,7 +350,7 @@ namespace EduCoreAPI.Controllers
         // =========================
         // GET: GET Course Instructors
         // =========================
-        [Authorize("Admin,SuperAdmin")]
+        [Authorize(Roles ="Admin,SuperAdmin")]
         [HttpGet("{id:int}/instructors")]
         public async Task<ActionResult> GetCourseInstructors([FromRoute] int courseId)
         {
@@ -344,7 +361,7 @@ namespace EduCoreAPI.Controllers
         // =========================
         // DELETE: DELETE Instructor From Course
         // =========================
-        [Authorize("Admin,SuperAdmin")]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpDelete("{id:int}/instructors")]
         public async Task<ActionResult> RemoveInstructorFromCourse([FromRoute] int courseId, [FromQuery] int instructorId)
         {

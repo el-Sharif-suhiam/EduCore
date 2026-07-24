@@ -8,13 +8,13 @@ namespace EduCore_DataAccess
 {
     public class clsProductsData
     {
-        public static async Task<DtoProduct> GetProductById(int id)
+        public static async Task<DtoProduct?> GetProductById(int id)
         {
-            DtoProduct product = new DtoProduct();
+            DtoProduct? product = null;
 
             string query = @"
                         SELECT Id, ProductType, Name, CreatedAt, UpdatedAt, 
-                               BasePrice, CreatedByAdmin, ThumbnailUrl,Summary, IsPublished
+                               BasePrice, CreatedByUser, ThumbnailUrl,Summary, IsPublished
                         FROM Products
                         WHERE Id = @Id";
 
@@ -35,7 +35,7 @@ namespace EduCore_DataAccess
                         int createdIndex = reader.GetOrdinal("CreatedAt");
                         int updatedIndex = reader.GetOrdinal("UpdatedAt");
                         int priceIndex = reader.GetOrdinal("BasePrice");
-                        int adminIndex = reader.GetOrdinal("CreatedByAdmin");
+                        int adminIndex = reader.GetOrdinal("CreatedByUser");
                         int thumbIndex = reader.GetOrdinal("ThumbnailUrl");
                         int summaryIndex = reader.GetOrdinal("Summary");
                         int publishedIndex = reader.GetOrdinal("IsPublished");
@@ -45,14 +45,14 @@ namespace EduCore_DataAccess
                             Id = reader.GetInt32(idIndex),
                             ProductType = reader.GetByte(typeIndex),
                             Name = reader.GetString(nameIndex),
-                            CreatedAt = reader.GetDateTime(createdIndex),
-                            UpdatedAt = reader.GetDateTime(updatedIndex),
+                            CreatedAt = reader.IsDBNull(createdIndex) ? DateTime.MinValue : reader.GetDateTime(createdIndex),
+                            UpdatedAt = reader.IsDBNull(updatedIndex) ? DateTime.MinValue : reader.GetDateTime(updatedIndex),
                             BasePrice = reader.GetDecimal(priceIndex),
                             CreatedByUser = reader.GetInt32(adminIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbIndex) ? null : reader.GetString(thumbIndex),
                             Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
-                            IsPublished = reader.GetBoolean(publishedIndex)
-                        };
+                            IsPublished = reader.IsDBNull(publishedIndex) ? true: reader.GetBoolean(publishedIndex)
+                        }; 
                     }
                 }
             }
@@ -81,7 +81,7 @@ namespace EduCore_DataAccess
                     int createdIndex = reader.GetOrdinal("CreatedAt");
                     int updatedIndex = reader.GetOrdinal("UpdatedAt");
                     int priceIndex = reader.GetOrdinal("BasePrice");
-                    int adminIndex = reader.GetOrdinal("CreatedByAdmin");
+                    int adminIndex = reader.GetOrdinal("CreatedByUser");
                     int thumbIndex = reader.GetOrdinal("ThumbnailUrl");
                     int summaryIndex = reader.GetOrdinal("Summary");
                     int publishedIndex = reader.GetOrdinal("IsPublished");
@@ -110,7 +110,7 @@ namespace EduCore_DataAccess
         static public async Task<List<DtoProduct>> GetAllProducts(int pageNumber, int pageSize)
         {
             string query = @"SELECT Id, ProductType, Name, CreatedAt, UpdatedAt, 
-                               BasePrice, CreatedByAdmin, ThumbnailUrl,Summary, IsPublished
+                               BasePrice, CreatedByUser, ThumbnailUrl,Summary, IsPublished
                                FROM Products
                             ORDER BY CreatedAt DESC
                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
@@ -124,7 +124,7 @@ namespace EduCore_DataAccess
         {
 
             string query = @"SELECT Id, ProductType, Name, CreatedAt, UpdatedAt, 
-                               BasePrice, CreatedByAdmin, ThumbnailUrl,Summary,IsPublished
+                               BasePrice, CreatedByUser, ThumbnailUrl,Summary,IsPublished
                                FROM Products
                                WHERE IsPublished = 1
                                 ORDER BY CreatedAt DESC
@@ -138,19 +138,21 @@ namespace EduCore_DataAccess
             int ProductID = -1;
 
             string query = @"INSERT INTO Products (ProductType, Name, CreatedAt, UpdatedAt, 
-                               BasePrice, CreatedByAdmin, ThumbnailUrl,Summary, IsPublished) 
-                                VALUES (@ProductType,@Name,GETDATE(), Null,@BasePrice, @CreatedByAdmin,@ThumbnailUrl,@Summary, @IsPublished)
+                               BasePrice, CreatedByUser, ThumbnailUrl,Summary, IsPublished) 
+                                VALUES (@ProductType,@Name,GETDATE(), Null,@BasePrice, @CreatedByUser,@ThumbnailUrl,@Summary, 1)
                                 SELECT SCOPE_IDENTITY();";
 
 
             using (SqlCommand sqlCommand = new SqlCommand(query, conn,tx))
             {
-                sqlCommand.Parameters.Add("@ProductType", SqlDbType.TinyInt).Value = product.Name;
+                sqlCommand.Parameters.Add("@ProductType", SqlDbType.TinyInt).Value = product.ProductType;
                 sqlCommand.Parameters.Add("@Name", SqlDbType.NVarChar).Value = product.Name;
                 sqlCommand.Parameters.Add("@BasePrice", SqlDbType.Decimal).Value = product.BasePrice;
-                sqlCommand.Parameters.Add("@CreatedByAdmin", SqlDbType.Int).Value = product.CreatedByUser;
-                sqlCommand.Parameters.Add("@ThumbnailUrl", SqlDbType.NVarChar,500).Value = product.ThumbnailUrl;
-                sqlCommand.Parameters.Add("@Summary", SqlDbType.NVarChar,300).Value = product.Summary;
+                sqlCommand.Parameters.Add("@CreatedByUser", SqlDbType.Int).Value = product.CreatedByUser;
+                sqlCommand.Parameters.Add("@ThumbnailUrl", SqlDbType.NVarChar, 500)
+                     .Value = (object?)product.ThumbnailUrl ?? DBNull.Value;
+                sqlCommand.Parameters.Add("@Summary", SqlDbType.NVarChar, 300).Value = (object?)product.Summary ?? DBNull.Value;
+
                 sqlCommand.Parameters.Add("@IsPublished", SqlDbType.Bit).Value = product.IsPublished;
 
                 object result = await sqlCommand.ExecuteScalarAsync();

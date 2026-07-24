@@ -6,6 +6,7 @@ using EduCore_DataAccess;
 using EduCoreAPI.Helpers;
 using EduCoreAPI.Helpers.Dtos.RequestDto;
 using EduCoreAPI.Helpers.Mappers;
+using EduCoreAPI.Helpers.Models.RequestModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -176,7 +177,7 @@ namespace EduCoreAPI.Controllers
         // =========================
         [Authorize]
         [HttpPut("{id:int}", Name = "UpdateUser")]
-        public async Task<ActionResult> UpdateUser([FromRoute]int id,[FromBody] UserRequest request, [FromServices] IAuthorizationService authorizationService)
+        public async Task<ActionResult> UpdateUser([FromRoute]int id,[FromBody] UserUpdateRequest request, [FromServices] IAuthorizationService authorizationService)
         {
             var authResult = await authorizationService.AuthorizeAsync(
                 User,
@@ -187,13 +188,13 @@ namespace EduCoreAPI.Controllers
                 return Forbid(); // 403
 
             clsUser user = await clsUser.Find(id);
-            if(request.Name is not null)
+            if(!string.IsNullOrEmpty(request.Name))
                 user.SetName(request.Name);
-            if(request.Email is not null)
+            if(!string.IsNullOrEmpty(request.Email))
                 user.SetEmail(request.Email);
 
-            if (request.BirthDate is not null)
-                user.SetBirthDate((DateTime)request.BirthDate);
+            if (DateTime.TryParse(request.BirthDate,out DateTime newDate))
+                user.SetBirthDate(newDate);
 
             string ip = HttpContext.Connection.Id.ToString();
             string userAgent = HttpContext.Request.Headers.UserAgent.ToString();

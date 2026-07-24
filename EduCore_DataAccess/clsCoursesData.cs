@@ -40,12 +40,12 @@ namespace EduCore_DataAccess
                 return await AddCourse(course, conn, null);
             }
         }
-        private static async Task<DtoCourse> GetCourseInternal(int CourseId, bool IncludeDeleted = false)
+        private static async Task<DtoCourse?> GetCourseInternal(int CourseId, bool IncludeDeleted = false)
         {
             if (CourseId <= 0) return null;
-            DtoCourse course = null;
-            string query = @"SELECT Id, ProductId, Summary, CoverImageUrl, IsDeleted, DeletedAt, DeletedById
-                            FROM Courses
+            DtoCourse? course = null;
+            string query = @"SELECT Id, ProductId, CoverImageUrl, IsDeleted, DeletedAt, DeletedById
+                            FROM Courses 
                             WHERE Id = @Id AND (@IncludeDeleted = 1 OR IsDeleted = 0)";
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
@@ -65,7 +65,6 @@ namespace EduCore_DataAccess
                         int isDeletedIndex = reader.GetOrdinal("IsDeleted");
                         int DeletedAtIndex = reader.GetOrdinal("DeletedAt");
                         int DeletedByIdIndex = reader.GetOrdinal("DeletedById");
-
                         course = new DtoCourse
                         {
                             Id = reader.GetInt32(idIndex),
@@ -73,7 +72,7 @@ namespace EduCore_DataAccess
                             CoverImageUrl = reader.IsDBNull(coverIndex) ? null : reader.GetString(coverIndex),
                             IsDeleted = reader.GetBoolean(isDeletedIndex),
                             DeletedAt = reader.IsDBNull(DeletedAtIndex) ? null : reader.GetDateTime(DeletedAtIndex),
-                            DeletedById = reader.IsDBNull(DeletedByIdIndex) ? null : reader.GetInt32(DeletedByIdIndex)
+                            DeletedById = reader.IsDBNull(DeletedByIdIndex) ? null : reader.GetInt32(DeletedByIdIndex),
                         };
                     }
                 }
@@ -200,7 +199,7 @@ namespace EduCore_DataAccess
             if (pageSize <= 0) pageSize = 10;
 
             List<DtoCourse> courses = new List<DtoCourse>();
-            string query = @"Id, ProductId, CoverImageUrl, IsDeleted, DeletedAt, DeletedById
+            string query = @"SELECT Id, ProductId, CoverImageUrl, IsDeleted, DeletedAt, DeletedById
                             FROM Courses
                             WHERE (@IncludeDeleted = 1 OR IsDeleted = 0)
                             ORDER BY Id
@@ -273,14 +272,14 @@ namespace EduCore_DataAccess
                                 P.CreatedAt,
                                 P.ThumbnailUrl,
                                 C.CoverImageUrl,
-                                C.IsDeleted
+                                C.IsDeleted,
                                 U.Id        AS InstructorId,
                                 U.Name      AS InstructorName
                             FROM PagedCourses PC
-                            JOIN Courses C              ON PC.Id = C.Id
-                            JOIN Products P             ON C.ProductId = P.Id
-                            JOIN CoursesInstructors CI  ON C.Id = CI.CourseId
-                            JOIN Users U                ON CI.InstructorId = U.Id
+                            INNER JOIN Courses C              ON PC.Id = C.Id
+                            INNER JOIN Products P             ON C.ProductId = P.Id
+                            LEFT JOIN CoursesInstructors CI  ON C.Id = CI.CourseId
+                            LEFT JOIN Users U                ON CI.InstructorId = U.Id
                             WHERE (@IncludeDeleted = 1 OR C.IsDeleted = 0) AND 
                             (@SearchText IS NULL OR P.Name LIKE @SearchText OR U.Name LIKE @SearchText)
 
@@ -330,12 +329,14 @@ namespace EduCore_DataAccess
                             };
                             coursesDict.Add(courseId, course);
                         }
-
-                        course.CourseInstructors.Add(new InstructorsViewModel
+                        if (!reader.IsDBNull(instrIdIndex))
                         {
-                            InstructorId = reader.GetInt32(instrIdIndex),
-                            InstructorName = reader.GetString(instrNameIndex)
-                        });
+                            course.CourseInstructors.Add(new InstructorsViewModel
+                            {
+                                InstructorId = reader.GetInt32(instrIdIndex),
+                                InstructorName = reader.GetString(instrNameIndex)
+                            });
+                        }
                     }
                 }
             }

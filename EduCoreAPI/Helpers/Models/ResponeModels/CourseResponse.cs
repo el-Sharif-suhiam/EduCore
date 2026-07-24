@@ -9,7 +9,7 @@ namespace EduCoreAPI.Helpers.Dtos.ResponeDto
         public DateTime CreatedAt { get; set; }
         public DateTime UpdatedAt { get; set; }
         public decimal BasePrice { get; set; }
-        public string CreatedByAdmin { get; set; }
+        public string CreatedByUser { get; set; }
         public string? ThumbnailUrl { get; set; }
         public bool IsPublished { get; set; }
         public string? Summary { get; set; }

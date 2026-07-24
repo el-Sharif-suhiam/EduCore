@@ -93,7 +93,7 @@ namespace EduCore_DataAccess
             string query = @"SELECT TOP 1 result = 1  FROM Users U
                             JOIN UserRoles UR ON UR.UserId = Id
                             JOIN Roles R ON R.RoleId = UR.RoleId 
-                            WHERE IsActive = 1 AND U.Id = @UserId AND R.Name = 'Instructor' AND R.Name = 'SuperAdmin'";
+                            WHERE IsActive = 1 AND U.Id = @UserId AND (R.Name = 'Instructor' OR R.Name = 'SuperAdmin' OR R.Name = 'Admin')";
             using (SqlConnection sqlConnection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand cmd = new SqlCommand(query, sqlConnection))
             {

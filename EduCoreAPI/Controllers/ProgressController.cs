@@ -82,6 +82,17 @@ namespace EduCoreAPI.Controllers
             });
         }
 
+
+        [HttpGet("courses/{courseId:int}/certificate")]
+        public async Task<ActionResult>
+           IssueCertificate(
+           [FromRoute] int courseId)
+        {
+            await clsProgress.IssueCertificate(CurrentUserId, courseId, "api/courses/certificate");
+           
+
+            return Ok();
+        }
         // =========================
         // PUT: Complete Lesson
         // =========================

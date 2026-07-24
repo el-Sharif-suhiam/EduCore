@@ -25,35 +25,36 @@ namespace EduCore_API.Middlewares
             }
             catch (ValidationException ex)
             {
-                await _RegistLogs(context, ex.Message, "Validtion", enLogType.Warning);
+                await _RegistLogs(context, ex.Message, "Validtion", ex.StackTrace ,enLogType.Warning);
                 await _WriteResponse(context, 400, ex.Message);
             }
             catch (ConflictException ex)
             {
-                await _RegistLogs(context, ex.Message, "Conflict", enLogType.Warning);
+                await _RegistLogs(context, ex.Message, "Conflict",ex.StackTrace , enLogType.Warning);
 
                 await _WriteResponse(context, 409, ex.Message);
             }
             catch (NotFoundException ex)
             {
-                await _RegistLogs(context, ex.Message, "NotFound", enLogType.Warning);
+                await _RegistLogs(context, ex.Message, "NotFound", ex.StackTrace, enLogType.Warning);
                 await _WriteResponse(context, 404, ex.Message);
             }
             catch (UnauthorizedAccessException ex)
             {
-                await _RegistLogs(context, ex.Message, "Unauthorized", enLogType.Warning);
+                await _RegistLogs(context, ex.Message, "Unauthorized",ex.StackTrace ,enLogType.Warning);
                 await _WriteResponse(context,401,ex.Message);
+                
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Unhandled exception");
-                await _RegistLogs(context, ex.Message, "Unhandled exception", enLogType.Error);
+                await _RegistLogs(context, ex.Message, "Unhandled exception", ex.StackTrace ,enLogType.Error);
                 await _WriteResponse(context, 500, "Internal server error");
             }
 
         }
 
-        private static async Task _RegistLogs(HttpContext context, string message,  string exceptionSource, enLogType type)
+        private static async Task _RegistLogs(HttpContext context, string message,  string exceptionSource, string? stackTrace , enLogType type)
         {
             string? ipAddress =
            context.Connection.RemoteIpAddress?.ToString();
@@ -67,6 +68,7 @@ namespace EduCore_API.Middlewares
             type,
             message,
             source: $"ExceptionMiddleware: {exceptionSource}",
+            stackTrace,
             ipAddress,
             userAgent,
             requestPath);
