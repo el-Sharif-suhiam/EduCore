@@ -7,7 +7,7 @@ namespace Common.ViewModels
     public class LessonsWithOutCoursesViewModel
     {
         public int Id { get; set; } //    L.Id
-        public string Name { get; set; }  //    P.Name,
+        public string Title { get; set; }  //    P.Name,
         public string? Summary { get; set; } //   P.Summary,
 	    public decimal BasePrice { get; set; } // P.BasePrice,
 	    public DateTime CreatedAt { get; set; } // P.CreatedAt, 

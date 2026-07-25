@@ -138,8 +138,8 @@ namespace EduCore_DataAccess
             int ProductID = -1;
 
             string query = @"INSERT INTO Products (ProductType, Name, CreatedAt, UpdatedAt, 
-                               BasePrice, CreatedByUser, ThumbnailUrl,Summary, IsPublished) 
-                                VALUES (@ProductType,@Name,GETDATE(), Null,@BasePrice, @CreatedByUser,@ThumbnailUrl,@Summary, 1)
+                               BasePrice, CreatedByUser, ThumbnailUrl,Summary) 
+                                VALUES (@ProductType,@Name,GETDATE(), Null,@BasePrice, @CreatedByUser,@ThumbnailUrl,@Summary)
                                 SELECT SCOPE_IDENTITY();";
 
 

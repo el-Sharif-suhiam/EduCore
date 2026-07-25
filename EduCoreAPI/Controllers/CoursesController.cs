@@ -53,7 +53,7 @@ namespace EduCoreAPI.Controllers
         // =========================
         // POST: Create Course
         // =========================
-        [Authorize(Roles = "Instructor,Admin,SuperAdmin")]
+        [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpPost]
         public async Task<ActionResult> CreateCourse([FromBody] CourseRequest request)
         {
@@ -96,13 +96,13 @@ namespace EduCoreAPI.Controllers
         // =========================
         // PUT: Update Course
         // =========================
-        [Authorize(Roles = "Instructor,Admin,SuperAdmin")]
+        [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpPut("{id:int}")]
         public async Task<ActionResult> UpdateCourse([FromRoute] int id,[FromBody] CourseRequest request, [FromServices] IAuthorizationService authorizationService)
         {
             ProductAccessResource productAccess = new ProductAccessResource
             {
-                Id = id,
+                CourseId = id,
                 Type = enProductType.Course
             };
 
@@ -156,7 +156,7 @@ namespace EduCoreAPI.Controllers
 
             ProductAccessResource productAccess = new ProductAccessResource
             {
-                Id = id,
+                CourseId = id,
                 Type = enProductType.Course
             };
 
@@ -220,8 +220,9 @@ namespace EduCoreAPI.Controllers
 
             ProductAccessResource productAccess = new ProductAccessResource
             {
-                Id = lessonId,
-                Type = enProductType.Lesson
+                LessonId = lessonId,
+                CourseId = courseId,
+                Type = enProductType.CourseLesson
             };
             var authResult = await authorizationService.AuthorizeAsync(
                User,

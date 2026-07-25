@@ -271,7 +271,7 @@ WHERE TransactionId IS NOT NULL;
 
 	CREATE VIEW vwLessonsWithOutCourses 
 	AS 
-    SELECT L.Id,P.Name, 
+    SELECT L.Id,L.Title, 
 	P.Summary,
 	P.BasePrice,
 	P.CreatedAt, 
@@ -281,14 +281,13 @@ WHERE TransactionId IS NOT NULL;
     U.Name AS InstructorName
     FROM Lessons L
     JOIN Products P ON P.Id = L.ProductId
-    LEFT JOIN CoursesLessons CL ON L.Id = CL.LessonId
     JOIN Users U ON L.InstructorId = U.Id
-    WHERE CL.CourseId IS NULL AND IsDeleted = 0;
+    WHERE L.CourseId IS NULL AND IsDeleted = 0;
 
 
 	CREATE VIEW vwLessonsWithCourses 
 	AS 
-	SELECT L.Id,P.Name, 
+	SELECT L.Id,L.Title, 
 	P.Summary,
 	P.BasePrice,
 	P.CreatedAt, 

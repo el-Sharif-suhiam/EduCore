@@ -222,7 +222,7 @@ namespace EduCore_DataAccess
                          SET Title = @Title,
                              VideoUrl = @VideoUrl,
                              BodyText = @BodyText,
-                             InstructorId = @InstructorId
+                             InstructorId = @InstructorId,
                              CourseId = @CourseId
                          WHERE Id = @Id;";
 
@@ -359,7 +359,7 @@ namespace EduCore_DataAccess
             List<LessonsWithOutCoursesViewModel> lessons = new List<LessonsWithOutCoursesViewModel>();
 
             string query = @"SELECT * FROM vwLessonsWithOutCourses
-                            WHERE @SearchText IS NULL OR Name LIKE @SearchText OR InstructorName LIKE @SearchText
+                            WHERE @SearchText IS NULL OR Title LIKE @SearchText OR InstructorName LIKE @SearchText
 	                      ORDER BY CreatedAt
                          OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                          FETCH NEXT @RowsPerPage ROWS ONLY;";
@@ -377,7 +377,7 @@ namespace EduCore_DataAccess
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
-                    int nameIndex = reader.GetOrdinal("Name");
+                    int titleIndex = reader.GetOrdinal("Title");
                     int summaryIndex = reader.GetOrdinal("Summary");
                     int basePriceIndex = reader.GetOrdinal("BasePrice");
                     int createdAtIndex = reader.GetOrdinal("CreatedAt");
@@ -391,7 +391,7 @@ namespace EduCore_DataAccess
                         lessons.Add(new LessonsWithOutCoursesViewModel
                         {
                             Id = reader.GetInt32(idIndex),
-                            Name = reader.GetString(nameIndex),
+                            Title = reader.GetString(titleIndex),
                             Summary = reader.GetString(summaryIndex),
                             BasePrice = reader.GetDecimal(basePriceIndex),
                             CreatedAt = reader.GetDateTime(createdAtIndex),
@@ -425,7 +425,7 @@ namespace EduCore_DataAccess
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
                     int idIndex = reader.GetOrdinal("Id");
-                    int nameIndex = reader.GetOrdinal("Name");
+                    int titleIndex = reader.GetOrdinal("Title");
                     int summaryIndex = reader.GetOrdinal("Summary");
                     int basePriceIndex = reader.GetOrdinal("BasePrice");
                     int createdAtIndex = reader.GetOrdinal("CreatedAt");
@@ -440,7 +440,7 @@ namespace EduCore_DataAccess
                         lessons.Add(new LessonsByCourseViewModel
                         {
                             Id = reader.GetInt32(idIndex),
-                            Name = reader.GetString(nameIndex),
+                            Title = reader.GetString(titleIndex),
                             Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
                             BasePrice = reader.GetDecimal(basePriceIndex),
                             CreatedAt = reader.GetDateTime(createdAtIndex),

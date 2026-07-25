@@ -14,8 +14,7 @@ namespace EduCoreAPI.Authorization
      InstructorOwnershipRequirement requirement,
      ProductAccessResource productAccess)
         {
-            if (context.User.IsInRole("Admin") ||
-                 context.User.IsInRole("SuperAdmin"))
+            if (context.User.IsInRole("SuperAdmin"))
             {
                 context.Succeed(requirement);
                 return;
@@ -31,7 +30,7 @@ namespace EduCoreAPI.Authorization
 
             if (context.User.IsInRole("Instructor"))
             {
-                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(currentUserId, productAccess.Id, productAccess.Type);
+                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(currentUserId, productAccess.Type,productAccess.CourseId,productAccess.LessonId);
                 if (result)
                     context.Succeed(requirement);
             }

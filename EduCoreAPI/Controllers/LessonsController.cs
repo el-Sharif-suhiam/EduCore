@@ -68,7 +68,7 @@ namespace EduCoreAPI.Controllers
             bool isInstructor =  userRole == "Instructor";
             if (isInstructor)
             {
-                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(authenticatedId, id, enProductType.Lesson);
+                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(authenticatedId,enProductType.Lesson , 0, id);
                 if (result)
                     return Ok(lessonMapper.ToLessonRespone(lesson));
                 else
@@ -105,16 +105,17 @@ namespace EduCoreAPI.Controllers
 
 
             await newLesson.AssignCreatedByUserAsync(authenticatedtId);
-            if (request.VideoUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.VideoUrl))
                 newLesson.SetVideoUrl(request.VideoUrl);
 
-            if (request.ThumbnailUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.ThumbnailUrl))
                 newLesson.SetThumbnailUrl(request.ThumbnailUrl);
 
-            if (request.Summary is not null)
+            if (!string.IsNullOrWhiteSpace(request.Summary))
                 newLesson.SetSummary(request.Summary);
 
             await newLesson.SetCourseId(null);
+            await newLesson.SetInstructorToLesson(authenticatedtId);
 
             bool result = await newLesson.Save();
 
@@ -147,7 +148,7 @@ namespace EduCoreAPI.Controllers
 
             ProductAccessResource productAccess = new ProductAccessResource
             {
-                Id = id,
+                LessonId = id,
                 Type = enProductType.Lesson
             };
             var authResult = await authorizationService.AuthorizeAsync(
@@ -158,25 +159,25 @@ namespace EduCoreAPI.Controllers
             if (!authResult.Succeeded)
                 return Forbid(); // 403
 
-            if (request.Name is not null)
+            if (!string.IsNullOrWhiteSpace(request.Name))
                 lesson.SetName(request.Name);
 
-            if (request.Title is not null)
+            if (!string.IsNullOrWhiteSpace(request.Title))
                 lesson.SetTitle(request.Title);
 
             if (request.BasePrice > 0)
                 lesson.SetBasePrice(request.BasePrice);
 
-            if (request.VideoUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.VideoUrl))
                 lesson.SetVideoUrl(request.VideoUrl);
 
-            if (request.BodyText is not null)
+            if (!string.IsNullOrWhiteSpace(request.BodyText))
                 lesson.SetBodyText(request.BodyText);
 
-            if (request.ThumbnailUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.ThumbnailUrl))
                 lesson.SetThumbnailUrl(request.ThumbnailUrl);
 
-            if (request.Summary is not null)
+            if (!string.IsNullOrWhiteSpace(request.Summary))
                 lesson.SetSummary(request.Summary);
 
             bool result = await lesson.Save();
@@ -205,7 +206,7 @@ namespace EduCoreAPI.Controllers
 
             ProductAccessResource productAccess = new ProductAccessResource
             {
-                Id = id,
+                LessonId = id,
                 Type = enProductType.Lesson
             };
             var authResult = await authorizationService.AuthorizeAsync(
@@ -246,7 +247,7 @@ namespace EduCoreAPI.Controllers
 
             ProductAccessResource productAccess = new ProductAccessResource
             {
-                Id = id,
+                LessonId = id,
                 Type = enProductType.Lesson
             };
             var authResult = await authorizationService.AuthorizeAsync(

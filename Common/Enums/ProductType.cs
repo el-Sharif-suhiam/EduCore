@@ -8,6 +8,7 @@ namespace Common.Enums
     {
         Lesson = 1,
         Course = 2,
-        Bundle = 3
+        Bundle = 3,
+        CourseLesson = 4,
     };
 }
