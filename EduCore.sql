@@ -96,6 +96,14 @@ GO
 	FOREIGN KEY (ProductId) REFERENCES Products(Id)
 	)	
 
+	CREATE TABLE CoursesLessons (
+	CourseId int NOT NULL,
+	LessonId int NOT NULL,
+	PRIMARY KEY (CourseId, LessonId),
+	CONSTRAINT FK_CL_Course FOREIGN KEY (CourseId) REFERENCES Courses(Id),
+	CONSTRAINT FK_CL_Lesson FOREIGN KEY (LessonId) REFERENCES Lessons(Id)
+	)
+
 	CREATE TABLE BundlesItems(
 	BundleId smallint Not Null,
 	CourseId Int Not Null,

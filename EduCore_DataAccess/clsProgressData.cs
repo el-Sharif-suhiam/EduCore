@@ -87,7 +87,7 @@ namespace EduCore_DataAccess
                                  l.Title,
                                  p.IsComplete,
                                  p.CompletedDate
-                             FROM CourseLessons cl
+                             FROM CoursesLessons cl
                              JOIN Lessons l ON l.Id = cl.LessonId
                              LEFT JOIN Progress p 
                                  ON p.LessonId = l.Id AND p.UserId = @UserId

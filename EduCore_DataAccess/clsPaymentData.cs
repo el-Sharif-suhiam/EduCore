@@ -137,7 +137,7 @@ namespace EduCore_DataAccess
 
                             Status = (enPaymentStatus)Enum.Parse(
                                 typeof(enPaymentStatus),
-                                reader.GetString(paymentMethodIndex)
+                                reader.GetString(statusIndex)
                             ),
 
                             TransactionId = reader.IsDBNull(transactionIdIndex)
@@ -356,11 +356,12 @@ namespace EduCore_DataAccess
             {
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
                 cmd.Parameters.Add("@Status", SqlDbType.VarChar, 50).Value = status.ToString();
-                cmd.Parameters.Add("@PaidAt", SqlDbType.DateTime).Value = (object?)paidAt ?? null;
-                cmd.Parameters.Add("@TransactionId", SqlDbType.NVarChar,200).Value = (object?)transactionId ?? null; 
+                cmd.Parameters.Add("@PaidAt", SqlDbType.DateTime).Value = (object?)paidAt ?? DBNull.Value;
+                cmd.Parameters.Add("@TransactionId", SqlDbType.NVarChar,200).Value = (object?)transactionId ?? DBNull.Value; 
 
 
-                await conn.OpenAsync();
+                if (conn.State != ConnectionState.Open)
+                    await conn.OpenAsync();
 
                 return await cmd.ExecuteNonQueryAsync() > 0;
             }

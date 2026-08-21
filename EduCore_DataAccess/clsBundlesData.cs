@@ -74,7 +74,7 @@ namespace EduCore_DataAccess
         public static async Task<bool> UpdateBundle(DtoBundle bundle, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Bundles
-                         SET ProductId = @ProductId,
+                         SET ProductId = @ProductId
                          WHERE Id = @Id;";
 
             int rows = 0;
@@ -192,8 +192,7 @@ namespace EduCore_DataAccess
                             SELECT CAST(
                                 CASE WHEN EXISTS (
                                     SELECT 1 FROM Bundles B
-                                    JOIN Products P ON  P.Id = B.ProductId
-                                    WHERE B.Id = 1 AND P.IsPublished = 1
+                                    WHERE B.Id = @Id
                                 )
                                 THEN 1 ELSE 0 END
                             AS BIT)";

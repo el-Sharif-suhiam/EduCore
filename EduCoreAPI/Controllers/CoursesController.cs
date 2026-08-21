@@ -352,7 +352,7 @@ namespace EduCoreAPI.Controllers
         // GET: GET Course Instructors
         // =========================
         [Authorize(Roles ="Admin,SuperAdmin")]
-        [HttpGet("{id:int}/instructors")]
+        [HttpGet("{courseId:int}/instructors")]
         public async Task<ActionResult> GetCourseInstructors([FromRoute] int courseId)
         {
             var instructors = await clsCoursesInstructors.GetAllCourseInstructor(courseId); 
@@ -363,7 +363,7 @@ namespace EduCoreAPI.Controllers
         // DELETE: DELETE Instructor From Course
         // =========================
         [Authorize(Roles = "Admin,SuperAdmin")]
-        [HttpDelete("{id:int}/instructors")]
+        [HttpDelete("{courseId:int}/instructors")]
         public async Task<ActionResult> RemoveInstructorFromCourse([FromRoute] int courseId, [FromQuery] int instructorId)
         {
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
