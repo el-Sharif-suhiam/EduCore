@@ -87,7 +87,7 @@ namespace EduCore_DataAccess
 
                     while (await reader.ReadAsync())
                     {
-                        if (bundle is null)
+                        if (bundle.Id <= 0)
                         {
                             bundle = new BundleItemsViewModel
                             {
@@ -96,14 +96,16 @@ namespace EduCore_DataAccess
                                 Courses = new List<CourseItemVM>()
                             };
                         }
-
-                        bundle.Courses.Add(new CourseItemVM
+                        if (bundle.Id > 0 && bundle.Courses is not null)
                         {
-                            CourseId = reader.GetInt32(courseIdIndex),
-                            Name = reader.GetString(courseNameIndex),
-                            Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
-                            ThumbnailUrl = reader.IsDBNull(thumbnailIndex) ? null : reader.GetString(thumbnailIndex)
-                        });
+                            bundle.Courses.Add(new CourseItemVM
+                            {
+                                CourseId = reader.GetInt32(courseIdIndex),
+                                Name = reader.GetString(courseNameIndex),
+                                Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
+                                ThumbnailUrl = reader.IsDBNull(thumbnailIndex) ? null : reader.GetString(thumbnailIndex)
+                            });
+                        }
                     }
                 }
             }

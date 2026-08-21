@@ -1,7 +1,9 @@
 ﻿using Common.Dtos;
+using Common.Enums;
 using Common.Exceptions;
 using Common.ViewModels;
 using EduCore_BusinessLayer;
+using EduCoreAPI.Authorization.Resources;
 using EduCoreAPI.Helpers.Dtos.RequestDto;
 using EduCoreAPI.Helpers.Mappers;
 using Microsoft.AspNetCore.Authorization;
@@ -34,9 +36,10 @@ namespace EduCoreAPI.Controllers
         {
             var bundle = await clsBundle.GetBundleItems(id);
 
-            if (bundle is null)
-                throw new NotFoundException("Bundle not found");
+            if (bundle.Id <= 0)
+                throw new NotFoundException("Bundle is not found or empty");
 
+            
             return Ok(bundle);
         }
 
@@ -66,7 +69,7 @@ namespace EduCoreAPI.Controllers
         // =========================
         // POST: Create Bundle
         // =========================
-        [Authorize(Roles = "Instructor,Admin,SuperAdmin")]
+        [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpPost]
         public async Task<ActionResult> CreateBundle([FromBody] BundleRequest request)
         {
@@ -102,6 +105,77 @@ namespace EduCoreAPI.Controllers
                 });
         }
 
+
+
+        // =========================
+        // PUT: Publish Bundle
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPost("{id:int}/publish")]
+        public async Task<ActionResult> PublishBundle([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            clsBundle Bundle = await clsBundle.Find(id);
+
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedStudentId = int.Parse(userId);
+
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                BundleId = id,
+                Type = enProductType.Bundle
+            };
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+            bool result = await Bundle.PublishBundle();
+
+            if (!result)
+                throw new ConflictException("Failed to publish the bundle");
+
+            return Ok(new { success = result });
+        }
+
+        // =========================
+        // PUT: UnPublish Bundle
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPost("{id:int}/unpublish")]
+        public async Task<ActionResult> UnPublishBundle([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            clsBundle Bundle = await clsBundle.Find(id);
+
+
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedStudentId = int.Parse(userId);
+
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                BundleId = id,
+                Type = enProductType.Bundle
+            };
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+            bool result = await Bundle.UnPublishBundle();
+
+            if (!result)
+                throw new ConflictException("Failed to Unpublish the bundle");
+
+            return Ok(new { success = result });
+        }
+
+
         // =========================
         // PUT: Update Bundle
         // =========================
@@ -112,16 +186,16 @@ namespace EduCoreAPI.Controllers
         {
             clsBundle bundle = await clsBundle.Find(id);
 
-            if (request.Name is not null)
+            if (!string.IsNullOrWhiteSpace(request.Name))
                 bundle.SetName(request.Name);
 
             if (request.BasePrice > 0)
                 bundle.SetBasePrice(request.BasePrice);
 
-            if (request.Summary is not null)
+            if (!string.IsNullOrWhiteSpace(request.Summary))
                 bundle.SetSummary(request.Summary);
 
-            if (request.ThumbnailUrl is not null)
+            if (!string.IsNullOrWhiteSpace(request.ThumbnailUrl))
                 bundle.SetThumbnailUrl(request.ThumbnailUrl);
 
             bool result = await bundle.Save();
@@ -132,22 +206,7 @@ namespace EduCoreAPI.Controllers
             return Ok(bundleMapper.ToBundleResponse(bundle));
         }
 
-        // =========================
-        // DELETE: Bundle
-        //// =========================
-        //[HttpDelete("{id:int}")]
-        //public async Task<ActionResult> DeleteBundle([FromRoute] int id)
-        //{
-        //    clsBundle bundle = await clsBundle.Find(id);
-
-        //    bool result = await bundle.();
-
-        //    if (!result)
-        //        throw new ConflictException("Failed to delete bundle");
-
-        //    return Ok(bundleMapper.ToBundleResponse(bundle));
-        //}
-
+       
         // =========================
         // POST: Add Item To Bundle
         // =========================

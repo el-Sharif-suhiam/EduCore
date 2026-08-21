@@ -30,7 +30,7 @@ namespace EduCoreAPI.Authorization
 
             if (context.User.IsInRole("Instructor"))
             {
-                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(currentUserId, productAccess.Type,productAccess.CourseId,productAccess.LessonId);
+                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(currentUserId, productAccess.Type,productAccess.CourseId,productAccess.LessonId, productAccess.BundleId);
                 if (result)
                     context.Succeed(requirement);
             }

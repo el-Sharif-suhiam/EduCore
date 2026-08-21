@@ -99,11 +99,12 @@ namespace EduCore_BusinessLayer
         }
 
         public static async Task<bool> IsInstructorOwnProduct(
-     int userId,
-     enProductType productType,
-     int courseId,
-     int lessonId
-     )
+        int userId,
+        enProductType productType,
+        int courseId,
+        int lessonId,
+        int bundleId
+        )
         {
             switch (productType)
             {
@@ -117,6 +118,10 @@ namespace EduCore_BusinessLayer
                 case enProductType.CourseLesson:
                     clsLesson courseLesson = await clsLesson.FindWithCourseId(lessonId, courseId);
                     return courseLesson.InstructorId == userId;
+
+                case enProductType.Bundle:
+                    clsBundle bundle = await clsBundle.Find(bundleId);
+                    return bundle.CreatedByUser.Id == userId;
                 default:
                     return false;
             }

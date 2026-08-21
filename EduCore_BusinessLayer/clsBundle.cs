@@ -61,7 +61,11 @@ namespace EduCore_BusinessLayer
         public void SetSummary(string? summary)
             => _Product.SetSummary(summary);
 
+        public async Task<bool> PublishBundle()
+            => await _Product.Publish();
 
+        public async Task<bool> UnPublishBundle()
+            => await _Product.Unpublish();
         public static async Task<clsBundle> Find(int bundleId)
         {
             if (bundleId <= 0)
@@ -79,6 +83,7 @@ namespace EduCore_BusinessLayer
             bundle._Product = product;
             return bundle;
         }
+
 
 
         private void _ValidateForAdd()

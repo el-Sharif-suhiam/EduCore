@@ -68,7 +68,7 @@ namespace EduCoreAPI.Controllers
             bool isInstructor =  userRole == "Instructor";
             if (isInstructor)
             {
-                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(authenticatedId,enProductType.Lesson , 0, id);
+                bool result = await clsCoursesInstructors.IsInstructorOwnProduct(authenticatedId,enProductType.Lesson , 0, id,0);
                 if (result)
                     return Ok(lessonMapper.ToLessonRespone(lesson));
                 else
@@ -129,8 +129,9 @@ namespace EduCoreAPI.Controllers
                 {
                     newLesson.Id,
                     newLesson.Title,
-                    newLesson.Name,
-                    newLesson.BasePrice
+                    newLesson.BodyText,
+                    newLesson.BasePrice,
+                    newLesson.Summary,
                 });
         }
 
@@ -189,8 +190,9 @@ namespace EduCoreAPI.Controllers
             {
                 lesson.Id,
                 lesson.Title,
-                lesson.Name,
-                lesson.BasePrice
+                lesson.BodyText,
+                lesson.BasePrice,
+                lesson.Summary,
             });
         }
 

@@ -384,7 +384,7 @@ namespace EduCore_DataAccess
                     int thumbnailUrlIndex = reader.GetOrdinal("ThumbnailUrl");
                     int isPublishedIndex = reader.GetOrdinal("IsPublished");
                     int instructorIdIndex = reader.GetOrdinal("InstructorId");
-                    int instructorNameIndex = reader.GetOrdinal("InstructorId");
+                    int instructorNameIndex = reader.GetOrdinal("InstructorName");
 
                     while (await reader.ReadAsync())
                     {
@@ -392,7 +392,7 @@ namespace EduCore_DataAccess
                         {
                             Id = reader.GetInt32(idIndex),
                             Title = reader.GetString(titleIndex),
-                            Summary = reader.GetString(summaryIndex),
+                            Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
                             BasePrice = reader.GetDecimal(basePriceIndex),
                             CreatedAt = reader.GetDateTime(createdAtIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbnailUrlIndex) ? null : reader.GetString(thumbnailUrlIndex),

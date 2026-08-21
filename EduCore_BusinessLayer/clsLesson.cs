@@ -114,12 +114,14 @@ namespace EduCore_BusinessLayer
         {
             if (courseId is null)
                 _LessonsData.CourseId = null;
+            else
+            {
+                bool result = await clsCourse.IsCourseExist((int)courseId);
+                if (!result)
+                    throw new NotFoundException("There is no course with id");
 
-            bool result = await clsCourse.IsCourseExist((int)courseId);
-            if (!result)
-                throw new NotFoundException("There is no course with id");
-
-            _LessonsData.CourseId = clsValidation.ValidatePositiveInt((int)courseId,"course Id");
+                _LessonsData.CourseId = clsValidation.ValidatePositiveInt((int)courseId, "course Id");
+            }
         }
 
         private void _ValidateForAdd()
@@ -210,10 +212,12 @@ namespace EduCore_BusinessLayer
                     throw new ConflictException("Lesson creation failed");
 
                 _LessonsData.Id = lessonId;
-                string auditMessage = "Created independent lesson";
 
-                if (CourseId == null)
+                string auditMessage = string.Empty;
+                if (CourseId != null)
                     auditMessage = $"Created a new lesson associated with course id: { CourseId}";
+                else
+                    auditMessage = "Created independent lesson";
 
 
                 await clsAudit.LogAsync(

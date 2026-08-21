@@ -48,7 +48,7 @@ namespace EduCore_DataAccess
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                command.Parameters.Add("@Id", SqlDbType.Int).Value = bundleId;
+                command.Parameters.Add("@Id", SqlDbType.SmallInt).Value = bundleId;
 
                 await connection.OpenAsync();
 
@@ -61,7 +61,7 @@ namespace EduCore_DataAccess
 
                         bundle = new DtoBundle
                         {
-                            Id = reader.GetInt32(idIndex),
+                            Id = reader.GetInt16(idIndex),
                             ProductId = reader.GetInt32(productIndex),
                         };
                     }
@@ -90,6 +90,7 @@ namespace EduCore_DataAccess
             return rows > 0;
         }
 
+        
         public static async Task<bool> DeleteBundle(int bundleId)
         {
             string query = @"DELETE FROM Bundles
@@ -170,7 +171,7 @@ namespace EduCore_DataAccess
                     {
                         bundles.Add(new BundleViewModel
                         {
-                            Id = reader.GetInt32(idIndex),
+                            Id = reader.GetInt16(idIndex),
                             ProductId = reader.GetInt32(productIdIndex),
                             Name = reader.GetString(nameIndex),
                             CreatedAt = reader.GetDateTime(createdAtIndex),
@@ -187,10 +188,12 @@ namespace EduCore_DataAccess
 
         public static async Task<bool> BundleExists(int bundleId)
         {
-            const string query = @"SELECT CAST(
+            const string query = @"
+                            SELECT CAST(
                                 CASE WHEN EXISTS (
-                                    SELECT 1 FROM Bundles
-                                    WHERE Id = @Id AND IsDeleted = 0
+                                    SELECT 1 FROM Bundles B
+                                    JOIN Products P ON  P.Id = B.ProductId
+                                    WHERE B.Id = 1 AND P.IsPublished = 1
                                 )
                                 THEN 1 ELSE 0 END
                             AS BIT)";
