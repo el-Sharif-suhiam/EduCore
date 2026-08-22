@@ -195,6 +195,68 @@ namespace EduCoreAPI.Controllers
         }
 
         // =========================
+        // POST: Publish Lesson
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPost("{id:int}/publish")]
+        public async Task<ActionResult> PublishLesson([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            clsLesson lesson = await clsLesson.Find(id);
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                LessonId = id,
+                Type = enProductType.Lesson
+            };
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
+            bool result = await lesson.PublishLesson();
+
+            if (!result)
+                throw new ConflictException("Failed to publish the lesson");
+
+            return Ok(new { success = result });
+        }
+
+        // =========================
+        // POST: UnPublish Lesson
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPost("{id:int}/unpublish")]
+        public async Task<ActionResult> UnPublishLesson([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            clsLesson lesson = await clsLesson.Find(id);
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                LessonId = id,
+                Type = enProductType.Lesson
+            };
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
+            bool result = await lesson.UnPublishLesson();
+
+            if (!result)
+                throw new ConflictException("Failed to unpublish the lesson");
+
+            return Ok(new { success = result });
+        }
+
+        // =========================
         // DELETE: Lesson
         // =========================
         [Authorize(Roles = "Instructor,SuperAdmin")]

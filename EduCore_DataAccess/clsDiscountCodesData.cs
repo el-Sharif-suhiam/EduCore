@@ -159,6 +159,20 @@ namespace EduCore_DataAccess
             }
         }
 
+        public static async Task<bool> IncrementUsage(short id, SqlConnection conn, SqlTransaction tx)
+        {
+            string query = @"UPDATE DiscountCodes
+                             SET TotalUserNumber = ISNULL(TotalUserNumber, 0) + 1
+                             WHERE Id = @Id;";
+
+            using (SqlCommand cmd = new SqlCommand(query, conn, tx))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.SmallInt).Value = id;
+
+                return await cmd.ExecuteNonQueryAsync() > 0;
+            }
+        }
+
         public static async Task<List<DtoDiscountCode>> GetValidDiscountCodes()
         {
             List<DtoDiscountCode> discounts = new List<DtoDiscountCode>();

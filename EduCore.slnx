@@ -1,4 +1,7 @@
 <Solution>
+  <Folder Name="/Agent/">
+    <File Path="INITIAL_AUDIT_PROMPT.md" />
+  </Folder>
   <Project Path="Common/Common.csproj" Id="b393bb82-519c-4582-b4bc-5ea7e4c5c5b7" />
   <Project Path="EduCoreAPI/EduCoreAPI.csproj" Id="2fe1459b-f0ed-47cd-b030-1455654cc97e" />
   <Project Path="EduCore_BusinessLayer/EduCore_BusinessLayer.csproj" Id="1f09f642-aa7f-43bc-acc3-6557791cbde6" />

@@ -334,6 +334,9 @@ BEGIN
         FROM Products
         WHERE Id = @ProductId AND IsPublished = 1;
 
+        IF @PriceAtPurchase IS NULL
+            THROW 50010, 'Product is not available for purchase', 1;
+
         INSERT INTO OrderItems(OrderId, ProductId, PriceAtPurchase)
         VALUES (@OrderId, @ProductId, @PriceAtPurchase);
 

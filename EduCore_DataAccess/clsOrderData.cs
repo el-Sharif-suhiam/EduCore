@@ -89,6 +89,21 @@ namespace EduCore_DataAccess
             }
         }
 
+        public static async Task<bool> UpdateStatus(int orderId, string status, SqlConnection conn, SqlTransaction tx)
+        {
+            string query = @"UPDATE Orders
+                         SET Status = @Status
+                         WHERE Id = @Id;";
+
+            using (SqlCommand cmd = new SqlCommand(query, conn, tx))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.Int).Value = orderId;
+                cmd.Parameters.Add("@Status", SqlDbType.VarChar, 50).Value = status;
+
+                return await cmd.ExecuteNonQueryAsync() > 0;
+            }
+        }
+
         public static async Task<bool> UpdateTotal(int orderId, decimal total,SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Orders

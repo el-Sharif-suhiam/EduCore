@@ -89,7 +89,8 @@ namespace EduCoreAPI.Controllers
 
             bool result = await payment.CreatePayment(
                 request.OrderId,
-                discountId);
+                discountId,
+                request.IdempotencyKey);
 
             if (!result)
                 throw new ConflictException("Failed to create payment.");

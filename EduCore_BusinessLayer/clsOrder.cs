@@ -125,6 +125,9 @@ namespace EduCore_BusinessLayer
 
             clsProduct product = await clsProduct.Find(productId);
 
+            if (!product.IsPublished)
+                throw new ConflictException("Product is not available for purchase");
+
             DtoOrderItemRespone newOrderItem =
                 await clsOrderItemData.AddItemToOrderAsync(Id, product.Id);
 
@@ -205,6 +208,15 @@ namespace EduCore_BusinessLayer
                     "Cannot complete a cancelled/empty order");
             }
 
+            if (_order.Status == enOrderStatus.Completed)
+                return true;
+
+            if (!await clsPaymentData.HasSucceededPaymentForOrder(_order.Id))
+            {
+                throw new ConflictException(
+                    "Order cannot be completed without a succeeded payment");
+            }
+
             bool result = await clsOrderData.UpdateStatus(
                 _order.Id,
                 enOrderStatus.Completed.ToString());
@@ -240,9 +252,28 @@ namespace EduCore_BusinessLayer
                     "Cannot cancel a completed order");
             }
 
-            bool result = await clsOrderData.UpdateStatus(
-                _order.Id,
-                enOrderStatus.Cancelled.ToString());
+            if (_order.Status == enOrderStatus.Cancelled)
+                return true;
+
+            bool result = await clsGeneralData.ExecuteTransaction(
+                async (conn, tx) =>
+                {
+                    bool updated = await clsOrderData.UpdateStatus(
+                        _order.Id,
+                        enOrderStatus.Cancelled.ToString(),
+                        conn,
+                        tx);
+
+                    if (!updated)
+                        return false;
+
+                    await clsPaymentData.ExpirePendingPaymentsForOrder(
+                        _order.Id,
+                        conn,
+                        tx);
+
+                    return true;
+                });
 
             if (!result)
                 return false;

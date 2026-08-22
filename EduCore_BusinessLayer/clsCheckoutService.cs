@@ -1,4 +1,5 @@
-﻿using EduCore_DataAccess;
+﻿using Common.Enums;
+using EduCore_DataAccess;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -33,11 +34,46 @@ namespace EduCore_BusinessLayer
                         return false;
 
                     // =========================
-                    // 2) Create enrollments
+                    // 2) Increment discount usage
+                    // =========================
+
+                    if (payment.DiscountId.HasValue)
+                    {
+                        await clsDiscountCodesData.IncrementUsage(
+                            payment.DiscountId.Value,
+                            conn,
+                            tx);
+                    }
+
+                    // =========================
+                    // 3) Create enrollments
                     // =========================
 
                     await clsEnrollment.CreateFromPaymentAsync(userId,
                         payment,
+                        conn,
+                        tx);
+
+                    // =========================
+                    // 4) Complete the order
+                    // =========================
+
+                    bool orderCompleted =
+                        await clsOrderData.UpdateStatus(
+                            payment.OrderId,
+                            enOrderStatus.Completed.ToString(),
+                            conn,
+                            tx);
+
+                    if (!orderCompleted)
+                        return false;
+
+                    // =========================
+                    // 5) Expire any other pending payments
+                    // =========================
+
+                    await clsPaymentData.ExpirePendingPaymentsForOrder(
+                        payment.OrderId,
                         conn,
                         tx);
 

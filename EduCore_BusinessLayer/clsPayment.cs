@@ -209,6 +209,7 @@ namespace EduCore_BusinessLayer
         public string? TransactionId => _Payment.TransactionId;
         public string IdempotencyKey => _Payment.IdempotencyKey;
         public decimal FinalPrice => _Payment.FinalPrice;
+        public short? DiscountId => _Payment.DiscountId;
 
         public bool IsPending => Status == enPaymentStatus.Pending;
         public bool IsSucceeded => Status == enPaymentStatus.Succeeded;
@@ -258,7 +259,8 @@ namespace EduCore_BusinessLayer
         }
         public async Task<bool> CreatePayment(
             int orderId,
-            short? discountId = null)
+            short? discountId = null,
+            string? idempotencyKey = null)
         {
             clsOrder order = await clsOrder.Find(orderId);
 
@@ -267,19 +269,56 @@ namespace EduCore_BusinessLayer
 
             if (order.TotalPrice <= 0)
                 throw new ValidationException("Order total is invalid");
-            string idempotencyKey = GenerateIdempotencyKey();
 
-            var response =
-                await clsPaymentData.CreatePaymentAsync(
-                    orderId,
-                    idempotencyKey,
-                    _Payment.PaymentMethod,
-                    discountId);
+            string key = string.IsNullOrWhiteSpace(idempotencyKey)
+                ? GenerateIdempotencyKey()
+                : idempotencyKey.Trim();
+
+            if (key.Length > 255)
+                throw new ValidationException("Idempotency key is too long");
+
+            DtoPayment? existing =
+                await clsPaymentData.GetPaymentByIdempotencyKeyAsync(key);
+
+            if (existing != null)
+            {
+                if (existing.OrderId != orderId)
+                    throw new ConflictException("Idempotency key already used for another order");
+
+                _Payment = existing;
+                return true;
+            }
+
+            DtoPaymentInitRespone? response;
+
+            try
+            {
+                response =
+                    await clsPaymentData.CreatePaymentAsync(
+                        orderId,
+                        key,
+                        _Payment.PaymentMethod,
+                        discountId);
+            }
+            catch (SqlException ex) when (ex.Number == 2627 || ex.Number == 2601)
+            {
+                existing = await clsPaymentData.GetPaymentByIdempotencyKeyAsync(key);
+
+                if (existing != null && existing.OrderId == orderId)
+                {
+                    _Payment = existing;
+                    return true;
+                }
+
+                throw;
+            }
 
             if (response is null)
                 throw new ConflictException("Error creating payment");
 
             _Payment.Id = response.Id;
+            _Payment.IdempotencyKey = key;
+            _Payment.FinalPrice = response.FinalPrice;
 
             await clsAudit.LogAsync(
                 userId: order.UserId,

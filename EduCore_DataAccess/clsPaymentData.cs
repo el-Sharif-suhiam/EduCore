@@ -375,5 +375,125 @@ namespace EduCore_DataAccess
             }
         }
 
+        public static async Task<bool> HasSucceededPaymentForOrder(int orderId)
+        {
+            string query = @"SELECT 1
+                             FROM Payments
+                             WHERE OrderId = @OrderId AND Status = 'Succeeded';";
+
+            using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand cmd = new SqlCommand(query, con))
+            {
+                cmd.Parameters.Add("@OrderId", SqlDbType.Int).Value = orderId;
+
+                await con.OpenAsync();
+
+                object result = await cmd.ExecuteScalarAsync();
+
+                return result != null;
+            }
+        }
+
+        public static async Task<int> ExpirePendingPaymentsForOrder(int orderId, SqlConnection conn, SqlTransaction tx)
+        {
+            string query = @"UPDATE Payments
+                             SET Status = 'Expired'
+                             WHERE OrderId = @OrderId AND Status = 'Pending';";
+
+            using (SqlCommand cmd = new SqlCommand(query, conn, tx))
+            {
+                cmd.Parameters.Add("@OrderId", SqlDbType.Int).Value = orderId;
+
+                return await cmd.ExecuteNonQueryAsync();
+            }
+        }
+
+        public static async Task<DtoPayment?> GetPaymentByIdempotencyKeyAsync(string key)
+        {
+            string query = @"
+                            SELECT 
+                                Id,
+                                OrderId,
+                                CreatedAt,
+                                PaidAt,
+                                Price,
+                                DiscountId,
+                                DiscountPrice,
+                                PaymentMethod,
+                                Status,
+                                TransactionId,
+                                IdempotencyKey,
+                                FinalPrice
+                            FROM Payments
+                            WHERE IdempotencyKey = @Key;";
+
+            using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand cmd = new SqlCommand(query, con))
+            {
+                cmd.Parameters.Add("@Key", SqlDbType.VarChar, 255).Value = key;
+
+                await con.OpenAsync();
+
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        int idIndex = reader.GetOrdinal("Id");
+                        int orderIdIndex = reader.GetOrdinal("OrderId");
+                        int createdAtIndex = reader.GetOrdinal("CreatedAt");
+                        int paidAtIndex = reader.GetOrdinal("PaidAt");
+                        int priceIndex = reader.GetOrdinal("Price");
+                        int discountIdIndex = reader.GetOrdinal("DiscountId");
+                        int discountPriceIndex = reader.GetOrdinal("DiscountPrice");
+                        int paymentMethodIndex = reader.GetOrdinal("PaymentMethod");
+                        int statusIndex = reader.GetOrdinal("Status");
+                        int transactionIdIndex = reader.GetOrdinal("TransactionId");
+                        int idempotencyKeyIndex = reader.GetOrdinal("IdempotencyKey");
+                        int finalPriceIndex = reader.GetOrdinal("FinalPrice");
+
+                        return new DtoPayment
+                        {
+                            Id = reader.GetInt32(idIndex),
+                            OrderId = reader.GetInt32(orderIdIndex),
+
+                            CreatedAt = reader.GetDateTime(createdAtIndex),
+
+                            PaidAt = reader.IsDBNull(paidAtIndex)
+                                ? null
+                                : reader.GetDateTime(paidAtIndex),
+
+                            Price = reader.GetDecimal(priceIndex),
+
+                            DiscountId = reader.IsDBNull(discountIdIndex)
+                                ? null
+                                : reader.GetInt16(discountIdIndex),
+
+                            DiscountPrice = reader.IsDBNull(discountPriceIndex)
+                                ? null
+                                : reader.GetDecimal(discountPriceIndex),
+
+                            PaymentMethod = reader.IsDBNull(paymentMethodIndex)
+                                ? null
+                                : reader.GetString(paymentMethodIndex),
+
+                            Status = Enum.Parse<enPaymentStatus>(
+                                reader.GetString(statusIndex)
+                            ),
+
+                            TransactionId = reader.IsDBNull(transactionIdIndex)
+                                ? null
+                                : reader.GetString(transactionIdIndex),
+
+                            IdempotencyKey = reader.GetString(idempotencyKeyIndex),
+
+                            FinalPrice = reader.GetDecimal(finalPriceIndex)
+                        };
+                    }
+                }
+            }
+
+            return null;
+        }
+
     }
 }

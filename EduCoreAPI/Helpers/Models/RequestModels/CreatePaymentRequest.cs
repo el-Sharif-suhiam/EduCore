@@ -3,6 +3,7 @@
     public record CreatePaymentRequest(
      int OrderId,
      string? PaymentMethod,
-     string? DiscountCode
+     string? DiscountCode,
+     string? IdempotencyKey
  );
 }

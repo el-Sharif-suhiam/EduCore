@@ -33,23 +33,27 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 |---|---|---|---|---|
 | GET | / | anon | Paged courses w/ instructors (+search) | search-by-instructor applied after paging |
 | GET | /{id} | anon | Course by id | |
-| POST | / | Instructor,SuperAdmin | Create course (unpublished) | no publish endpoint exists (H4) |
+| POST | / | Instructor,SuperAdmin | Create course (unpublished) | |
 | PUT | /{id} | Instructor,SuperAdmin + InstructorOwnership | Update course | |
+| POST | /{id}/publish | Instructor,SuperAdmin + InstructorOwnership | Publish course | added phase 2 (H4) |
+| POST | /{id}/unpublish | Instructor,SuperAdmin + InstructorOwnership | Unpublish course | added phase 2 (H4) |
 | POST | /{id}/lessons | Instructor,SuperAdmin + InstructorOwnership | Create lesson inside course (price forced 0) | |
 | PUT | /{courseId}/lessons/{lessonId} | Instructor,SuperAdmin + InstructorOwnership | Update course lesson | |
 | GET | /{id}/lessons | anon | Lessons of course | |
 | GET | /{id}/exists | anon | Existence check | |
 | POST | /{id}/instructors | Admin,SuperAdmin | Assign instructor | |
-| GET | /{id}/instructors | Admin,SuperAdmin | List instructors | route/param mismatch → 400 (M3) |
-| DELETE | /{id}/instructors | Admin,SuperAdmin | Remove instructor | route/param mismatch → 400 (M3) |
+| GET | /{courseId}/instructors | Admin,SuperAdmin | List instructors | |
+| DELETE | /{courseId}/instructors | Admin,SuperAdmin | Remove instructor | |
 
 ## Lessons — `api/lessons` (LessonsController)
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
 | GET | / | anon | Paged independent lessons (+search) | |
-| GET | /{id} | auth | Lesson by id (instructor-owner OR enrolled OR admin) | first-role-claim issue (M5) |
+| GET | /{id} | auth | Lesson by id (instructor-owner OR enrolled OR admin) | |
 | POST | / | Instructor,SuperAdmin | Create independent lesson | |
 | PUT | /{id} | Instructor,SuperAdmin + InstructorOwnership | Update lesson | |
+| POST | /{id}/publish | Instructor,SuperAdmin + InstructorOwnership | Publish lesson | added phase 2 (H4) |
+| POST | /{id}/unpublish | Instructor,SuperAdmin + InstructorOwnership | Unpublish lesson | added phase 2 (H4) |
 | DELETE | /{id} | Instructor,SuperAdmin + InstructorOwnership | Soft delete | |
 | PUT | /{id}/restore | Instructor,SuperAdmin + InstructorOwnership | Restore | |
 
@@ -59,33 +63,33 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | GET | / | anon | Published bundles view | |
 | GET | /{id}/items | anon | Bundle with courses | |
 | GET | /{id} | anon | Bundle by id | |
-| GET | /{id}/exists | anon | Existence check | hardcoded `B.Id = 1` bug in BundleExists |
+| GET | /{id}/exists | anon | Existence check | |
 | POST | / | Instructor,SuperAdmin | Create bundle | |
 | POST | /{id}/publish | Instructor,SuperAdmin + InstructorOwnership | Publish | |
 | POST | /{id}/unpublish | Instructor,SuperAdmin + InstructorOwnership | Unpublish | |
-| PUT | /{id} | **NONE** | Update bundle | C4 |
-| POST | /{id}/items | **NONE** | Add course to bundle | C4 |
-| DELETE | /{id}/items/{courseId} | **NONE** | Remove course from bundle | C4 |
+| PUT | /{id} | Instructor,SuperAdmin + InstructorOwnership | Update bundle | |
+| POST | /{id}/items | Instructor,SuperAdmin + InstructorOwnership | Add course to bundle | |
+| DELETE | /{id}/items/{courseId} | Instructor,SuperAdmin + InstructorOwnership | Remove course from bundle | |
 
 ## Orders — `api/orders` (OrdersController)
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
-| — | — | — | **create cart endpoint MISSING** | C9 |
+| POST | / | auth | Create cart (returns existing pending cart if any) | added phase 2 (C9) |
 | GET | /{id} | auth + UserOwnerOrAdmin(order.UserId) | Order by id | |
 | GET | /cart/{userId} | auth + UserOwnerOrAdmin | Current pending cart | fake empty order when none (M7) |
-| POST | /{OrderId}/items/{ItemId} | auth + UserOwnerOrAdmin | Add product (SP) | unpublished products → NULL price (H6) |
+| POST | /{OrderId}/items/{ItemId} | auth + UserOwnerOrAdmin | Add product (SP) | unpublished products rejected (H6 fixed) |
 | DELETE | /{id}/items/{productId} | auth + UserOwnerOrAdmin | Remove item (SP) | silent success when absent (M8) |
-| PUT | /{id}/complete | auth + UserOwnerOrAdmin | Mark Completed | bypasses payment (H5) |
-| PUT | /{id}/cancel | auth + UserOwnerOrAdmin | Cancel | orphans pending payments (H5) |
+| PUT | /{id}/complete | auth + UserOwnerOrAdmin | Mark Completed | requires succeeded payment (H5 fixed) |
+| PUT | /{id}/cancel | auth + UserOwnerOrAdmin | Cancel | expires pending payments (H5 fixed) |
 
 ## Payments — `api/payments` (PaymentsController)
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
-| GET | /{id} | **NONE** | Payment details | C5 (leaks TransactionId/IdempotencyKey) |
-| POST | / | auth | Create payment (optional discount code) | no order-ownership check (C5); idempotency decorative (H7) |
-| PUT | /{id}/checkOut-succeed | auth | Mark Succeeded + create enrollments | no ownership; self-service (C5/H1); runtime-broken (C2) |
-| PUT | /{id}/fail | auth | Mark Failed | no ownership (C5) |
-| PUT | /{id}/expire | auth | Mark Expired | no ownership (C5) |
+| GET | /{id} | auth + UserOwnerOrAdmin(order.UserId) | Payment details | |
+| POST | / | auth + UserOwnerOrAdmin | Create payment (optional discount code + idempotency key) | client key replayed, not duplicated (H7 fixed) |
+| PUT | /{id}/checkOut-succeed | auth + UserOwnerOrAdmin | Mark Succeeded + enrollments + complete order | self-service w/o gateway (H1); completes order + expires stale pendings (H5) |
+| PUT | /{id}/fail | auth + UserOwnerOrAdmin | Mark Failed | |
+| PUT | /{id}/expire | auth + UserOwnerOrAdmin | Mark Expired | |
 
 ## Progress — `api/progress` (ProgressController, class-level [Authorize])
 | Method | Route | Auth | Purpose | Issues |
@@ -117,7 +121,5 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | GET | /{id} | Admin,SuperAdmin | Log by id | |
 
 ## Missing endpoints (needed for coherent product)
-- POST /api/orders (create cart) — C9
-- publish/unpublish for courses and lessons — H4
 - GET current-user enrollments / payments (DAL exists, never exposed) — L9
 - certificate verify/download — M14

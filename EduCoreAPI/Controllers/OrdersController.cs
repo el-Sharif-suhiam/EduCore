@@ -5,12 +5,48 @@ using Microsoft.AspNetCore.Mvc;
 using EduCoreAPI.Helpers.Models.RequestModels;
 using EduCoreAPI.Helpers.Mappers;
 using Microsoft.AspNetCore.Authorization;
+using System.Security.Claims;
 namespace EduCoreAPI.Controllers
 {
     [Route("api/orders")]
     [ApiController]
     public class OrdersController : ControllerBase
     {
+        // =========================
+        // POST: Create Order (cart)
+        // ينشئ سلة جديدة للمستخدم الحالي
+        // =========================
+        [Authorize]
+        [HttpPost]
+        public async Task<ActionResult> CreateOrder()
+        {
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+            if (!int.TryParse(userId, out int currentUserId))
+                throw new UnauthorizedAccessException("Invalid user identity");
+
+            clsOrder existing = await clsOrder.FindOrderbyUserId(currentUserId);
+
+            if (existing.Id > 0)
+                return Ok(OrderMapper.ToOrderResponse(existing));
+
+            clsOrder order = new clsOrder();
+            order.SetUserId(currentUserId);
+
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString();
+            string userAgent = HttpContext.Request.Headers.UserAgent.ToString();
+
+            bool result = await order.CreateAsync(ip, userAgent);
+
+            if (!result)
+                throw new ConflictException("Failed to create order");
+
+            return CreatedAtAction(
+                nameof(GetOrderById),
+                new { id = order.Id },
+                OrderMapper.ToOrderResponse(order));
+        }
+
         // =========================
         // GET: Order by Id
         // =========================

@@ -315,6 +315,68 @@ namespace EduCoreAPI.Controllers
         //}
 
         // =========================
+        // POST: Publish Course
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPost("{id:int}/publish")]
+        public async Task<ActionResult> PublishCourse([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            clsCourse course = await clsCourse.Find(id);
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                CourseId = id,
+                Type = enProductType.Course
+            };
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
+            bool result = await course.PublishCourse();
+
+            if (!result)
+                throw new ConflictException("Failed to publish the course");
+
+            return Ok(new { success = result });
+        }
+
+        // =========================
+        // POST: UnPublish Course
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpPost("{id:int}/unpublish")]
+        public async Task<ActionResult> UnPublishCourse([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
+        {
+            clsCourse course = await clsCourse.Find(id);
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                CourseId = id,
+                Type = enProductType.Course
+            };
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
+            bool result = await course.UnPublishCourse();
+
+            if (!result)
+                throw new ConflictException("Failed to unpublish the course");
+
+            return Ok(new { success = result });
+        }
+
+        // =========================
         // GET: Course Exists
         // =========================
         [HttpGet("{id:int}/exists")]

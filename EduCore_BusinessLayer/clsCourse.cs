@@ -74,6 +74,12 @@ namespace EduCore_BusinessLayer
             _Product.SetSummary(summary);
         }
 
+        public async Task<bool> PublishCourse()
+            => await _Product.Publish();
+
+        public async Task<bool> UnPublishCourse()
+            => await _Product.Unpublish();
+
         // Course setters 
         public void SetCoverImageUrl(string? url)
         {

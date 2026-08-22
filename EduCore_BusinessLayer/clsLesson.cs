@@ -84,6 +84,12 @@ namespace EduCore_BusinessLayer
             _Product.SetSummary(summary);
         }
 
+        public async Task<bool> PublishLesson()
+            => await _Product.Publish();
+
+        public async Task<bool> UnPublishLesson()
+            => await _Product.Unpublish();
+
         // Lesson setters 
 
         public void SetTitle(string title)

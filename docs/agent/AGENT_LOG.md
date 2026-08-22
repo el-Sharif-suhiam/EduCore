@@ -46,3 +46,40 @@ payment data bugs, CourseLessons table, route mismatches).
 **Objective:** Write persistent documentation (audit prompt §9–12), then fix Phase 0 items.
 
 **Modifications:** docs/ tree created; see commits after baseline for per-step details.
+
+---
+
+## 2026-08-22 — Phase 2 commerce correctness (session 2)
+
+**Objective:** Continue Phase 2 (commerce correctness) per ADR 0001. Prior uncommitted work had
+already landed C9 (create-cart endpoint), C10 (discount usage increment), H6 (unpublished-product
+guard in SP + business layer). This session wired the remaining items and repaired the build.
+
+**Modifications:**
+- `EduCore.slnx`: restored relative project paths (file had been corrupted to absolute
+  `../../../../../../Documents/EduCore/...` paths → build failed with MSB3202). Kept the `/Agent/`
+  folder entry.
+- H5 order state machine: `clsOrder.MarkAsCompleted` now requires a succeeded payment
+  (`clsPaymentData.HasSucceededPaymentForOrder`) before completing; `clsOrder.Cancel` runs in a
+  transaction and expires orphaned pending payments; `clsCheckoutService.CompletePaymentAsync` now
+  completes the order and expires remaining pending payments atomically. Added transactional
+  `clsOrderData.UpdateStatus(orderId, status, conn, tx)` overload.
+- H7 idempotency: `CreatePaymentRequest` gains optional `IdempotencyKey`; `clsPayment.CreatePayment`
+  accepts a client key, replays an existing payment for the same key+order instead of duplicating,
+  rejects key reuse across orders, and handles the unique-index race (SQL 2627/2601) by re-reading.
+  Server still generates a key when none supplied.
+- H4 publish endpoints: added `POST /api/courses/{id}/publish|unpublish` and
+  `POST /api/lessons/{id}/publish|unpublish` (Instructor,SuperAdmin + InstructorOwnership), backed by
+  new `clsCourse.PublishCourse/UnPublishCourse` and `clsLesson.PublishLesson/UnPublishLesson`
+  delegating to `clsProduct.Publish/Unpublish`.
+- Exposed `clsPayment.DiscountId` (needed by checkout discount increment).
+- Fixed missing `using System.Security.Claims` in `OrdersController` (create-cart endpoint).
+
+**Tests executed:** `dotnet build EduCore.slnx` → 0 errors, 51 warnings (down from 126).
+
+**Unresolved issues:** H1 (no real payment-gateway verification), H8 (no DI/test seam), H9 (JWT
+revocation), and all open Medium/Low items in ENGINEERING_TODO.md.
+
+**Next recommended actions:** Phase 3 (consistency) — error envelope/problem-details, response
+contracts, audit actor/messages, PageSize cap (M9), dead-code removal, indexes, idempotent SQL script.
+Then Phase 4 (tests).
