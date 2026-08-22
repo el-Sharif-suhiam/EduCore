@@ -2,7 +2,6 @@
 using EduCore_BusinessLayer;
 using EduCoreAPI.Helpers.Models.RequestModels;
 using EduCoreAPI.Helpers.Models.ResponeModels;
-using EduCoreAPI.Helpers.Models.ResponeModels;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;

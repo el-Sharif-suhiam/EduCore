@@ -5,6 +5,8 @@ namespace EduCoreAPI.Helpers
 {
     public class clsApiValidators
     {
+        public const int MaxPageSize = 100;
+
         public static void ValidatePaging(PageRequest pageRequest)
         {
             if (pageRequest.PageNumber < 1)
@@ -12,6 +14,9 @@ namespace EduCoreAPI.Helpers
 
             if (pageRequest.PageSize < 5)
                 throw new ValidationException("PageSize must be >= 5");
+
+            if (pageRequest.PageSize > MaxPageSize)
+                throw new ValidationException($"PageSize must be <= {MaxPageSize}");
         }
     }
 }

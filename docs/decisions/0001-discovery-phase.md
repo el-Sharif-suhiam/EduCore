@@ -17,9 +17,10 @@ EduCore backend audited end-to-end (architecture, domain, API, security, perform
      audit IP H3, rate-limit/message fixes).
    - Phase 2 — commerce correctness (create-cart C9, order state machine H5, unpublished-product
      guard H6, idempotency H7, discount usage C10, publish endpoints H4).
-   - Phase 3 — consistency (error envelope, response contracts, audit actor/messages, PageSize cap,
-     dead code removal, indexes, idempotent SQL script).
-   - Phase 4 — tests (seam + test projects per docs/testing/strategy.md).
+    - Phase 3 — consistency (error envelope, response contracts, audit actor/messages, PageSize cap,
+      dead code removal, indexes, idempotent SQL script).
+    - Phase 4 — tests: integration tests only via `WebApplicationFactory` against a test SQL Server
+      DB (owner decision 2026-08-22: no DI seam, H8 dropped).
 4. Workflow per session: DISCOVER → DOCUMENT → ANALYZE → PLAN → ASK APPROVAL → IMPLEMENT → TEST → DOCUMENT.
 
 ## Consequences

@@ -241,7 +241,7 @@ namespace EduCore_BusinessLayer
 
         }
 
-        async Task<bool> _UpdateLesson()
+        async Task<bool> _UpdateLesson(int? actionByUserId = null)
         {
             return await clsGeneralData.ExecuteTransaction(async(conn, tx) =>
             {
@@ -268,12 +268,12 @@ namespace EduCore_BusinessLayer
 
                 string auditMessage = "Update independent lesson";
 
-                if (CourseId == null)
+                if (CourseId != null)
                     auditMessage = $"Update a lesson associated with course id: {CourseId}";
 
 
                 await clsAudit.LogAsync(
-                                CreatedByUser.Id,
+                                actionByUserId ?? CreatedByUser.Id,
                                 enAuditActionType.UpdateLesson,
                                 "Lesson",
                                 _LessonsData.Id,
@@ -284,7 +284,7 @@ namespace EduCore_BusinessLayer
             });
         }
 
-        public async Task<bool> Save()
+        public async Task<bool> Save(int? actionByUserId = null)
         {
             switch (_Mode)
             {
@@ -294,7 +294,7 @@ namespace EduCore_BusinessLayer
 
                 case enMode.Update:
                     _ValidateForUpdate();
-                    return await _UpdateLesson();
+                    return await _UpdateLesson(actionByUserId);
 
                 default:
                     return false;
@@ -319,13 +319,13 @@ namespace EduCore_BusinessLayer
 
                 string auditMessage = "Delete independent lesson";
 
-                if (CourseId == null)
-                    auditMessage = $"Delete alesson associated with course id: {CourseId}";
+                if (CourseId != null)
+                    auditMessage = $"Delete a lesson associated with course id: {CourseId}";
 
 
                 await clsAudit.LogAsync(
-                                CreatedByUser.Id,
-                                enAuditActionType.CreateLesson,
+                                adminId,
+                                enAuditActionType.DeleteLesson,
                                 "Lesson",
                                 Id,
                                 auditMessage);
@@ -342,12 +342,12 @@ namespace EduCore_BusinessLayer
 
                 string auditMessage = "UnDelete independent lesson";
 
-                if (CourseId == null)
-                    auditMessage = $"UnDelete alesson associated with course id: {CourseId}";
+                if (CourseId != null)
+                    auditMessage = $"UnDelete a lesson associated with course id: {CourseId}";
 
 
                 await clsAudit.LogAsync(
-                                CreatedByUser.Id,
+                                adminId,
                                 enAuditActionType.UnDeleteLesson,
                                 "Lesson",
                                 Id,

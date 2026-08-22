@@ -74,14 +74,18 @@ namespace EduCoreAPI.Controllers
         [HttpGet("cart/{userId:int}")]
         public async Task<ActionResult> GetCart([FromRoute] int userId, [FromServices] IAuthorizationService authorizationService)
         {
-            clsOrder order = await clsOrder.FindOrderbyUserId(userId);
             var authResult = await authorizationService.AuthorizeAsync(
               User,
-              order.UserId,
+              userId,
               "UserOwnerOrAdmin");
 
             if (!authResult.Succeeded)
                 return Forbid(); // 403
+
+            clsOrder order = await clsOrder.FindOrderbyUserId(userId);
+
+            if (order.Id <= 0)
+                throw new NotFoundException("No pending order found for this user");
 
             return Ok(OrderMapper.ToOrderResponse(order));
         }

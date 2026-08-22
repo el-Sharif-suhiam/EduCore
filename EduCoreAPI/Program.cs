@@ -244,7 +244,16 @@ app.Use(async (context, next) =>
         && !context.Response.HasStarted
         && !context.Response.ContentLength.HasValue)
     {
-        await context.Response.WriteAsync("Too many requests. Please try again later.");
+        context.Response.ContentType = "application/problem+json";
+
+        await context.Response.WriteAsJsonAsync(new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Status = StatusCodes.Status429TooManyRequests,
+            Title = "Too Many Requests",
+            Detail = "Too many requests. Please try again later.",
+            Type = "https://httpstatuses.io/429",
+            Instance = context.Request.Path
+        });
     }
 });
 

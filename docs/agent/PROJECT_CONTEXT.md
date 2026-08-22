@@ -23,11 +23,11 @@ EduCore.slnx
 ├── EduCoreAPI/            Web API: controllers, authorization handlers, mappers, request/response models, middleware
 ├── EduCore_BusinessLayer/ cls* business classes (Active-Record style), checkout service, certificate generation
 ├── EduCore_DataAccess/    cls*Data static data-access classes (ADO.NET + stored procedures)
-├── Common/                DTOs, enums, exceptions, validation utils, view models (shared)
-└── Dtos/                  ORPHANED duplicate of Common/Dtos — not in slnx, referenced by nothing (dead project)
+└── Common/                DTOs, enums, exceptions, validation utils, view models (shared)
 ```
 NOTE: folder structure ≠ namespaces. `EduCoreAPI/Helpers/Models/RequestModels/*.cs` declare
 `namespace EduCoreAPI.Helpers.Dtos.RequestDto`; `ResponeModels` declare `...Dtos.ResponeDto`.
+(The orphaned `Dtos/` duplicate project was removed in phase 3.)
 
 ## Architecture (actual)
 - Layered: API → BusinessLayer → DataAccess → Common. Dependency direction is respected.
@@ -40,7 +40,8 @@ NOTE: folder structure ≠ namespaces. `EduCoreAPI/Helpers/Models/RequestModels/
   product+course/lesson/bundle creation, checkout. Many multi-step ops are NOT transactional.
 - Request flow: HTTP → Controller → static cls* → static cls*Data → SqlConnection/SP → DTO → mapper → anonymous-object response.
 - Errors: `ExceptionMiddleware` maps `ValidationException`→400, `NotFoundException`→404,
-  `ConflictException`→409, `UnauthorizedAccessException`→401, else 500; logs every exception to `Logs` table.
+  `ConflictException`→409, `UnauthorizedAccessException`→401, `ForbiddenException`→403, else 500;
+  body is RFC 7807 `application/problem+json`; logs every exception to `Logs` table.
 
 ## Domain Model
 - `Users` —`UserRoles`→ `Roles` (Admin=1, Instructor=2, Student=3, SuperAdmin=4)
@@ -95,11 +96,11 @@ QRCoder 1.8.0, ZXing.Net 0.16.11, Swashbuckle.AspNetCore 10.1.7, Microsoft.AspNe
 - Views: `vwLessonsWithOutCourses`, `vwLessonsWithCourses`.
 
 ## Known Technical Debt / Issues (see docs/agent/ENGINEERING_TODO.md for full list)
-- No DI for services → untestable; orphaned `Dtos/` project; folder≠namespace mismatch.
-- Mixed GETDATE()/SYSUTCDATETIME(); `Products.CreatedAt` is DATE (no time).
-- Pagination has no total counts; `PageSize` was uncapped (now capped).
+- No DI for services → untestable (owner decision: no DI seam; phase 4 = integration tests via WebApplicationFactory).
+- Folder≠namespace mismatch.
+- `Products.CreatedAt` was DATE (now DATETIME2 in script; existing DBs need ALTER).
+- Pagination has no total counts.
 - Certificate: no persistence table, no verification endpoint, writes PDFs to disk per request.
-- Large commented-out code blocks (old clsPayment copy, controller endpoints).
 
 ## Things Future Agents MUST NOT Break
 - JWT issuer/audience/secret contract (`EduCoreApi` / `EduCoreApiUsers` / env `JWT_SECRET_KEY`).

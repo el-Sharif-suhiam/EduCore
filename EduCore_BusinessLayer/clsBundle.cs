@@ -152,7 +152,7 @@ namespace EduCore_BusinessLayer
             });
         }
 
-        private async Task<bool> _UpdateBundle()
+        private async Task<bool> _UpdateBundle(int? actionByUserId = null)
         {
             return await clsGeneralData.ExecuteTransaction(async(conn, tx) =>
             {
@@ -180,17 +180,17 @@ namespace EduCore_BusinessLayer
 
 
                 await clsAudit.LogAsync(
-                                CreatedByUser.Id,
-                                enAuditActionType.UpdateBundle,
-                                "Bundle",
-                                Id,
-                                auditMessage);
+                                 actionByUserId ?? CreatedByUser.Id,
+                                 enAuditActionType.UpdateBundle,
+                                 "Bundle",
+                                 Id,
+                                 auditMessage);
 
                 return true;
             });
         }
 
-        public async Task<bool> Save()
+        public async Task<bool> Save(int? actionByUserId = null)
         {
             switch (_Mode)
             {
@@ -200,7 +200,7 @@ namespace EduCore_BusinessLayer
 
                 case enMode.Update:
                     _ValidateForUpdate();
-                    return await _UpdateBundle();
+                    return await _UpdateBundle(actionByUserId);
 
                 default:
                     return false;

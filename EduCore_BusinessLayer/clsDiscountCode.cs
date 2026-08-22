@@ -20,9 +20,9 @@ namespace EduCore_BusinessLayer
         public short? AllowedUseNumber => _DiscountData.AllowedUseNumber;
         public short? TotalUsedNumber => _DiscountData.TotalUsedNumber;
 
-        public bool IsUnlimited => AllowedUseNumber == 0;
+        public bool IsUnlimited => AllowedUseNumber is null or 0;
 
-        public bool IsExpired => ExpireAt.HasValue && ExpireAt.Value < DateTime.Now;
+        public bool IsExpired => ExpireAt.HasValue && ExpireAt.Value < DateTime.UtcNow;
 
         public bool IsValid =>
             !IsExpired &&
@@ -64,7 +64,7 @@ namespace EduCore_BusinessLayer
 
         public void SetExpireAt(DateTime? expireAt)
         {
-            if (expireAt.HasValue && expireAt.Value <= DateTime.Now)
+            if (expireAt.HasValue && expireAt.Value <= DateTime.UtcNow)
                 throw new ValidationException("Expiry date must be in the future");
 
             _DiscountData.ExpireAt = expireAt;

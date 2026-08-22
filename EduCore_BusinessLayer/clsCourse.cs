@@ -191,7 +191,7 @@ namespace EduCore_BusinessLayer
 
         }
 
-        async Task<bool> _UpdateCourse()
+        async Task<bool> _UpdateCourse(int? actionByUserId = null)
         {
             return await clsGeneralData.ExecuteTransaction(async (conn, tx) =>
             {
@@ -221,7 +221,7 @@ namespace EduCore_BusinessLayer
 
 
                 await clsAudit.LogAsync(
-                                CreatedByUser.Id,
+                                actionByUserId ?? CreatedByUser.Id,
                                 enAuditActionType.UpdateCourse,
                                 "Course",
                                 Id,
@@ -230,7 +230,7 @@ namespace EduCore_BusinessLayer
             });
         }
         
-        public async Task<bool> Save()
+        public async Task<bool> Save(int? actionByUserId = null)
         {
             switch (_Mode)
             {
@@ -240,7 +240,7 @@ namespace EduCore_BusinessLayer
 
                 case enMode.Update:
                     _ValidateForUpdate();
-                    return await  _UpdateCourse();
+                    return await  _UpdateCourse(actionByUserId);
 
                 default:
                     return false;
@@ -283,11 +283,11 @@ namespace EduCore_BusinessLayer
 
 
                 await clsAudit.LogAsync(
-                                CreatedByUser.Id,
-                                enAuditActionType.UnDeleteCourse,
-                                "Course",
-                                Id,
-                                auditMessage);
+                                 adminId,
+                                 enAuditActionType.UnDeleteCourse,
+                                 "Course",
+                                 Id,
+                                 auditMessage);
             }
             return result;
         }
@@ -300,11 +300,11 @@ namespace EduCore_BusinessLayer
                 string auditMessage = "Delete course";
 
                 await clsAudit.LogAsync(
-                                CreatedByUser.Id,
-                                enAuditActionType.DeleteCourse,
-                                "Course",
-                                Id,
-                                auditMessage);
+                                 adminId,
+                                 enAuditActionType.DeleteCourse,
+                                 "Course",
+                                 Id,
+                                 auditMessage);
             }
             return result;
         }

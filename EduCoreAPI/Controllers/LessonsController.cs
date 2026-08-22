@@ -18,21 +18,6 @@ namespace EduCoreAPI.Controllers
     public class LessonsController : ControllerBase
     {
         // =========================
-        // GET: All Lessons
-        // =========================
-        //[HttpGet]
-        //public async Task<ActionResult<List<DtoLessons>>> GetAllLessons([FromQuery] PageRequest pageRequest)
-        //{
-        //    clsApiValidators.ValidatePaging(pageRequest);
-
-        //    var lessons = await clsLesson.GetAllLessons(
-        //        pageRequest.PageNumber,
-        //        pageRequest.PageSize);
-
-        //    return Ok(lessons);
-        //}
-
-        // =========================
         // GET: Independent Lessons
         // =========================
         [AllowAnonymous]
@@ -179,7 +164,10 @@ namespace EduCoreAPI.Controllers
             if (!string.IsNullOrWhiteSpace(request.Summary))
                 lesson.SetSummary(request.Summary);
 
-            bool result = await lesson.Save();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedId = int.Parse(userId);
+
+            bool result = await lesson.Save(authenticatedId);
 
             if (!result)
                 throw new ConflictException("Failed to update lesson");

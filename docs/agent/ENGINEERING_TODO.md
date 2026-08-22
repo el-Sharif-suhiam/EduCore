@@ -84,17 +84,17 @@ Important architectural or functional problems.
 ## Medium
 Maintainability/performance/consistency issues.
 
-- M1. Inconsistent response contracts (anonymous objects vs classes vs raw strings); error body is bare string (problem-details commented out). [ ]
-- M2. Wrong status codes: business failures as 409 where 400/422 fits; `UnauthorizedAccessException` overloaded. [ ]
+- M1. Inconsistent response contracts (anonymous objects vs classes vs raw strings); error body is bare string (problem-details commented out). [~] error envelope now RFC 7807 problem+json (ExceptionMiddleware + 429 writer); success contracts still mixed — normalize over time
+- M2. Wrong status codes: business failures as 409 where 400/422 fits; `UnauthorizedAccessException` overloaded. [~] enrollment denial → 403 (ForbiddenException), wrong password → 400; remaining 409-for-failure cases kept for API compat
 - M3. Route/param mismatches: `GET/DELETE /api/courses/{id}/instructors` bind `courseId` vs route token `id` → 400. (`CoursesController.cs`) [x] fixed phase 1 (50f2de1)
-- M4. Inverted audit messages + wrong action type in `clsLesson` update/delete; audit actor is original creator, not acting user (course/lesson/bundle). [ ]
+- M4. Inverted audit messages + wrong action type in `clsLesson` update/delete; audit actor is original creator, not acting user (course/lesson/bundle). [x] fixed phase 3 (actor = acting user via Save(actionByUserId); Delete/UnDelete use adminId; inverted CourseId conditions corrected; DeleteLesson action type fixed)
 - M5. `GetLessonById` uses only first role claim; multi-role users misrouted. (`LessonsController.cs`) [x] fixed phase 1 (50f2de1)
-- M6. `clsDiscountCode.IsValid` treats NULL AllowedUseNumber as invalid while SQL treats it as unlimited; `DateTime.Now` vs `UtcNow` mixed. [ ]
-- M7. `FindOrderbyUserId` returns fake empty order (Id=0) instead of 404/empty contract. [ ]
-- M8. `RemoveItemFromOrder` succeeds silently when item absent. [ ]
-- M9. `PageSize` uncapped (only min validated) → client can request huge pages. [ ]
-- M10. Missing indexes: `Orders.UserId` (script has a TODO comment), `DiscountCodes.DiscountCode`, `Enrollments.ExpireAt`, `Audits.UserId/DoneAt`, `Logs.CreatedAt`. [ ]
-- M11. `EduCore.sql` not idempotent (re-run fails); UTC inconsistency (GETDATE vs SYSUTCDATETIME); `Products.CreatedAt` is DATE. [ ]
+- M6. `clsDiscountCode.IsValid` treats NULL AllowedUseNumber as invalid while SQL treats it as unlimited; `DateTime.Now` vs `UtcNow` mixed. [x] fixed phase 3 (NULL or 0 = unlimited; UtcNow everywhere; SP_CreateNewPayment also treats NULL as unlimited)
+- M7. `FindOrderbyUserId` returns fake empty order (Id=0) instead of 404/empty contract. [~] GetCart now authorizes first then 404s when no pending order; FindOrderbyUserId still used by create-cart (returns existing)
+- M8. `RemoveItemFromOrder` succeeds silently when item absent. [x] fixed phase 3 (404 when product not in order)
+- M9. `PageSize` uncapped (only min validated) → client can request huge pages. [x] fixed phase 3 (cap 100)
+- M10. Missing indexes: `Orders.UserId` (script has a TODO comment), `DiscountCodes.DiscountCode`, `Enrollments.ExpireAt`, `Audits.UserId/DoneAt`, `Logs.CreatedAt`. [x] fixed phase 3 (all added to EduCore.sql, idempotent)
+- M11. `EduCore.sql` not idempotent (re-run fails); UTC inconsistency (GETDATE vs SYSUTCDATETIME); `Products.CreatedAt` is DATE. [x] fixed phase 3 (OBJECT_ID guards, CREATE OR ALTER, IF NOT EXISTS seeds/indexes; SYSUTCDATETIME everywhere; Products.CreatedAt → DATETIME2)
 - M12. N+1: every `clsProduct.Find` loads creator user; order endpoints load order before authorization. [ ]
 - M13. Rate limiting only on login/refresh; registration, email-exists, certificate generation unlimited. [x] fixed phase 1 (50f2de1) — registration + certificate rate-limited
 - M14. Certificate: no persistence table, no verification endpoint, QR points to nonexistent route, unbounded disk writes. [ ]
@@ -105,8 +105,8 @@ Maintainability/performance/consistency issues.
 ## Low
 Minor improvements and cleanup.
 
-- L1. Orphaned `Dtos/` project (duplicate of Common/Dtos, not in slnx) — remove. [ ]
-- L2. Commented-out code: old clsPayment copy (~190 lines), controller blocks, SavePdf variants. [ ]
+- L1. Orphaned `Dtos/` project (duplicate of Common/Dtos, not in slnx) — remove. [x] removed phase 3
+- L2. Commented-out code: old clsPayment copy (~190 lines), controller blocks, SavePdf variants. [x] removed phase 3
 - L3. `EduCoreAPI.http` still references template `weatherforecast`. [ ]
 - L4. Folder structure ≠ namespaces (`Helpers/Models/*` → `Helpers.Dtos.*`). Align eventually. [ ]
 - L5. Typos in identifiers (`Respone`, `Assigan`, `Complated`, `Independnt`) — keep for API compat, fix internal-only ones over time. [ ]

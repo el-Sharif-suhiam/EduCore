@@ -227,7 +227,7 @@ namespace EduCoreAPI.Controllers
             bool checkPassword = user.VerifyPassword(updatePassword.oldPassword);
 
             if (!checkPassword)
-                throw new ConflictException("Your current password is not correct!");
+                throw new ValidationException("Your current password is not correct!");
 
             user.SetPassword(updatePassword.newPassword);
             string ip = HttpContext.Connection.RemoteIpAddress?.ToString();

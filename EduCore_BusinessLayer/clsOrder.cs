@@ -168,16 +168,18 @@ namespace EduCore_BusinessLayer
             if (Id <= 0)
                 throw new ValidationException("Order is not created");
 
+            DtoOrderItem? toDelete =
+                _items.Find(i => i.ProductId == productId);
+
+            if (toDelete == null)
+                throw new NotFoundException("This product is not in the order");
+
             clsProduct product = await clsProduct.Find(productId);
 
             decimal newTotal =
                 await clsOrderItemData.RemoveItemFromAsync(Id, product.Id);
 
-            DtoOrderItem? toDelete =
-                _items.Find(i => i.ProductId == productId);
-
-            if (toDelete != null)
-                _items.Remove(toDelete);
+            _items.Remove(toDelete);
 
             _order.TotalPrice = newTotal;
 

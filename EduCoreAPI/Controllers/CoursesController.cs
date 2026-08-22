@@ -131,7 +131,10 @@ namespace EduCoreAPI.Controllers
             if (!string.IsNullOrWhiteSpace(request.CoverImageUrl))
                 course.SetCoverImageUrl(request.CoverImageUrl);
 
-            bool result = await course.Save();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedId = int.Parse(userId);
+
+            bool result = await course.Save(authenticatedId);
 
             if (!result)
                 throw new ConflictException("Failed to update course");
@@ -253,7 +256,10 @@ namespace EduCoreAPI.Controllers
             if (!string.IsNullOrWhiteSpace(request.Summary))
                 lesson.SetSummary(request.Summary);
 
-            bool result = await lesson.Save();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedId = int.Parse(userId);
+
+            bool result = await lesson.Save(authenticatedId);
 
             if (!result)
                 throw new ConflictException("Failed to update lesson");
@@ -279,41 +285,6 @@ namespace EduCoreAPI.Controllers
             return Ok(lessons);
         }
        
-        // =========================
-        // DELETE: Course
-        // =========================
-        //[HttpDelete("{id:int}")]
-        //public async Task<ActionResult> DeleteCourse(
-        //    [FromRoute] int id)
-        //{
-        //    clsCourse course = await clsCourse.Find(id);
-
-        //    bool result = await course.Delete(adminId);
-
-        //    if (!result)
-        //        throw new ConflictException("Failed to delete course");
-
-        //    return Ok(courseMapper.ToCourseResponse(course));
-        //}
-
-        // =========================
-        // PUT: Restore Course
-        // =========================
-        //[HttpPut("{id:int}/restore")]
-        //public async Task<ActionResult> UnDeleteCourse(
-        //    [FromRoute] int id,
-        //    [FromQuery] int adminId)
-        //{
-        //    clsCourse course = await clsCourse.Find(id, includeDeleted: true);
-
-        //    bool result = await course.UnDelete(adminId);
-
-        //    if (!result)
-        //        throw new ConflictException("Failed to restore course");
-
-        //    return Ok(courseMapper.ToCourseResponse(course));
-        //}
-
         // =========================
         // POST: Publish Course
         // =========================

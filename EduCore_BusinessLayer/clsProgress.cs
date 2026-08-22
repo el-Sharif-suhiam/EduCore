@@ -373,7 +373,7 @@ namespace EduCore_BusinessLayer
             }
 
             if (!await clsEnrollment.IsUserEnrolled(userId, productId))
-                throw new UnauthorizedAccessException("You are not enrolled in this product");
+                throw new ForbiddenException("You are not enrolled in this product");
         }
 
         public static async Task EnsureEnrolledForCourse(int userId, int courseId)
@@ -381,7 +381,7 @@ namespace EduCore_BusinessLayer
             clsCourse course = await clsCourse.Find(courseId);
 
             if (!await clsEnrollment.IsUserEnrolled(userId, course.ProductId))
-                throw new UnauthorizedAccessException("You are not enrolled in this course");
+                throw new ForbiddenException("You are not enrolled in this course");
         }
 
         public static async Task<bool> IsCourseComplated(int userId, int courseId)
@@ -389,34 +389,6 @@ namespace EduCore_BusinessLayer
             CourseProgressViewModel courseProgress = await GetCourseProgress(userId, courseId);
             return courseProgress.ProgressPercentage == 100;
         }
-
-        //private static void SavePdf(CertificateDocument document,string fileName)
-        //{
-        //    try
-        //    {
-        //        string folder = Path.Combine(AppContext.BaseDirectory, "certificates");
-        //        Directory.CreateDirectory(folder);
-
-        //        string pdfFile = Path.Combine(folder, $"{fileName}.pdf");
-
-        //        document.GeneratePdf(pdfFile);
-        //        ////this will get the current project directory folder.
-        //        //string currentDir = System.IO.Directory.GetCurrentDirectory();
-        //        //string DirFullName = currentDir + "\\certificates";
-        //        //bool isDirExist = Directory.Exists(DirFullName);
-
-        //        ////incase the username is empty, delete the file
-        //        //if (!isDirExist)
-        //        //    Directory.CreateDirectory(DirFullName);
-
-        //        //document.GeneratePdf(DirFullName+ $"\\{fileName}.pdf");
-                
-        //    }
-        //    catch (Exception ex)
-        //    {
-        //        throw new Exception($"An error occurred: {ex.Message}");
-        //    }
-        //}
 
         private static void SavePdf(CertificateDocument document, string certificateCode)
         {
@@ -432,14 +404,6 @@ namespace EduCore_BusinessLayer
         }
         private static byte[] CreateQrImage(string content)
         {
-            string currentDir = Directory.GetCurrentDirectory();
-
-            string qrDirectory = Path.Combine(currentDir, "certificates", "qr");
-
-            Directory.CreateDirectory(qrDirectory);
-
-            string filePath = Path.Combine(qrDirectory, $"{Guid.NewGuid()}.png");
-
             using QRCodeGenerator generator = new();
 
             using QRCodeData data =
@@ -449,9 +413,6 @@ namespace EduCore_BusinessLayer
 
             byte[] bytes = qr.GetGraphic(20);
             return bytes;
-            //File.WriteAllBytes(filePath, bytes);
-
-            //return filePath;
         }
         public static async Task IssueCertificate(int userId, int courseId,string certificateEndPoint)
         {
@@ -482,23 +443,6 @@ namespace EduCore_BusinessLayer
                     qrImageBytes);
 
             SavePdf(document, certificateGuid.ToString());
-
-
-            //clsCourse course = await clsCourse.Find(courseId);
-            //clsUser strudentData = await clsUser.Find(userId);
-            //var InstructorData = await clsCoursesInstructors.GetAllCourseInstructor(courseId);
-            //Guid certificateGuid = Guid.NewGuid();
-            //string logoPath = "";
-            //string QrPath = certificateEndPoint + certificateGuid.ToString();
-            //CertificateDocument certificate = new CertificateDocument(strudentData.Name, course.Name, DateTime.UtcNow.ToString(), certificateGuid.ToString(), logoPath, "", "", QrPath);
-
-            //SavePdf(certificate, certificateGuid.ToString());
-
-
         }
-        //////////////////////////////////////////////////////// تذكير بكتابة منطق لكتابة الشهادة
-        /// اول شيء كلاس يراجع هل اكمل الكورس 
-        /// بعدها جدول فيه الشهادات بالتاريخ واسم الشهادة ب uuid 
-        /// وكلاس لانشاء ملف pdf فيه بيانات الشهادة
     }
 }

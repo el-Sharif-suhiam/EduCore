@@ -83,3 +83,49 @@ revocation), and all open Medium/Low items in ENGINEERING_TODO.md.
 **Next recommended actions:** Phase 3 (consistency) — error envelope/problem-details, response
 contracts, audit actor/messages, PageSize cap (M9), dead-code removal, indexes, idempotent SQL script.
 Then Phase 4 (tests).
+
+---
+
+## 2026-08-22 — Phase 3 consistency (session 3)
+
+**Objective:** Phase 3 (consistency) per ADR 0001. Owner decision recorded: no DI seam (H8 dropped);
+Phase 4 will be integration tests via `WebApplicationFactory` against a test SQL Server DB.
+
+**Modifications:**
+- M1: `ExceptionMiddleware` now writes RFC 7807 `application/problem+json` (ProblemDetails with
+  status/title/detail/type/instance) for all mapped exceptions; guards against response already
+  started. 429 rate-limit writer in `Program.cs` also emits problem+json.
+- M2: added `Common.Exceptions.ForbiddenException` → 403; enrollment denial in `clsProgress`
+  (EnsureEnrolledForLesson/Course) now throws ForbiddenException instead of 401; wrong current
+  password now 400 (ValidationException) instead of 409.
+- M4: audit actor = acting user. `clsCourse/clsLesson/clsBundle.Save(actionByUserId)` overloads;
+  controllers pass the authenticated user. `clsLesson.Delete/UnDelete` use `adminId` (was
+  CreatedByUser.Id) and fixed Delete action type (was CreateLesson). Fixed inverted `CourseId == null`
+  conditions in lesson audit messages. `clsCourse.Delete/UnDelete` use adminId.
+- M6: `clsDiscountCode.IsUnlimited` = NULL or 0 (was only 0); `IsExpired`/`SetExpireAt` use UtcNow;
+  `SP_CreateNewPayment` treats NULL AllowedUseNumber as unlimited (`ISNULL(@AllowedUseNumber,0)`).
+- M7: `GetCart` authorizes the route userId first, then 404s when no pending order (was returning a
+  fake Id=0 order and 403-ing everyone without a cart).
+- M8: `clsOrder.DeleteItemFromOrder` throws NotFoundException (404) when the product is not in the
+  order (was silent success).
+- M9: `clsApiValidators.ValidatePaging` caps PageSize at 100.
+- M10/M11: `EduCore.sql` rewritten idempotent — OBJECT_ID guards on all tables, CREATE OR ALTER for
+  views/SPs, IF NOT EXISTS for indexes and role seeds. Added missing indexes: IX_Orders_UserId,
+  IX_Payments_OrderId, IX_DiscountCodes_DiscountCode, IX_Enrollments_ExpireAt,
+  IX_Audits_UserId_DoneAt, IX_Logs_CreatedAt. Unified on SYSUTCDATETIME (GETDATE removed);
+  Products.CreatedAt/UpdatedAt → DATETIME2; Users/Orders/Enrollments/Progress timestamps → UTC.
+  NOTE: existing databases need the new indexes + column type changes applied manually.
+- L1: removed orphaned `Dtos/` project (git rm).
+- L2: removed commented-out dead code — old clsPayment copy (~190 lines), CoursesController
+  delete/restore blocks, LessonsController GetAllLessons block, clsProgress SavePdf/QR/IssueCertificate
+  dead blocks + unused QR directory writes.
+- Fixed duplicate using in AuthController (CS0105).
+
+**Tests executed:** `dotnet build EduCore.slnx --no-incremental` → 0 errors, 137 warnings (all
+pre-existing nullable CS86xx).
+
+**Unresolved issues:** H1 (no real payment-gateway verification), H9 (JWT revocation), M1/M2 partial
+(success contracts still mixed; some 409-for-failure kept for compat), M5/M12/M14/M15/M16, L3–L10.
+
+**Next recommended actions:** Phase 4 — integration tests via WebApplicationFactory against a test
+SQL Server DB (no DI seam).

@@ -213,7 +213,10 @@ namespace EduCoreAPI.Controllers
             if (!string.IsNullOrWhiteSpace(request.ThumbnailUrl))
                 bundle.SetThumbnailUrl(request.ThumbnailUrl);
 
-            bool result = await bundle.Save();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int authenticatedId = int.Parse(userId);
+
+            bool result = await bundle.Save(authenticatedId);
 
             if (!result)
                 throw new ConflictException("Failed to update bundle");
