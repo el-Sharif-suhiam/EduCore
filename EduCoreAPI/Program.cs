@@ -118,6 +118,20 @@ builder.Services.AddRateLimiter(options =>
                 QueueLimit = 0
             });
     });
+
+    options.AddPolicy("RegistrationLimiter", httpContext =>
+    {
+        var ip = httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+        return RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: ip,
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 3,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0
+            });
+    });
 });
 
 // Register controller support.
@@ -226,9 +240,11 @@ app.Use(async (context, next) =>
 {
     await next();
 
-    if (context.Response.StatusCode == StatusCodes.Status429TooManyRequests)
+    if (context.Response.StatusCode == StatusCodes.Status429TooManyRequests
+        && !context.Response.HasStarted
+        && !context.Response.ContentLength.HasValue)
     {
-        await context.Response.WriteAsync("Too many login attempts. Please try again later.");
+        await context.Response.WriteAsync("Too many requests. Please try again later.");
     }
 });
 

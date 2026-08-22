@@ -93,7 +93,7 @@ namespace EduCoreAPI.Controllers
             user.SetRefreshToken(refreshToken);
             user.SetRefreshExpiredAt(DateTime.UtcNow.AddDays(3));
 
-            string ip = HttpContext.Connection.Id.ToString();
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString();
             string userAgent = HttpContext.Request.Headers.UserAgent.ToString();
 
             bool isUpdated = await user.Save(ip,userAgent);
@@ -174,7 +174,7 @@ namespace EduCoreAPI.Controllers
             user.SetRefreshExpiredAt(DateTime.UtcNow.AddDays(3));
             user.SetRefreshRevokedAt(null);
 
-            string ip = HttpContext.Connection.Id.ToString();
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString();
             string userAgent = HttpContext.Request.Headers.UserAgent.ToString();
             
 
@@ -205,7 +205,7 @@ namespace EduCoreAPI.Controllers
                 return Ok();
 
             user.SetRefreshRevokedAt(DateTime.UtcNow);
-            string ip = HttpContext.Connection.Id.ToString();
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString();
             string userAgent = HttpContext.Request.Headers.UserAgent.ToString();
             bool isUpdated = await user.Save(ip,userAgent);
             if (!isUpdated)

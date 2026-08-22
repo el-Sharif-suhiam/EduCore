@@ -330,6 +330,8 @@ namespace EduCore_BusinessLayer
 
         public static async Task<bool> MarkAsComplete(int userId, int lessonId)
         {
+            await EnsureEnrolledForLesson(userId, lessonId);
+
             clsProgress progress = new clsProgress(userId, lessonId);
             progress.SetComplete(true);
             return await progress.Save();
@@ -337,6 +339,8 @@ namespace EduCore_BusinessLayer
 
         public static async Task<bool> MarkAsIncomplete(int userId, int lessonId)
         {
+            await EnsureEnrolledForLesson(userId, lessonId);
+
             clsProgress progress = new clsProgress(userId, lessonId);
             progress.SetComplete(false);
             return await progress.Save();
@@ -347,7 +351,37 @@ namespace EduCore_BusinessLayer
             if (!(await clsCoursesData.CourseExists(courseId)))
                 throw new NotFoundException("Course not found");
 
+            await EnsureEnrolledForCourse(userId, courseId);
+
             return await clsProgressData.GetCourseProgress(userId, courseId);
+        }
+
+        public static async Task EnsureEnrolledForLesson(int userId, int lessonId)
+        {
+            clsLesson lesson = await clsLesson.Find(lessonId);
+
+            int productId;
+
+            if (lesson.CourseId.HasValue)
+            {
+                clsCourse course = await clsCourse.Find(lesson.CourseId.Value);
+                productId = course.ProductId;
+            }
+            else
+            {
+                productId = lesson.ProductId;
+            }
+
+            if (!await clsEnrollment.IsUserEnrolled(userId, productId))
+                throw new UnauthorizedAccessException("You are not enrolled in this product");
+        }
+
+        public static async Task EnsureEnrolledForCourse(int userId, int courseId)
+        {
+            clsCourse course = await clsCourse.Find(courseId);
+
+            if (!await clsEnrollment.IsUserEnrolled(userId, course.ProductId))
+                throw new UnauthorizedAccessException("You are not enrolled in this course");
         }
 
         public static async Task<bool> IsCourseComplated(int userId, int courseId)

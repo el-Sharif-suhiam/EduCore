@@ -16,10 +16,21 @@ namespace EduCoreAPI.Controllers
         // =========================
         // GET: Payment By Id
         // =========================
+        [Authorize]
         [HttpGet("{id:int}")]
-        public async Task<ActionResult> GetPaymentById([FromRoute] int id)
+        public async Task<ActionResult> GetPaymentById([FromRoute] int id, [FromServices] IAuthorizationService authorizationService)
         {
             clsPayment payment = await clsPayment.FindAsync(id);
+
+            clsOrder order = await clsOrder.Find(payment.OrderId);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               order.UserId,
+               "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
 
             return Ok(new
             {
@@ -44,8 +55,18 @@ namespace EduCoreAPI.Controllers
         // =========================
         [Authorize]
         [HttpPost]
-        public async Task<ActionResult> CreatePayment([FromBody] CreatePaymentRequest request)
+        public async Task<ActionResult> CreatePayment([FromBody] CreatePaymentRequest request, [FromServices] IAuthorizationService authorizationService)
         {
+            clsOrder order = await clsOrder.Find(request.OrderId);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               order.UserId,
+               "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
             clsPayment payment = new clsPayment();
 
             short? discountId = null;
@@ -90,9 +111,21 @@ namespace EduCoreAPI.Controllers
         [HttpPut("{id:int}/checkOut-succeed")]
         public async Task<ActionResult> CheckOutSucceeded(
             [FromRoute] int id,
-            [FromBody] string TransactionId)
+            [FromBody] string TransactionId,
+            [FromServices] IAuthorizationService authorizationService)
         {
             clsPayment payment = await clsPayment.FindAsync(id);
+
+            clsOrder order = await clsOrder.Find(payment.OrderId);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               order.UserId,
+               "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int actionbyId = int.Parse(userId);
 
@@ -117,9 +150,20 @@ namespace EduCoreAPI.Controllers
         [HttpPut("{id:int}/fail")]
         public async Task<ActionResult> MarkAsFailed(
             [FromRoute] int id,
-            [FromBody] string TransactionId)
+            [FromBody] string TransactionId,
+            [FromServices] IAuthorizationService authorizationService)
         {
             clsPayment payment = await clsPayment.FindAsync(id);
+
+            clsOrder order = await clsOrder.Find(payment.OrderId);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               order.UserId,
+               "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int actionbyId = int.Parse(userId);
@@ -145,9 +189,20 @@ namespace EduCoreAPI.Controllers
         [Authorize]
         [HttpPut("{id:int}/expire")]
         public async Task<ActionResult> MarkAsExpired(
-            [FromRoute] int id)
+            [FromRoute] int id,
+            [FromServices] IAuthorizationService authorizationService)
         {
             clsPayment payment = await clsPayment.FindAsync(id);
+
+            clsOrder order = await clsOrder.Find(payment.OrderId);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               order.UserId,
+               "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int actionbyId = int.Parse(userId);

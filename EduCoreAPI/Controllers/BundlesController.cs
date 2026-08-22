@@ -179,12 +179,27 @@ namespace EduCoreAPI.Controllers
         // =========================
         // PUT: Update Bundle
         // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpPut("{id:int}")]
         public async Task<ActionResult> UpdateBundle(
             [FromRoute] int id,
-            [FromBody] BundleRequest request)
+            [FromBody] BundleRequest request,
+            [FromServices] IAuthorizationService authorizationService)
         {
             clsBundle bundle = await clsBundle.Find(id);
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                BundleId = id,
+                Type = enProductType.Bundle
+            };
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
 
             if (!string.IsNullOrWhiteSpace(request.Name))
                 bundle.SetName(request.Name);
@@ -210,13 +225,28 @@ namespace EduCoreAPI.Controllers
         // =========================
         // POST: Add Item To Bundle
         // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpPost("{id:int}/items")]
         public async Task<ActionResult> AddItemToBundle(
             [FromRoute] int id,
-            [FromBody] int courseId)
+            [FromBody] int courseId,
+            [FromServices] IAuthorizationService authorizationService)
         {
             if (!await clsBundle.IsBundleExist(id))
                 throw new NotFoundException("Bundle not found");
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                BundleId = id,
+                Type = enProductType.Bundle
+            };
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
 
             bool result = await clsBundle.AddItemToBundle(new DtoBundleItem
             {
@@ -233,13 +263,28 @@ namespace EduCoreAPI.Controllers
         // =========================
         // DELETE: Remove Item From Bundle
         // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpDelete("{id:int}/items/{courseId:int}")]
         public async Task<ActionResult> DeleteItemFromBundle(
             [FromRoute] int id,
-            [FromRoute] int courseId)
+            [FromRoute] int courseId,
+            [FromServices] IAuthorizationService authorizationService)
         {
             if (!await clsBundle.IsBundleExist(id))
                 throw new NotFoundException("Bundle not found");
+
+            ProductAccessResource productAccess = new ProductAccessResource
+            {
+                BundleId = id,
+                Type = enProductType.Bundle
+            };
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               productAccess,
+               "InstructorOwnership");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
 
             bool result = await clsBundle.DeleteItemFromBundle(new DtoBundleItem
             {

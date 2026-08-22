@@ -78,7 +78,8 @@ namespace EduCore_DataAccess
         public static async Task<bool> IsUserEnrolled(int userId, int productId)
         {
             string query = @"SELECT 1 FROM Enrollments
-                        WHERE UserId = @UserId AND ProductId = @ProductId AND ExpireAt < SYSUTCDATETIME();";
+                        WHERE UserId = @UserId AND ProductId = @ProductId
+                        AND (ExpireAt IS NULL OR ExpireAt > SYSUTCDATETIME());";
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
@@ -101,7 +102,7 @@ namespace EduCore_DataAccess
 
             string query = @"SELECT Id, UserId, ProductId, EnrolledAt, ExpireAt, PaymentId
                             FROM Enrollments
-                            WHERE UserId = @UserId AND (ExpireAt IS NULL OR ExpireAt < GETDATE())
+                            WHERE UserId = @UserId AND (ExpireAt IS NULL OR ExpireAt > SYSUTCDATETIME())
                             ORDER BY EnrolledAt DESC
                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                             FETCH NEXT @RowsPerPage ROWS ONLY;";

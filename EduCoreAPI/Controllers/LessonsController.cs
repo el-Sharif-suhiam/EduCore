@@ -60,19 +60,17 @@ namespace EduCoreAPI.Controllers
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
 
-            var userRole = User.FindFirstValue(ClaimTypes.Role);
-
             int authenticatedId = int.Parse(userId);
 
+            if (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"))
+                return Ok(lessonMapper.ToLessonRespone(lesson));
 
-            bool isInstructor =  userRole == "Instructor";
+            bool isInstructor = User.IsInRole("Instructor");
             if (isInstructor)
             {
                 bool result = await clsCoursesInstructors.IsInstructorOwnProduct(authenticatedId,enProductType.Lesson , 0, id,0);
                 if (result)
                     return Ok(lessonMapper.ToLessonRespone(lesson));
-                else
-                    return Forbid();
             }
 
             var authResult = await authorizationService.AuthorizeAsync(

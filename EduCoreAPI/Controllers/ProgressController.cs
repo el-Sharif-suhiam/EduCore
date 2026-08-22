@@ -3,6 +3,7 @@ using Common.ViewModels;
 using EduCore_BusinessLayer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.Security.Claims;
 
 namespace EduCoreAPI.Controllers
@@ -84,9 +85,10 @@ namespace EduCoreAPI.Controllers
 
 
         [HttpGet("courses/{courseId:int}/certificate")]
+        [EnableRateLimiting("AuthLimiter")]
         public async Task<ActionResult>
            IssueCertificate(
-           [FromRoute] int courseId)
+            [FromRoute] int courseId)
         {
             await clsProgress.IssueCertificate(CurrentUserId, courseId, "api/courses/certificate");
            

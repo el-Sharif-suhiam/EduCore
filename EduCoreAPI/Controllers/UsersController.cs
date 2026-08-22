@@ -9,6 +9,7 @@ using EduCoreAPI.Helpers.Mappers;
 using EduCoreAPI.Helpers.Models.RequestModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using System.ComponentModel.DataAnnotations;
 using System.Security.Claims;
 namespace EduCoreAPI.Controllers
@@ -107,6 +108,7 @@ namespace EduCoreAPI.Controllers
         // =========================
         [AllowAnonymous]
         [HttpPost("students")]
+        [EnableRateLimiting("RegistrationLimiter")]
         public async Task<ActionResult> CreateStudent([FromBody] UserRequest request)
         {
             var newUser = new clsUser();
@@ -118,7 +120,7 @@ namespace EduCoreAPI.Controllers
 
             newUser.SetRefreshToken(Guid.NewGuid().ToString());
             newUser.SetRefreshExpiredAt(DateTime.UtcNow.AddHours(5));
-            string ip = HttpContext.Connection.Id.ToString();
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString();
             string userAgent = HttpContext.Request.Headers.UserAgent.ToString();
             var result = await newUser.Save(ip,userAgent);
 
@@ -196,7 +198,7 @@ namespace EduCoreAPI.Controllers
             if (DateTime.TryParse(request.BirthDate,out DateTime newDate))
                 user.SetBirthDate(newDate);
 
-            string ip = HttpContext.Connection.Id.ToString();
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString();
             string userAgent = HttpContext.Request.Headers.UserAgent.ToString();
             bool result = await user.Save(ip,userAgent);
             if (!result)
@@ -228,7 +230,7 @@ namespace EduCoreAPI.Controllers
                 throw new ConflictException("Your current password is not correct!");
 
             user.SetPassword(updatePassword.newPassword);
-            string ip = HttpContext.Connection.Id.ToString();
+            string ip = HttpContext.Connection.RemoteIpAddress?.ToString();
             string userAgent = HttpContext.Request.Headers.UserAgent.ToString();
             bool result = await user.Save(ip,userAgent);
 
