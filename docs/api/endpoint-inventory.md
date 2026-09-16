@@ -49,7 +49,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 ## Lessons — `api/lessons` (LessonsController)
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
-| GET | / | anon | Paged independent lessons (+search) | |
+| GET | / | anon | Paged independent lessons (+search) | list returns ProductId; filters IsPublished=1 (M8) |
 | GET | /{id} | auth | Lesson by id (instructor-owner OR enrolled OR admin) | |
 | POST | / | Instructor,SuperAdmin | Create independent lesson | |
 | PUT | /{id} | Instructor,SuperAdmin + InstructorOwnership | Update lesson | |

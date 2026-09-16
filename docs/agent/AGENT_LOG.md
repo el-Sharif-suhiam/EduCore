@@ -292,3 +292,34 @@ but exposes no discoverable tests (requires live DB).
 **Unresolved:** None blocking. backlog unchanged: certificates (M14), standalone lesson product
 sales (no ProductId on LessonsWithOutCoursesViewModel), current-user enrollments/payments feed
 (L9). Docs updated; commit pushed to origin/main.
+
+---
+
+## 2026-09-16 - Standalone lessons buyable from the catalog (session 12)
+
+**Goal:** Owner asked why "independent lessons" was flagged when GET api/lessons already lists
+them. Explained: the list VM lacked ProductId (cart API requires Products.Id) and the frontend
+had no surface for standalone lessons. Owner then ordered: add ProductId DAL->endpoint + add a UI.
+
+**Modifications (backend - additive):**
+- EduCore.sql: vwLessonsWithOutCourses now selects P.Id AS ProductId.
+- Common/ViewModels/LessonsWithOutCoursesViewModel: + ProductId (with comment noting cart API needs it).
+- EduCore_DataAccess/clsLessonsData.GetAllLessonsWithOutCourses: SELECT * FROM view replaced with
+  explicit column list reading ProductId, public feed now filters v.IsPublished = 1 (drafts no
+  longer advertised; guards the cart's unpublished-product rejection), ORDER BY CreatedAt DESC.
+  BL/endpoint untouched (pure pass-throughs).
+
+**Modifications (frontend):**
+- lib/courses.ts: LessonSummary + getLessons() client fetcher (GET /api/lessons, public).
+- NEW components/shared/lesson-card.tsx: thumbnail + "Standalone lesson" chip + title/summary +
+  instructor + price + AddToCartButton(productId).
+- app/courses/page.tsx: LessonsSection under Bundles - first 9 + Load more; hidden when empty or
+  unreachable (quiet-chrome, same rule as bundles).
+
+**Tests executed:** dotnet build 0 errors; npm run lint 0; npm run build passes.
+
+**Unresolved:** lesson detail page pre-purchase left out deliberately - GET /api/lessons/{id}
+stays enrolled/owner/admin-gated (content protection); enrolled playback already at
+/learn/lessons/[id]. Purchase path: catalog card -> cart -> pay -> /learn. Course publish-state
+gap on the public list (drafts visible anonymously) remains open, now tracked in FRONTEND_TODO.
+Docs updated; commit pushed to origin/main.

@@ -71,6 +71,40 @@ export async function getCourses(
 }
 
 // ------------------------------------------------------------
+// Standalone lesson — mirrors LessonsWithOutCoursesViewModel.cs
+// ------------------------------------------------------------
+export type LessonSummary = {
+  id: number;
+  /** Products-table id — this is what the cart API requires (NOT `id`). */
+  productId: number;
+  title: string;
+  summary: string | null;
+  basePrice: number;
+  createdAt: string;
+  thumbnailUrl: string | null;
+  isPublished: boolean;
+  instructorId: number;
+  instructorName: string;
+};
+
+// ------------------------------------------------------------
+// CLIENT-side fetcher for the public standalone-lessons feed.
+// ------------------------------------------------------------
+export async function getLessons(
+  pageNumber = 1,
+  pageSize = 9,
+  search = ""
+): Promise<LessonSummary[]> {
+  const { api } = await import("./api");
+  const qs = new URLSearchParams({
+    PageNumber: String(pageNumber),
+    PageSize: String(pageSize),
+  });
+  if (search) qs.set("search", search);
+  return api.get<LessonSummary[]>(`/api/lessons?${qs.toString()}`, false);
+}
+
+// ------------------------------------------------------------
 // Single course detail — mirrors backend CourseResponse.cs
 // ------------------------------------------------------------
 export type CourseDetail = {

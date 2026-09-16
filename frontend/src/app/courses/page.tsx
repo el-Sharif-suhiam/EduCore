@@ -14,14 +14,17 @@ import { AppHeader } from "@/components/shared/app-header";
 import { Container } from "@/components/shared/container";
 import { CourseCard } from "@/components/shared/course-card";
 import { BundleCard } from "@/components/shared/bundle-card";
+import { LessonCard } from "@/components/shared/lesson-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getCourses,
   getBundles,
+  getLessons,
   type CourseSummary,
   type BundleSummary,
+  type LessonSummary,
 } from "@/lib/courses";
 
 const PAGE_SIZE = 9;
@@ -71,6 +74,7 @@ export default function CoursesPage() {
 
           <CatalogList key={search} search={search} />
           <BundlesSection />
+          <LessonsSection />
         </Container>
         <div className="h-20" />
       </main>
@@ -229,6 +233,88 @@ function BundlesSection() {
           <BundleCard key={b.id} bundle={b} />
         ))}
       </div>
+    </section>
+  );
+}
+
+// ------------------------------------------------------------
+// STANDALONE LESSONS — sold one at a time, so each card carries
+// its own Add to cart (ProductId drives the cart API). Hidden
+// entirely when the feed is empty or unreachable.
+// ------------------------------------------------------------
+const LESSON_PAGE_SIZE = 9;
+
+function LessonsSection() {
+  const [lessons, setLessons] = useState<LessonSummary[] | null>(null);
+  const [exhausted, setExhausted] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const pageRef = useRef(1);
+  const requestId = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    const id = ++requestId.current;
+    getLessons(1, LESSON_PAGE_SIZE)
+      .then((data) => {
+        if (cancelled || requestId.current !== id) return;
+        setLessons(data);
+        if (data.length < LESSON_PAGE_SIZE) setExhausted(true);
+      })
+      .catch(() => undefined); // lessons are optional chrome — stay silent
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || exhausted || lessons === null) return;
+    setLoadingMore(true);
+    try {
+      const next = await getLessons(pageRef.current + 1, LESSON_PAGE_SIZE);
+      setLessons((prev) => {
+        if (!prev) return prev;
+        const seen = new Set(prev.map((l) => l.id));
+        return [...prev, ...next.filter((l) => !seen.has(l.id))];
+      });
+      pageRef.current += 1;
+      if (next.length < LESSON_PAGE_SIZE) setExhausted(true);
+    } catch {
+      setExhausted(true); // stop retrying on failure
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [exhausted, lessons, loadingMore]);
+
+  if (lessons === null || lessons.length === 0) return null;
+
+  return (
+    <section className="mt-16" aria-labelledby="lessons-heading">
+      <h2 id="lessons-heading" className="font-display text-2xl font-semibold tracking-tight">
+        Standalone lessons
+      </h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        One focused skill, yours forever — no need to buy the whole course.
+      </p>
+      <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        {lessons.map((l) => (
+          <LessonCard key={l.id} lesson={l} />
+        ))}
+      </div>
+
+      {!exhausted && (
+        <div className="mt-8 flex justify-center">
+          <Button
+            variant="outline"
+            size="lg"
+            className="h-10 px-6"
+            onClick={() => void loadMore()}
+            disabled={loadingMore}
+          >
+            {loadingMore && <LoaderCircle data-icon="inline-start" className="animate-spin" />}
+            Load more
+          </Button>
+        </div>
+      )}
     </section>
   );
 }

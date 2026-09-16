@@ -5,7 +5,34 @@
 
 ---
 
-## 2026-09-16 — Session 10: admin commerce dashboards + publish/reactivate controls
+## 2026-09-16 — Session 11: standalone lessons buyable from the catalog
+
+**Goal:** Owner confirmed the earlier gap report — `GET /api/lessons` already listed standalone
+lessons, but (a) the list hid `ProductId` so they could never be added to a cart, and (b) the
+frontend had no surface for them. Fix both, guided: "add ProductId from DAL to endpoint, then add a UI".
+
+**Modifications (backend — additive):**
+- `EduCore.sql`: `vwLessonsWithOutCourses` now exposes `P.Id AS ProductId`.
+- `LessonsWithOutCoursesViewModel` + `ProductId`.
+- `clsLessonsData.GetAllLessonsWithOutCourses`: replaced `SELECT * FROM view` with an explicit
+  column list (idempotent to view redefinition), reads ProductId, filters **published only**
+  (`v.IsPublished = 1` — public feed shouldn't advertise drafts like the course list does), newest
+  first (`CreatedAt DESC`). BL + endpoint unchanged (pass-through).
+
+**Modifications (frontend):**
+- lib/courses.ts: `LessonSummary` type + client `getLessons(page, pageSize)` (public endpoint).
+- NEW `components/shared/lesson-card.tsx` (thumbnail/placeholder, "Standalone lesson" chip,
+  title, summary, instructor, price rail via `AddToCartButton` using ProductId).
+- /courses: `LessonsSection` beneath Bundles — first 9 + Load more, hidden when the feed is
+  empty or unreachable (same quiet-chrome rule as bundles).
+
+**Tests executed:** `npm run lint` 0; `npm run build` passes; `dotnet build` 0 errors.
+
+**Unresolved:** No lesson *detail* page — lesson body/video stays gated behind
+`GET /api/lessons/{id}` (enrolled/owner/admin only), and enrolled playback already lives at
+/learn/lessons/[id]. Purchase funnel: catalog card → cart → paid → appears in /learn.
+
+---
 
 **Goal:** Close the remaining admin gaps from Session 9's review (orders/payments dashboards,
 course publish state in admin list, user re-activation). Certificates deferred by owner

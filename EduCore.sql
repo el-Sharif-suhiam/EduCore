@@ -398,7 +398,8 @@ GO
 
 CREATE OR ALTER VIEW vwLessonsWithOutCourses 
 AS 
-    SELECT L.Id,L.Title, 
+    SELECT L.Id,L.Title,
+	P.Id AS ProductId,
 	P.Summary,
 	P.BasePrice,
 	P.CreatedAt, 

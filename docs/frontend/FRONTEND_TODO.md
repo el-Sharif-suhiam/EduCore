@@ -264,14 +264,26 @@
 - [x] admin-shell Orders + Payments nav entries (Admin/SuperAdmin); AUDIT_ACTION_LABELS + 31
 - [x] lint 0 · tsc clean · production build passes (26 routes)
 
+## Milestone 8 — Standalone lessons purchase path (session 11)
+
+### Backend (additive)
+- [x] `vwLessonsWithOutCourses` + `P.Id AS ProductId` (EduCore.sql)
+- [x] `LessonsWithOutCoursesViewModel.ProductId`
+- [x] `GetAllLessonsWithOutCourses`: explicit cols + ProductId, published-only filter, newest first
+
+### Frontend
+- [x] lib/courses.ts: `LessonSummary` + `getLessons()` client fetcher
+- [x] NEW lesson-card (thumbnail, instructor, price, `AddToCartButton` via ProductId)
+- [x] /courses `LessonsSection` (first 9 + Load more; hidden when empty/unreachable)
+
 ## Backlog (needs backend decisions — do not start without owner)
 - Certificate verification endpoint + shareable URLs (M14)
-- Independent lesson products can't be sold from UI (no ProductId exposed)
+- Public course detail stays visible when unpublished (GET /api/courses ignores IsPublished — drafts leak to the public storefront)
+- Lesson detail page pre-purchase (would need a public endpoint; video/body must stay owner/enrolled-gated)
 
 ## Known backend gaps affecting frontend (do NOT fix silently)
 - ~~Courses don't expose ProductId~~ FIXED in M3 (owner-approved backend addition).
 - ~~No Stripe checkout-session endpoint yet~~ LIVE since M3.5.
 - ~~No admin orders/payments feeds~~ FIXED in M7 (owner-approved additive endpoints).
 - Missing `GET current-user enrollments/payments` endpoints (backend issue L9) — "My Learning" needs it.
-- Independent lessons don't expose ProductId either (LessonsWithOutCoursesViewModel) — needed before lessons can be sold individually from UI.
 - Pagination responses have no totals — avoid building "page X of Y" UI.

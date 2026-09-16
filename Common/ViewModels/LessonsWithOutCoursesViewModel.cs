@@ -7,6 +7,7 @@ namespace Common.ViewModels
     public class LessonsWithOutCoursesViewModel
     {
         public int Id { get; set; } //    L.Id
+        public int ProductId { get; set; } // P.Id — cart API requires Products.Id
         public string Title { get; set; }  //    P.Name,
         public string? Summary { get; set; } //   P.Summary,
 	    public decimal BasePrice { get; set; } // P.BasePrice,
