@@ -18,6 +18,7 @@ import {
   CircleDollarSign,
   Gauge,
   Menu,
+  PlayCircle,
   ReceiptText,
   ScrollText,
   ShieldCheck,
@@ -62,6 +63,14 @@ const NAV: {
     match: (p: string) => p.startsWith("/admin/courses"),
     roles: ["Admin", "SuperAdmin", "Instructor"],
     palette: "Go to Courses",
+  },
+  {
+    href: "/admin/lessons",
+    label: "Lessons",
+    icon: PlayCircle,
+    match: (p: string) => p.startsWith("/admin/lessons"),
+    roles: ["Admin", "SuperAdmin"],
+    palette: "Go to Standalone lessons",
   },
   {
     href: "/admin/bundles",

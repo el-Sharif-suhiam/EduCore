@@ -351,7 +351,7 @@ namespace EduCore_DataAccess
         public static async Task<List<DtoLessons>> GetAllLessonsIncludeDeleted(int pageNumber, int pageSize)
             => await GetAllLessonsInternal(pageNumber, pageSize, true);
 
-        public static async Task<List<LessonsWithOutCoursesViewModel>> GetAllLessonsWithOutCourses(int pageNumber, int pageSize, string SearchText = "")
+        public static async Task<List<LessonsWithOutCoursesViewModel>> GetAllLessonsWithOutCourses(int pageNumber, int pageSize, string SearchText = "", bool includeUnpublished = false)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -369,7 +369,7 @@ namespace EduCore_DataAccess
                                 v.InstructorId,
                                 v.InstructorName
                             FROM vwLessonsWithOutCourses v
-                            WHERE v.IsPublished = 1
+                            WHERE (@IncludeUnpublished = 1 OR v.IsPublished = 1)
                               AND (@SearchText IS NULL OR v.Title LIKE @SearchText OR v.InstructorName LIKE @SearchText)
 	                        ORDER BY v.CreatedAt DESC
                          OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
@@ -381,6 +381,7 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
                 command.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
                 command.Parameters.Add("@SearchText", SqlDbType.NVarChar).Value = String.IsNullOrWhiteSpace(SearchText) ? DBNull.Value : $"%{SearchText}%";
+                command.Parameters.Add("@IncludeUnpublished", SqlDbType.Bit).Value = includeUnpublished;
 
 
                 await connection.OpenAsync();

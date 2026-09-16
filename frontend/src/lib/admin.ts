@@ -192,6 +192,77 @@ export function getLessonDetail(id: number): Promise<LessonDetail> {
   return api.get<LessonDetail>(`/api/lessons/${id}`);
 }
 
+// ---------------- standalone lessons ----------------------------
+
+/** Mirrors LessonsWithOutCoursesViewModel.cs — admin feed includes drafts. */
+export type AdminLessonSummary = {
+  id: number;
+  productId: number;
+  title: string;
+  summary: string | null;
+  basePrice: number;
+  createdAt: string;
+  thumbnailUrl: string | null;
+  isPublished: boolean;
+  instructorId: number;
+  instructorName: string;
+};
+
+/** Admin/SuperAdmin list — draft visibility arrives via includeUnpublished=true. */
+export function getLessonsPaged(
+  pageNumber = 1,
+  pageSize = 12,
+  search = "",
+  includeUnpublished = true
+): Promise<AdminLessonSummary[]> {
+  return api.get<AdminLessonSummary[]>(
+    `/api/lessons${qs({
+      PageNumber: pageNumber,
+      PageSize: pageSize,
+      search,
+      includeUnpublished: includeUnpublished ? "true" : undefined,
+    })}`
+  );
+}
+
+/** Mirrors LessonRequest.cs — BodyText required by the DTO. */
+export type LessonInput = {
+  name: string;
+  title: string;
+  basePrice: number;
+  bodyText: string;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  summary?: string;
+};
+
+export function createStandaloneLesson(body: LessonInput): Promise<{ id: number; title: string }> {
+  return api.post<{ id: number; title: string }>("/api/lessons", body);
+}
+
+export function updateStandaloneLesson(
+  id: number,
+  body: Partial<LessonInput>
+): Promise<unknown> {
+  return api.put(`/api/lessons/${id}`, body);
+}
+
+export function publishLesson(id: number): Promise<{ success: boolean }> {
+  return api.post(`/api/lessons/${id}/publish`);
+}
+
+export function unpublishLesson(id: number): Promise<{ success: boolean }> {
+  return api.post(`/api/lessons/${id}/unpublish`);
+}
+
+export function deleteLesson(id: number): Promise<{ id: number; title: string }> {
+  return api.del<{ id: number; title: string }>(`/api/lessons/${id}`);
+}
+
+export function restoreLesson(id: number): Promise<{ id: number; title: string }> {
+  return api.put<{ id: number; title: string }>(`/api/lessons/${id}/restore`);
+}
+
 // ---------------- course instructors ---------------------------
 
 export type CourseInstructorRef = {

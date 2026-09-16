@@ -292,9 +292,21 @@
 - [x] admin-shell CommandPalette via next/dynamic (smaller shell bundle)
 - [x] lint 0 · build passes (27 routes)
 
+## Milestone 10 — Standalone-lessons admin console (session 13)
+
+### Backend (additive)
+- [x] `GET /api/lessons` `?includeUnpublished=true` (Admin/SuperAdmin only) — drafts visible in the console
+
+### Frontend
+- [x] lib/admin: `AdminLessonSummary`, `getLessonsPaged`, lesson CRUD/publish/delete fetchers
+- [x] NEW `/admin/lessons` console: search + load-more, publish/hide toggle, create modal,
+      edit modal (lazy detail fetch), soft-delete with confirm
+- [x] admin-shell Lessons nav entry + palette action (Admin/SuperAdmin)
+- [x] lint 0 · build passes (28 routes)
+
 ## Backlog (needs backend decisions — do not start without owner)
 - Certificate verification endpoint + shareable URLs (M14)
-- Lesson detail page pre-purchase (would need a public endpoint; video/body must stay owner/enrolled-gated)
+- Deleted-lesson restore UI (needs a deleted-list feed; restore endpoint already exists)
 
 ## Known backend gaps affecting frontend (do NOT fix silently)
 - ~~Courses don't expose ProductId~~ FIXED in M3 (owner-approved backend addition).

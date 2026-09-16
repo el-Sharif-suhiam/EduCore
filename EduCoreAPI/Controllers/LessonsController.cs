@@ -19,16 +19,25 @@ namespace EduCoreAPI.Controllers
     {
         // =========================
         // GET: Independent Lessons
+        // Published only for the public storefront.
+        // Admin/SuperAdmin may pass includeUnpublished=true to see drafts.
         // =========================
         [AllowAnonymous]
         [HttpGet]
-        public async Task<ActionResult> GetIndependentLessons([FromQuery] PageRequest pageRequest, string? search)
+        public async Task<ActionResult> GetIndependentLessons(
+            [FromQuery] PageRequest pageRequest, string? search, bool? includeUnpublished)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
+            bool privileged =
+                User.Identity?.IsAuthenticated == true &&
+                (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
+
             var lessons = await clsLesson.GetIndependntLessons(
                 pageRequest.PageNumber,
-                pageRequest.PageSize,search);
+                pageRequest.PageSize,
+                search,
+                privileged && includeUnpublished == true);
 
             return Ok(lessons);
         }

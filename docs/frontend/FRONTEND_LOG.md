@@ -5,6 +5,37 @@
 
 ---
 
+## 2026-09-17 — Session 13: standalone-lessons admin console
+
+**Goal:** complete the "lessons and everything about them" half of the directive — the one
+missing surface was management of standalone (independent) lessons.
+
+**Backend (additive):** `GET /api/lessons` gained the same `includeUnpublished` pattern as courses
+— public callers keep a published-only feed; authenticated Admin/SuperAdmin passing
+`?includeUnpublished=true` see drafts too. DAL/BL pass-throughs (query predicate
+`@IncludeUnpublished = 1 OR v.IsPublished = 1`), no new endpoints needed. 0 build errors.
+
+**Frontend:**
+- `lib/admin.ts`: `AdminLessonSummary`, `getLessonsPaged` (sends includeUnpublished=true),
+  `LessonInput`, `createStandaloneLesson` / `updateStandaloneLesson` / `publishLesson` /
+  `unpublishLesson` / `deleteLesson` / `restoreLesson` fetchers.
+- NEW `/admin/lessons` console (Admin/SuperAdmin only, mirrors the page-level role gate): debounced
+  search + load-more paging; title links out to the public `/lessons/{id}` page; price in mono;
+  Published/Draft badge; Publish/Hide quick toggle; Edit modal (lazy detail fetch via
+  `GET /api/lessons/{id}`, full form incl. video/body/thumbnail); New-lesson modal; delete with a
+  confirm modal that is honest about soft-delete semantics.
+- admin-shell: "Lessons" nav entry + command-palette action (PlayCircle icon, Admin/SuperAdmin).
+- React 19 compliance: edit-modal loading state derived at mount (keyed remount per id), no sync
+  setState in effects.
+
+**Tests executed:** `dotnet build` 0 errors; `npm run lint` 0; `npm run build` passes — 28 routes
+(incl. /admin/lessons).
+
+**Unresolved:** deleted lessons leave the admin feed (SQL view keeps IsDeleted=0 and there is no
+deleted-list endpoint yet), so the restore action stays API-only for now — documented.
+
+---
+
 ## 2026-09-16 — Session 12: courses+lessons close-out with a performance pass
 
 **Goal:** Owner directive — finish courses and lessons "and everything about them", professional

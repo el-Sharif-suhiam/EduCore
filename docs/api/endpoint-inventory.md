@@ -52,6 +52,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
 | GET | / | anon | Paged independent lessons (+search) | list returns ProductId; filters IsPublished=1 (M8) |
+| GET | / | Admin (w/ ?includeUnpublished=true) | Same feed INCLUDING drafts (admin console) | added M9 |
 | GET | /{id}/info | anon | Public cover sheet (title/summary/price/thumbnail/instructor) — never video/body | added M9 |
 | GET | /{id} | auth | Lesson by id (instructor-owner OR enrolled OR admin) | |
 | POST | / | Instructor,SuperAdmin | Create independent lesson | |

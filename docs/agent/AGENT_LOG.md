@@ -367,3 +367,34 @@ deferring the no-IO fallback through setTimeout); npm run build passes - 27 rout
 **Unresolved:** storefront images still plain <img> + native lazy (next/image requires remote
 patterns for user-defined URLs - fine to leave). Backlog unchanged otherwise: certificates (M14),
 current-user enrollments/payments feed (L9). Commit pushed to origin/main.
+
+---
+
+## 2026-09-17 - Standalone-lessons admin console (session 14)
+
+**Goal:** Owner: keep building until the whole frontend is complete and wired; per batch: courses
+(out of scope here - done in s13), then "the rest of the lessons and everything about them".
+
+**Modifications (backend - additive, dotnet build 0 errors):**
+- clsLessonsData.GetAllLessonsWithOutCourses + includeUnpublished flag -> predicate
+  (@IncludeUnpublished = 1 OR v.IsPublished = 1). clsLesson.GetIndependntLessons passes it through.
+- LessonsController.GetIndependentLessons accepts bool? includeUnpublished, honoured ONLY for
+  authenticated Admin/SuperAdmin - identical guard to courses. Public feed unchanged (published
+  only). No new endpoints; list VM already carried IsPublished.
+
+**Modifications (frontend):**
+- lib/admin.ts: AdminLessonSummary (matches LessonsWithOutCoursesViewModel incl. ProductId),
+  getLessonsPaged (includeUnpublished=true), LessonInput + createStandaloneLesson / updateLesson /
+  publishLesson / unpublishLesson / deleteLesson / restoreLesson.
+- NEW /admin/lessons (Admin/SuperAdmin - page-level gate; layout keeps Instructor=courses-only):
+  debounced search, load-more paging, row links to public /lessons/{id}, Published/Draft badge,
+  Publish/Hide quick toggle, create modal, edit modal (lazy GET /api/lessons/{id} prefill,
+  video/body/thumbnail fields), delete confirm (honest soft-delete copy).
+- admin-shell: Lessons nav entry + palette action. React 19: no sync setState in effects (derive
+  loading at mount via keyed remount).
+
+**Tests executed:** dotnet build 0 errors; npm run lint 0; npm run build passes - 28 routes.
+
+**Unresolved:** deleted lessons vanish from the console (view filters IsDeleted=0; no deleted-list
+feed yet) so restore stays API-only. Rest of storefront flow (catalog -> detail -> cart -> pay ->
+/learn/lessons/[id]) was already wired for standalone lessons. Commit pushed to origin/main.
