@@ -61,6 +61,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
 | GET | / | anon | Published bundles view | |
+| GET | /all | Instructor,SuperAdmin | All bundles incl. unpublished | added phase (admin bundles console) |
 | GET | /{id}/items | anon | Bundle with courses | |
 | GET | /{id} | anon | Bundle by id | |
 | GET | /{id}/exists | anon | Existence check | |

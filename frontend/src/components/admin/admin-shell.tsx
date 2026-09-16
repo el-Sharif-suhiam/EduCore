@@ -13,6 +13,7 @@ import { usePathname } from "next/navigation";
 import {
   BadgePercent,
   BookOpen,
+  Box,
   Gauge,
   Menu,
   ScrollText,
@@ -27,6 +28,7 @@ import { UserMenu } from "@/components/shared/user-menu";
 import { Button } from "@/components/ui/button";
 import { CommandPalette } from "@/components/admin/command-palette";
 import { useAuth } from "@/lib/auth-context";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 
 const NAV: {
@@ -52,6 +54,14 @@ const NAV: {
     match: (p: string) => p.startsWith("/admin/courses"),
     roles: ["Admin", "SuperAdmin", "Instructor"],
     palette: "Go to Courses",
+  },
+  {
+    href: "/admin/bundles",
+    label: "Bundles",
+    icon: Box,
+    match: (p: string) => p.startsWith("/admin/bundles"),
+    roles: ["Admin", "SuperAdmin", "Instructor"],
+    palette: "Go to Bundles",
   },
   {
     href: "/admin/people",
@@ -89,6 +99,7 @@ const NAV: {
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user } = useAuth();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
@@ -114,7 +125,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
     id: `go:${n.href}`,
     label: n.palette,
     hint: n.href === "/admin" ? undefined : "GOTO",
-    run: () => window.location.assign(n.href),
+    run: () => router.push(n.href),
   }));
 
   const activeLabel =

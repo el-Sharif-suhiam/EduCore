@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import { ArrowLeft, LoaderCircle, UserRoundPlus } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { AuthBrandPanel } from "@/components/shared/auth-brand-panel";
@@ -13,9 +14,10 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useAuth } from "@/lib/auth-context";
 import { ApiError } from "@/lib/api";
 
-export default function RegisterPage() {
+function RegisterForm() {
   const { register } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -43,7 +45,7 @@ export default function RegisterPage() {
         birthDate,
         password,
       });
-      router.replace("/");
+      router.replace(searchParams.get("next") ?? "/");
     } catch (err) {
       setError(
         err instanceof ApiError
@@ -177,5 +179,13 @@ export default function RegisterPage() {
         </Link>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={null}>
+      <RegisterForm />
+    </Suspense>
   );
 }

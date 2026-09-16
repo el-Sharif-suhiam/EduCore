@@ -5,7 +5,45 @@
 
 ---
 
-## 2026-08-26 — Session 8: milestone 6 (finish-the-product pass)
+## 2026-09-16 — Session 9: admin bundles console + P1/P2/P3 close-out
+
+**Goal:** Close the remaining frontend work from the approved P1/P2/P3 plan: give admin real
+bundle management (the biggest known backend gap — no unpublished visibility), add the public
+bundle detail page, and land the polish list.
+
+**P2 — Bundles:**
+- Backend (minimal additive): `BundleViewModel.IsPublished` + `GetAllBundlesView(includeUnpublished)`
+  + `GET api/bundles/all` [Instructor,SuperAdmin]. Nothing pre-existing changed behavior.
+- lib/admin.ts bundle fetchers; `/admin/bundles` list + NewBundleModal (create → router.push
+  into builder); `/admin/bundles/[id]` builder with publish toggle, identity edit, contents
+  editor (course pool via getCoursesPaged, add/remove with confirms, toast everywhere).
+- Public `/bundles/[id]` as an RSC: cover, badges, contents list deep-linking to `/courses/[id]`,
+  sticky price rail with AddToCartButton; not-found + graceful contents-unavailable states.
+- BundleCard title now links to the detail page; the lazy "What's inside" modal stays.
+
+**P1 — Product fixes:**
+- Global not-found/error/loading boundaries (error page uses Link, not `<a>` — lint enforced).
+- Landing "View all" `#courses` → `/courses`.
+- `/register` honors `?next=` (Suspense + useSearchParams restructure, mirrors login).
+- `/admin/people` rewritten: load-more (20/page, dedupe by id), 300ms debounced server-side
+  search, server-side tab filtering, ARIA tablist w/ roving tabindex + arrow keys.
+- `/learn` load-more enrollments (24/page) + progress fetched for every course (no 8-cap).
+
+**P3 — Infra & a11y:**
+- ui/textarea + ui/select (zero-dep), now used by the course builder.
+- ui/toast + ToastProvider in root layout; feedback wired into bundle builder, course builder
+  (publish/save/instructors), discounts, people (with per-action success labels).
+- Modal focus trap + restore-focus-to-trigger (Esc/overlay close kept).
+- admin-shell: Bundles nav entry; palette actions moved to router.push.
+- .env.example gains NEXT_PUBLIC_SITE_URL.
+
+**Verification:** dotnet build 0 errors (138 pre-existing warnings) · lint 0 · `npm run build`
+passes with 24 routes.
+
+**Notes:** learn page initial fetch moved to a `.then` pattern to satisfy the strict
+`react-hooks/set-state-in-effect` rule (same shape as the progress fetcher).
+
+---
 
 **Goal:** Close every remaining frontend gap so the product is testable end-to-end.
 

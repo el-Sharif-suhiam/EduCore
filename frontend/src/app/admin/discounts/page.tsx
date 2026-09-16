@@ -14,6 +14,7 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import {
   getValidDiscountCodes,
@@ -35,6 +36,7 @@ const EMPTY: Draft = { id: null, discountCode: "", discountRate: "", expireAt: "
 
 export default function AdminDiscountsPage() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const isSuper = !!user?.roles.includes("SuperAdmin");
 
   const [rows, setRows] = useState<DiscountCode[] | null>(null);
@@ -130,9 +132,14 @@ export default function AdminDiscountsPage() {
           open
           draft={editing}
           onClose={() => setEditing(null)}
-          onSaved={() => {
+          onSaved={(id, name) => {
             setEditing(null);
             reload();
+            toast({
+              title: id === null ? "Code created" : "Code saved",
+              description: name,
+              variant: "success",
+            });
           }}
         />
       )}
@@ -156,9 +163,18 @@ export default function AdminDiscountsPage() {
                 await deleteDiscountCode(deleting.id);
                 setDeleting(null);
                 reload();
+                toast({
+                  title: "Code deleted",
+                  description: deleting.discountCode,
+                });
               } catch (err) {
                 setDeleting(null);
                 setError(err instanceof Error ? err.message : "Delete failed.");
+                toast({
+                  title: "Could not delete",
+                  description: err instanceof Error ? err.message : "Delete failed.",
+                  variant: "error",
+                });
               }
             }}
           >
@@ -179,7 +195,7 @@ function CodeModal({
   open: boolean;
   draft: Draft;
   onClose: () => void;
-  onSaved: () => void;
+  onSaved: (id: number | null, name: string) => void;
 }) {
   const [form, setForm] = useState<Draft>(draft);
   const [busy, setBusy] = useState(false);
@@ -205,7 +221,7 @@ function CodeModal({
     try {
       if (form.id === null) await createDiscountCode(body);
       else await updateDiscountCode(form.id, body);
-      onSaved();
+      onSaved(form.id, body.discountCode);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
     } finally {

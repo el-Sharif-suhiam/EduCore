@@ -167,3 +167,14 @@ export async function getBundleItems(id: number): Promise<BundleItems> {
   const { api } = await import("./api");
   return api.get<BundleItems>(`/api/bundles/${id}/items`, false);
 }
+
+// ------------------------------------------------------------
+// SERVER-side bundle fetchers (React Server Components).
+// ------------------------------------------------------------
+export function getBundleServer(id: number): Promise<BundleSummary & { isPublished: boolean }> {
+  return serverJson(`/api/bundles/${id}`);
+}
+
+export function getBundleItemsServer(id: number): Promise<BundleItems> {
+  return serverJson(`/api/bundles/${id}/items`);
+}

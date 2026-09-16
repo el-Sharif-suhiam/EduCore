@@ -212,6 +212,43 @@
 - Certificate verification endpoint + shareable URLs (M14)
 - Independent lesson products can't be sold from UI (no ProductId exposed)
 
+## Milestone 6.5 — Admin bundles console + P1/P2/P3 close-out (session 9)
+
+### Backend (minimal, additive — needed so admin sees real publish state)
+- [x] `BundleViewModel.IsPublished` (Common)
+- [x] `clsBundlesData/clsBundle.GetAllBundlesView(includeUnpublished)` gated
+- [x] `GET api/bundles/all` (Instructor,SuperAdmin) — admin unpublished-list visibility (closes M5 gap)
+
+### P2 — Bundle management console
+- [x] lib/admin.ts bundle fetchers (list/create/update/publish/unpublish/detail/items add+remove)
+- [x] /admin/bundles: list table + NewBundleModal (create → jump into builder)
+- [x] /admin/bundles/[id]: builder — publish toggle, identity card, contents editor
+      (course pool via getCoursesPaged, add/remove with confirms), not-found/unreachable states
+- [x] Public /bundles/[id] detail page (RSC): sticky price rail + AddToCartButton,
+      contents list deep-linking to course pages, cover/meta, honest empty states
+- [x] BundleCard title links to the detail page (catalog keeps "What's inside" modal)
+
+### P1 — product-level fixes
+- [x] Global not-found / error (Link fix) / loading boundaries
+- [x] Landing "View all" → /courses (was #courses)
+- [x] /register honors ?next= (RegisterPage+Suspense restructure)
+- [x] /admin/people: load-more paging, debounced search, server-side tab filtering,
+      ARIA tablist w/ roving tabindex + arrow keys
+- [x] /learn: load-more enrollments (24/page), progress fetched for ALL courses (no cap)
+
+### P3 — infra & a11y
+- [x] ui/textarea + ui/select primitives (zero-dep style), used in course builder
+- [x] ui/toast (hand-rolled useToast) + ToastProvider in root layout; wired into
+      bundle builder, course builder (publish/save/lessons/instructors), discounts, people
+- [x] Modal focus trap + focus restore to trigger on close
+- [x] admin-shell Bundles nav entry + command-palette router.push (was location.assign)
+- [x] .env.example: NEXT_PUBLIC_SITE_URL documented
+- [x] lint 0 · tsc clean · production build passes (24 routes)
+
+## Backlog (needs backend decisions — do not start without owner)
+- Certificate verification endpoint + shareable URLs (M14)
+- Independent lesson products can't be sold from UI (no ProductId exposed)
+
 ## Known backend gaps affecting frontend (do NOT fix silently)
 - ~~Courses don't expose ProductId~~ FIXED in M3 (owner-approved backend addition).
 - ~~No Stripe checkout-session endpoint yet~~ LIVE since M3.5.

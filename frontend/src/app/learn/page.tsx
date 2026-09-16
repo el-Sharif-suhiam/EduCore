@@ -6,7 +6,7 @@
 // everything else is one level quieter.
 // ============================================================
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -40,39 +40,68 @@ export default function LearnPage() {
   const [error, setError] = useState<string | null>(null);
   const [progressMap, setProgressMap] = useState<Record<number, CourseProgress>>({});
   const requestedProgressRef = useRef<Set<number>>(new Set());
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [exhausted, setExhausted] = useState(false);
+  const enrollmentsPageRef = useRef(1);
 
   // Auth gate.
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login?next=/learn");
   }, [status, router]);
 
-  // Load enrollments once authenticated.
+  const loadEnrollments = useCallback(async (page: number, append: boolean): Promise<boolean> => {
+    try {
+      const list = await getMyEnrollments(page, 24);
+      setEnrollments((prev) => {
+        if (!append || !prev) return list;
+        const seen = new Set(prev.map((e) => e.id));
+        return [...prev, ...list.filter((e) => !seen.has(e.id))];
+      });
+      setExhausted(list.length < 24);
+      return true;
+    } catch {
+      if (!append) setError("Your enrollments are unreachable right now. Is the backend running?");
+      return false;
+    }
+  }, []);
+
+  // Load first page once authenticated.
   useEffect(() => {
     if (status !== "authenticated") return;
-
     let cancelled = false;
-    (async () => {
-      try {
-        const list = await getMyEnrollments();
-        if (!cancelled) setEnrollments(list);
-      } catch {
-        if (!cancelled)
-          setError("Your enrollments are unreachable right now. Is the backend running?");
-      }
-    })();
+    getMyEnrollments(1, 24)
+      .then((list) => {
+        if (cancelled) return;
+        setEnrollments(list);
+        setExhausted(list.length < 24);
+      })
+      .catch(() => {
+        if (!cancelled) setError("Your enrollments are unreachable right now. Is the backend running?");
+      });
     return () => {
       cancelled = true;
     };
   }, [status]);
 
-  // Lazily fetch progress for course-type enrollments (first page only).
+  const loadMore = useCallback(async () => {
+    if (loadingMore || exhausted) return;
+    setLoadingMore(true);
+    try {
+      const nextPage = enrollmentsPageRef.current + 1;
+      const ok = await loadEnrollments(nextPage, true);
+      if (ok) enrollmentsPageRef.current = nextPage;
+    } finally {
+      setLoadingMore(false);
+    }
+  }, [loadingMore, exhausted, loadEnrollments]);
+
+  // Lazily fetch progress for EVERY course-type enrollment (no cap).
   useEffect(() => {
     if (!enrollments) return;
     const courseIds = enrollments
       .filter((e) => e.productTypeId === PRODUCT_TYPE.Course && e.courseId)
       .map((e) => e.courseId!)
-      .filter((id) => !requestedProgressRef.current.has(id))
-      .slice(0, 8);
+      .filter((id) => !requestedProgressRef.current.has(id));
 
     for (const courseId of courseIds) {
       requestedProgressRef.current.add(courseId);
@@ -213,6 +242,22 @@ export default function LearnPage() {
                   } />
                 ))}
               </ul>
+              {!exhausted && (
+                <div className="mt-8 flex justify-center">
+                  <Button
+                    variant="outline"
+                    size="lg"
+                    className="h-10 px-6"
+                    onClick={() => void loadMore()}
+                    disabled={loadingMore}
+                  >
+                    {loadingMore && (
+                      <LoaderCircle data-icon="inline-start" className="animate-spin" />
+                    )}
+                    Load more
+                  </Button>
+                </div>
+              )}
             </section>
           ) : null}
         </Container>

@@ -33,7 +33,7 @@ export async function FeaturedCourses() {
             </h2>
           </div>
           <Link
-            href="#courses"
+            href="/courses"
             className="hidden items-center gap-1.5 text-sm font-medium text-primary hover:underline underline-offset-4 sm:inline-flex"
           >
             View all

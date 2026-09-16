@@ -28,6 +28,17 @@ namespace EduCoreAPI.Controllers
         }
 
         // =========================
+        // GET: All Bundles (Admin) — published AND drafts
+        // =========================
+        [Authorize(Roles = "Instructor,SuperAdmin")]
+        [HttpGet("all")]
+        public async Task<ActionResult<List<BundleViewModel>>> GetAllBundlesForAdmin()
+        {
+            var bundles = await clsBundle.GetBundlesView(includeUnpublished: true);
+            return Ok(bundles);
+        }
+
+        // =========================
         // GET: Bundle With Items
         // =========================
         [AllowAnonymous]

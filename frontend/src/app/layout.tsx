@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Fraunces, Caveat } from "next/font/google";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
 import { CartProvider } from "@/lib/cart-context";
+import { ToastProvider } from "@/components/ui/toast";
 import "./globals.css";
 
 // Body/UI font
@@ -52,7 +53,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         <ThemeProvider>
           <AuthProvider>
-            <CartProvider>{children}</CartProvider>
+            <CartProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </CartProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

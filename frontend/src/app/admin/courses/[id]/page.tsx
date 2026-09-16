@@ -19,7 +19,10 @@ import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast";
 import { useAuth } from "@/lib/auth-context";
 import {
   getCourse,
@@ -154,6 +157,7 @@ function PublishToggle({
   published: boolean;
   onChanged: (published: boolean) => void;
 }) {
+  const { toast } = useToast();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -164,8 +168,14 @@ function PublishToggle({
     try {
       await (published ? unpublishCourse(courseId) : publishCourse(courseId));
       onChanged(!published);
+      toast({
+        title: published ? "Course unpublished" : "Course published",
+        variant: published ? "default" : "success",
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Action failed.");
+      const message = err instanceof Error ? err.message : "Action failed.";
+      setError(message);
+      toast({ title: "Could not change status", description: message, variant: "error" });
     } finally {
       setBusy(false);
     }
@@ -199,6 +209,7 @@ function IdentityCard({
   course: CourseDetail;
   onSaved: (patch: Partial<CourseDetail>) => void;
 }) {
+  const { toast } = useToast();
   const [name, setName] = useState(course.name);
   const [basePrice, setBasePrice] = useState(String(course.basePrice));
   const [summary, setSummary] = useState(course.summary ?? "");
@@ -232,8 +243,14 @@ function IdentityCard({
       });
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+      toast({ title: "Course saved", description: name.trim(), variant: "success" });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Save failed.");
+      toast({
+        title: "Could not save",
+        description: err instanceof Error ? err.message : "Save failed.",
+        variant: "error",
+      });
     } finally {
       setBusy(false);
     }
@@ -514,10 +531,9 @@ function LessonModal({
         </div>
         <div className="space-y-2">
           <Label htmlFor="ls-body">Body text</Label>
-          <textarea
+          <Textarea
             id="ls-body"
             rows={5}
-            className="w-full rounded-lg border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
             value={draft.bodyText}
             onChange={(e) => setDraft({ ...draft, bodyText: e.target.value })}
           />
@@ -546,6 +562,7 @@ function LessonModal({
 /* ---------------- instructors (Admin/SuperAdmin) ---------------- */
 
 function InstructorsCard({ courseId }: { courseId: number }) {
+  const { toast } = useToast();
   const [instructors, setInstructors] = useState<CourseInstructorRef[] | null>(null);
   const [pool, setPool] = useState<AdminUser[]>([]);
   const [selected, setSelected] = useState("");
@@ -569,11 +586,19 @@ function InstructorsCard({ courseId }: { courseId: number }) {
     if (!selected) return;
     setError(null);
     try {
+      const user = pool.find((u) => u.id === Number(selected));
       await assignCourseInstructor(courseId, Number(selected));
       setSelected("");
       reload();
+      toast({
+        title: "Instructor assigned",
+        description: user?.name,
+        variant: "success",
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Assignment failed.");
+      const message = err instanceof Error ? err.message : "Assignment failed.";
+      setError(message);
+      toast({ title: "Assignment failed", description: message, variant: "error" });
     }
   }
 
@@ -583,8 +608,14 @@ function InstructorsCard({ courseId }: { courseId: number }) {
       await removeCourseInstructor(courseId, instructor.id);
       setConfirmRemove(null);
       reload();
+      toast({
+        title: "Instructor removed",
+        description: instructor.name,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Removal failed.");
+      const message = err instanceof Error ? err.message : "Removal failed.";
+      setError(message);
+      toast({ title: "Removal failed", description: message, variant: "error" });
     }
   }
 
@@ -628,11 +659,11 @@ function InstructorsCard({ courseId }: { courseId: number }) {
       </ul>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <select
+        <Select
           aria-label="Choose an instructor to assign"
           value={selected}
           onChange={(e) => setSelected(e.target.value)}
-          className="h-9 rounded-lg border border-input bg-transparent px-3 text-sm shadow-xs outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          className="w-full max-w-xs"
         >
           <option value="">Assign an instructor…</option>
           {pool.map((p) => (
@@ -640,7 +671,7 @@ function InstructorsCard({ courseId }: { courseId: number }) {
               {p.name}
             </option>
           ))}
-        </select>
+        </Select>
         <Button variant="outline" size="sm" disabled={!selected} onClick={assign}>
           Assign
         </Button>

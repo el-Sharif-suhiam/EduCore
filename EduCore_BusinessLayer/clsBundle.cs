@@ -219,8 +219,8 @@ namespace EduCore_BusinessLayer
         public static async Task<bool> IsBundleExist(int bundleId)
             => await clsBundlesData.BundleExists(bundleId);
 
-        public static async Task<List<BundleViewModel>> GetBundlesView()
-            => await clsBundlesData.GetAllBundlesView();
+        public static async Task<List<BundleViewModel>> GetBundlesView(bool includeUnpublished = false)
+            => await clsBundlesData.GetAllBundlesView(includeUnpublished);
 
         public static async Task<bool> AddItemToBundle(DtoBundleItem item)
             => await clsBundleItemsData.AddItemToBundle(item);

@@ -7,6 +7,7 @@
 // ============================================================
 
 import { useState } from "react";
+import Link from "next/link";
 import { Box } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
@@ -57,7 +58,12 @@ export function BundleCard({ bundle }: { bundle: BundleSummary }) {
 
       <div className="flex flex-1 flex-col gap-1.5 p-4">
         <h3 className="font-display text-lg leading-snug font-semibold text-balance">
-          {bundle.name}
+          <Link
+            href={`/bundles/${bundle.id}`}
+            className="underline-offset-4 transition-colors hover:text-primary hover:underline"
+          >
+            {bundle.name}
+          </Link>
         </h3>
         {bundle.summary && (
           <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">

@@ -16,6 +16,7 @@ namespace EduCoreAPI.Helpers.Mappers
                 ProductId = bundle.ProductId,
                 Summary = bundle.Summary,
                 ThumbnailUrl = bundle.ThumbnailUrl,
+                IsPublished = bundle.IsPublished,
             };
         }
     }

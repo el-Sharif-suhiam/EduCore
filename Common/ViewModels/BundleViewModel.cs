@@ -13,6 +13,7 @@ namespace Common.ViewModels
         public decimal BasePrice {  get; set; }
         public string? ThumbnailUrl {  get; set; }
         public string? Summary {  get; set; }
+        public bool IsPublished { get; set; }
 
     }
 }

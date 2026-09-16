@@ -142,15 +142,19 @@ namespace EduCore_DataAccess
             return bundles;
         }
 
-        public static async  Task<List<BundleViewModel>> GetAllBundlesView()
+        public static async Task<List<BundleViewModel>> GetAllBundlesView(bool includeUnpublished = false)
         {
             List<BundleViewModel> bundles = new List<BundleViewModel>();
 
-            string query = @"SELECT B.Id,B.ProductId , P.Name, P.CreatedAt, P.BasePrice,
-                            P.ThumbnailUrl, P.Summary
+            // Public catalog: published, non-deleted bundles only.
+            // includeUnpublished=true powers the admin console (drafts + published).
+            string query = @"SELECT B.Id, B.ProductId, P.Name, P.CreatedAt, P.BasePrice,
+                            P.ThumbnailUrl, P.Summary, P.IsPublished
                             FROM Bundles B
                             JOIN Products P ON P.Id = B.ProductId
-                            WHERE P.IsPublished =1;";
+                            WHERE P.IsDeleted = 0";
+            if (!includeUnpublished)
+                query += " AND P.IsPublished = 1";
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
@@ -159,7 +163,6 @@ namespace EduCore_DataAccess
 
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())
                 {
-
                     int idIndex = reader.GetOrdinal("Id");
                     int productIdIndex = reader.GetOrdinal("ProductId");
                     int nameIndex = reader.GetOrdinal("Name");
@@ -167,6 +170,7 @@ namespace EduCore_DataAccess
                     int basePriceIndex = reader.GetOrdinal("BasePrice");
                     int thumbnailIndex = reader.GetOrdinal("ThumbnailUrl");
                     int summaryIndex = reader.GetOrdinal("Summary");
+                    int isPublishedIndex = reader.GetOrdinal("IsPublished");
                     while (await reader.ReadAsync())
                     {
                         bundles.Add(new BundleViewModel
@@ -178,6 +182,7 @@ namespace EduCore_DataAccess
                             BasePrice = reader.GetDecimal(basePriceIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbnailIndex) ? null : reader.GetString(thumbnailIndex),
                             Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
+                            IsPublished = reader.GetBoolean(isPublishedIndex),
                         });
                     }
                 }

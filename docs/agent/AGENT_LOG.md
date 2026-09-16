@@ -206,3 +206,44 @@ Bundle=3). Deep-link ids exist because progress endpoints take Courses.Id while
 enrollments store Products.Id.
 
 **Tests executed:** dotnet build EduCore.slnx -> 0 errors. Frontend milestone 4 consumes it.
+
+---
+
+## 2026-09-16 — Admin bundles console + frontend P1/P2/P3 close-out (session ~10)
+
+**Objective:** Finish the frontend: admin bundle management (previously no unpublished-list or
+publish-state visibility), public bundle detail page, and the approved P1/P2/P3 polish list.
+
+**Modifications (backend, minimal + additive):**
+- `Common/ViewModels/BundleViewModel.cs`: added `IsPublished`.
+- `EduCore_DataAccess/clsBundlesData.cs` + `EduCore_BusinessLayer/clsBundle.cs`:
+  `GetAllBundlesView(bool includeUnpublished = false)` — filters `IsPublished=1` unless requested;
+  SELECT now includes IsPublished.
+- `EduCoreAPI/Controllers/BundlesController.cs`: `GET api/bundles/all`
+  `[Authorize(Roles = "Instructor,SuperAdmin")]` returning all bundles w/ publish state.
+- `EduCoreAPI/Helpers/Mappers/bundleMapper.cs`: map IsPublished. Route order safe (`{id:int}`
+  won't capture "all").
+
+**Modifications (frontend):**
+- lib/admin.ts: bundle fetchers (list, create, update, publish/unpublish, detail = bundle+items,
+  add/remove item). lib/courses.ts: server fetchers for the RSC detail page.
+- NEW /admin/bundles + /admin/bundles/[id] builder; NEW public /bundles/[id] (sticky price rail,
+  AddToCartButton, deep-linked contents). BundleCard title now links to the detail page.
+- Global error/loading/not-found boundaries; landing "View all" -> /courses.
+- /register honors ?next=; /admin/people load-more+debounced search+ARIA tabs;
+  /learn load-more with full progress fetch (no cap).
+- NEW ui/textarea, ui/select, ui/toast (+ToastProvider in root layout, wired into bundle/course
+  builder, discounts, people). Modal now traps Tab + restores focus.
+- admin-shell: Bundles nav entry; command palette uses router.push. .env.example documents
+  NEXT_PUBLIC_SITE_URL.
+
+**Decisions:** Zero new deps kept (native fetch, hand-rolled modal/palette/toast/select). Admin
+bundle endpoint restricted to Instructor+SuperAdmin as the family roles — mirrors courses 'all'
+behavior, keeps SuperAdmin-only principle for destructive ops.
+
+**Tests executed:** `dotnet build EduCoreAPI` → 0 errors (138 pre-existing nullable warnings);
+`npm run lint` → 0; `npm run build` → passes, 24 routes (incl. /admin/bundles, /admin/bundles/[id],
+/bundles/[id]).
+
+**Unresolved:** None blocking. Docs updated (endpoint-inventory, FRONTEND_LOG/TODO). Uncommitted —
+awaiting owner push approval.

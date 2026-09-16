@@ -205,6 +205,90 @@ export function removeCourseInstructor(
   return api.del(`/api/courses/${courseId}/instructors${qs({ instructorId })}`);
 }
 
+// ---------------- bundles ------------------------------------
+
+export type AdminBundle = {
+  id: number;
+  /** Products-table id — the cart API requires this, not `id`. */
+  productId: number;
+  name: string;
+  createdAt: string;
+  basePrice: number;
+  thumbnailUrl: string | null;
+  summary: string | null;
+  isPublished: boolean;
+};
+
+/** All bundles including drafts. Instructor/SuperAdmin only. */
+export function getAdminBundles(): Promise<AdminBundle[]> {
+  return api.get<AdminBundle[]>("/api/bundles/all", true);
+}
+
+export type BundleCreated = { id: number; name: string; basePrice: number };
+
+export function createBundle(body: {
+  name: string;
+  basePrice: number;
+  summary?: string;
+  thumbnailUrl?: string;
+}): Promise<BundleCreated> {
+  return api.post<BundleCreated>("/api/bundles", body, true);
+}
+
+export function updateBundle(
+  id: number,
+  body: {
+    name?: string;
+    basePrice?: number;
+    summary?: string;
+    thumbnailUrl?: string;
+  }
+): Promise<unknown> {
+  return api.put(`/api/bundles/${id}`, body, true);
+}
+
+export function publishBundle(id: number): Promise<{ success: boolean }> {
+  return api.post(`/api/bundles/${id}/publish`, undefined, true);
+}
+
+export function unpublishBundle(id: number): Promise<{ success: boolean }> {
+  return api.post(`/api/bundles/${id}/unpublish`, undefined, true);
+}
+
+/** Bundle + its member courses (public endpoint, works for owners too). */
+export type BundleDetail = AdminBundle & {
+  courses: {
+    courseId: number;
+    name: string;
+    summary: string | null;
+    thumbnailUrl: string | null;
+  }[];
+};
+
+export async function getBundleDetail(id: number): Promise<BundleDetail> {
+  const [detail, items] = await Promise.all([
+    api.get<AdminBundle>(`/api/bundles/${id}`, false),
+    api.get<{ id: number; bundleName: string; courses: BundleDetail["courses"] }>(
+      `/api/bundles/${id}/items`,
+      false
+    ),
+  ]);
+  return { ...detail, courses: items.courses };
+}
+
+/** Add a course to a bundle. Instructor/SuperAdmin only. */
+export function addBundleItem(bundleId: number, courseId: number): Promise<{ success: boolean }> {
+  return api.post(`/api/bundles/${bundleId}/items`, courseId, true);
+}
+
+/** Remove a course from a bundle. Instructor/SuperAdmin only. */
+export function removeBundleItem(
+  bundleId: number,
+  courseId: number
+): Promise<{ success: boolean }> {
+  return api.del(`/api/bundles/${bundleId}/items/${courseId}`, true);
+}
+
 // ---------------- discount codes -------------------------------
 
 export type DiscountCode = {
