@@ -304,6 +304,17 @@
 - [x] admin-shell Lessons nav entry + palette action (Admin/SuperAdmin)
 - [x] lint 0 · build passes (28 routes)
 
+## Milestone 11 — Instructor ownership scope (session 14)
+
+### Backend (additive)
+- [x] Course & lesson feeds `?includeUnpublished=true` honour Instructors scoped to their own products
+- [x] Course paging corrected: filters moved into the paging CTE (accurate offsets)
+
+### Frontend
+- [x] `/admin/lessons` opened to Instructors (own lessons); nav role list updated
+- [x] Instructor `/admin/courses` shows own drafts (no change needed — feed now scopes)
+- [x] lint 0 · build passes
+
 ## Backlog (needs backend decisions — do not start without owner)
 - Certificate verification endpoint + shareable URLs (M14)
 - Deleted-lesson restore UI (needs a deleted-list feed; restore endpoint already exists)

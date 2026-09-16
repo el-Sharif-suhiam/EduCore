@@ -398,3 +398,32 @@ current-user enrollments/payments feed (L9). Commit pushed to origin/main.
 **Unresolved:** deleted lessons vanish from the console (view filters IsDeleted=0; no deleted-list
 feed yet) so restore stays API-only. Rest of storefront flow (catalog -> detail -> cart -> pay ->
 /learn/lessons/[id]) was already wired for standalone lessons. Commit pushed to origin/main.
+
+---
+
+## 2026-09-17 - Instructor ownership scope for courses & lessons (session 15)
+
+**Goal:** Owner asked whether all console pages exist for both Instructor and Admin (audit, logs,
+etc.). Verified the complete page map; found two genuine instructor gaps and closed them.
+
+**Page/role map (confirmed):** Instructor -> Dashboard, Courses, Bundles, Lessons; Admin ->
++ People, Orders, Payments, Audit; SuperAdmin -> + Discount codes.
+
+**Modifications (backend - additive, ownership-scoped, dotnet build 0 errors):**
+- clsCoursesData.GetAllCoursesWithInstructorViewModelInternal/-ViewModel gained OwnOnly +
+  InstructorId. Filters (deleted/published/ownership/search) moved INTO the paging CTE so OFFSET
+  counts the correct rows; ownership via EXISTS over CoursesInstructors. clsCourse pass-through.
+- clsLessonsData.GetAllLessonsWithOutCourses + clsLesson.GetIndependntLessons gained OwnOnly +
+  InstructorId; predicate (@OwnOnly = 0 OR v.InstructorId = @InstructorId).
+- CoursesController.GetAllCourses / LessonsController.GetIndependentLessons: includeUnpublished is
+  honoured for Admin/SuperAdmin (unscoped) and Instructor (scoped to own), public stays published.
+
+**Modifications (frontend):**
+- /admin/lessons gate opened to Instructors (canManage = Admin|SuperAdmin|Instructor); copy updated.
+- admin-shell Lessons nav role list + layout comment updated. /admin/courses unchanged (now scopes
+  via the feed).
+
+**Tests executed:** dotnet build 0 errors; npm run lint 0; npm run build passes.
+
+**Unresolved:** none in scope. Deleted-lesson restore UI and certificate verification remain backlog
+(need backend feeds/endpoints). Commit pushed to origin/main.

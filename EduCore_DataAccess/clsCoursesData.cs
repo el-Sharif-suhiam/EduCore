@@ -251,7 +251,7 @@ namespace EduCore_DataAccess
         public static async Task<List<DtoCourse>> GetAllCoursesIncludeDeleted(int pageNumber, int pageSize)
             => await GetAllCoursesInternal(pageNumber, pageSize, true);
 
-        private static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructorViewModelInternal(int pageNumber, int pageSize,bool IncludeDeleted = false, string SearchText = "", bool IncludeUnpublished = false)
+private static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructorViewModelInternal(int pageNumber, int pageSize, bool IncludeDeleted = false, string SearchText = "", bool IncludeUnpublished = false, bool OwnOnly = false, int InstructorId = 0)
         {
             if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
@@ -260,6 +260,15 @@ namespace EduCore_DataAccess
                                 SELECT C.Id
                                 FROM Courses C
                                 JOIN Products P ON C.ProductId = P.Id
+                                WHERE (@IncludeDeleted = 1 OR C.IsDeleted = 0)
+                                  AND (@IncludeUnpublished = 1 OR P.IsPublished = 1)
+                                  AND (@OwnOnly = 0 OR EXISTS (
+                                        SELECT 1 FROM CoursesInstructors oci
+                                        WHERE oci.CourseId = C.Id AND oci.InstructorId = @InstructorId))
+                                  AND (@SearchText IS NULL OR P.Name LIKE @SearchText OR EXISTS (
+                                        SELECT 1 FROM CoursesInstructors csi
+                                        JOIN Users su ON csi.InstructorId = su.Id
+                                        WHERE csi.CourseId = C.Id AND su.Name LIKE @SearchText))
                                 ORDER BY P.CreatedAt DESC
                                 OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                                 FETCH NEXT @RowsPerPage ROWS ONLY
@@ -284,6 +293,9 @@ namespace EduCore_DataAccess
                             LEFT JOIN Users U                ON CI.InstructorId = U.Id
                             WHERE (@IncludeDeleted = 1 OR C.IsDeleted = 0) AND 
                             (@IncludeUnpublished = 1 OR P.IsPublished = 1) AND
+                            (@OwnOnly = 0 OR EXISTS (
+                                SELECT 1 FROM CoursesInstructors oci2
+                                WHERE oci2.CourseId = C.Id AND oci2.InstructorId = @InstructorId)) AND
                             (@SearchText IS NULL OR P.Name LIKE @SearchText OR U.Name LIKE @SearchText)
 
                             ORDER BY P.CreatedAt DESC;";
@@ -297,6 +309,8 @@ namespace EduCore_DataAccess
                 sqlCommand.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
                 sqlCommand.Parameters.Add("@IncludeDeleted", SqlDbType.Bit).Value = IncludeDeleted;
                 sqlCommand.Parameters.Add("@IncludeUnpublished", SqlDbType.Bit).Value = IncludeUnpublished;
+                sqlCommand.Parameters.Add("@OwnOnly", SqlDbType.Bit).Value = OwnOnly;
+                sqlCommand.Parameters.Add("@InstructorId", SqlDbType.Int).Value = InstructorId;
                 sqlCommand.Parameters.Add("@SearchText", SqlDbType.NVarChar).Value = String.IsNullOrWhiteSpace(SearchText) ? DBNull.Value : $"%{SearchText}%";
                 await sqlConnection.OpenAsync();
 
@@ -353,8 +367,8 @@ namespace EduCore_DataAccess
         }
 
 
-        public static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructorViewModel(int pageNumber, int pageSize, string SearchText = "", bool IncludeUnpublished = false)
-            => await GetAllCoursesWithInstructorViewModelInternal(pageNumber,pageSize,false ,SearchText, IncludeUnpublished);
+        public static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructorViewModel(int pageNumber, int pageSize, string SearchText = "", bool IncludeUnpublished = false, bool OwnOnly = false, int InstructorId = 0)
+            => await GetAllCoursesWithInstructorViewModelInternal(pageNumber,pageSize,false ,SearchText, IncludeUnpublished, OwnOnly, InstructorId);
 
         public static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWithInstructorViewModelWithDeleted(int pageNumber, int pageSize, string SearchText = "")
             => await GetAllCoursesWithInstructorViewModelInternal(pageNumber, pageSize, true, SearchText);

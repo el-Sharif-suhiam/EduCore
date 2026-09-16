@@ -33,11 +33,21 @@ namespace EduCoreAPI.Controllers
                 User.Identity?.IsAuthenticated == true &&
                 (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
 
+            // Owners (instructors) may see their own drafts; nobody else can.
+            bool showDrafts =
+                (privileged && includeUnpublished == true) ||
+                (User.IsInRole("Instructor") && includeUnpublished == true);
+
+            bool ownOnly = !privileged && showDrafts;
+            int ownerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int uid) ? uid : 0;
+
             var lessons = await clsLesson.GetIndependntLessons(
                 pageRequest.PageNumber,
                 pageRequest.PageSize,
                 search,
-                privileged && includeUnpublished == true);
+                showDrafts,
+                ownOnly,
+                ownerId);
 
             return Ok(lessons);
         }

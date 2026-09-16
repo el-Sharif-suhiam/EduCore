@@ -41,7 +41,10 @@ export default function AdminLessonsPage() {
   const { user } = useAuth();
   const { toast } = useToast();
 
+  // Admin/SuperAdmin see every standalone lesson; Instructors see (and
+  // manage) only their own — the backend scopes the feed by ownership.
   const isStaff = user?.roles.some((r) => r === "Admin" || r === "SuperAdmin") === true;
+  const canManage = isStaff || user?.roles.includes("Instructor") === true;
 
   const [rows, setRows] = useState<AdminLessonSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +60,7 @@ export default function AdminLessonsPage() {
 
   // Debounced fetch; search edits reset to page 1 via the handler.
   useEffect(() => {
-    if (!isStaff) return;
+    if (!canManage) return;
     let cancelled = false;
     const t = setTimeout(async () => {
       try {
@@ -73,7 +76,7 @@ export default function AdminLessonsPage() {
       cancelled = true;
       clearTimeout(t);
     };
-  }, [search, page, refresh, isStaff]);
+  }, [search, page, refresh, canManage]);
 
   async function togglePublish(lesson: AdminLessonSummary) {
     if (busyId !== null) return;
@@ -117,14 +120,14 @@ export default function AdminLessonsPage() {
     }
   }
 
-  if (!isStaff) {
+  if (!canManage) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-6 px-5 text-center">
         <Logo />
         <div className="max-w-sm">
           <h1 className="font-display text-2xl font-semibold">Not authorized</h1>
           <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-            Managing standalone lessons is reserved for administrators.
+            The lessons console is available to instructors and administrators.
           </p>
           <Button variant="outline" className="mt-5" asChild>
             <Link href="/admin/courses">Back to courses</Link>

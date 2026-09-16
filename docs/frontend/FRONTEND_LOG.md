@@ -5,6 +5,36 @@
 
 ---
 
+## 2026-09-17 — Session 14: instructor ownership scope for courses & lessons
+
+**Goal:** owner asked whether every console page exists for both Instructor and Admin (audit, logs,
+etc.). Audit confirmed the page map is complete; two real instructor gaps surfaced: instructors
+could not see their own draft courses in `/admin/courses`, and had no standalone-lessons surface
+even though the backend already lets them create/manage their own.
+
+**Backend (additive; ownership-scoped):**
+- `GET /api/courses` and `GET /api/lessons` with `?includeUnpublished=true` now also honour
+  Instructors — scoped to products they own (`OwnOnly`/`@InstructorId`). Admin/SuperAdmin keep the
+  unscoped view; the public feed is unchanged (published only).
+- Course feed: filters were moved INTO the paging CTE (deleted/published/ownership/search) so
+  offsets count the right rows; ownership uses `EXISTS (CoursesInstructors …)`.
+- Lesson feed: adds `(@OwnOnly = 0 OR v.InstructorId = @InstructorId)` (the view already exposes
+  InstructorId).
+
+**Frontend:**
+- `/admin/lessons` opened to Instructors (page gate + nav role list); their feed is their own
+  lessons (published + drafts), admins see all. Copy updated accordingly.
+- `/admin/courses` needed no code change — `getCoursesPaged` already sends `includeUnpublished=true`,
+  which now returns the instructor's own drafts.
+- `admin/layout.tsx` doc comment corrected (Instructors = Courses + own Lessons).
+
+**Tests executed:** `dotnet build` 0 errors; `npm run lint` 0; `npm run build` passes.
+
+**Unresolved:** none for this scope. Role map now: Instructor → Dashboard, Courses (own),
+Bundles, Lessons (own); Admin → + People, Orders, Payments, Audit; SuperAdmin → + Discount codes.
+
+---
+
 ## 2026-09-17 — Session 13: standalone-lessons admin console
 
 **Goal:** complete the "lessons and everything about them" half of the directive — the one

@@ -38,12 +38,22 @@ namespace EduCoreAPI.Controllers
                 User.Identity?.IsAuthenticated == true &&
                 (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
 
+            // Owners see their own drafts too; everyone else sees published only.
+            bool showDrafts =
+                (privileged && includeUnpublished == true) ||
+                (User.IsInRole("Instructor") && includeUnpublished == true);
+
+            bool ownOnly = !privileged && showDrafts;
+            int ownerId = int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int uid) ? uid : 0;
+
             var courses = await clsCourse.GetAllCoursesWithInstructors(
                 pageRequest.PageNumber,
                 pageRequest.PageSize,
                 false,
                 search,
-                privileged && includeUnpublished == true);
+                showDrafts,
+                ownOnly,
+                ownerId);
 
             return Ok(courses);
         }

@@ -69,7 +69,7 @@ const NAV: {
     label: "Lessons",
     icon: PlayCircle,
     match: (p: string) => p.startsWith("/admin/lessons"),
-    roles: ["Admin", "SuperAdmin"],
+    roles: ["Admin", "SuperAdmin", "Instructor"],
     palette: "Go to Standalone lessons",
   },
   {

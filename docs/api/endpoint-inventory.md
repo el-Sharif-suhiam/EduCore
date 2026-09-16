@@ -34,6 +34,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 |---|---|---|---|---|
 | GET | / | anon | Paged courses w/ instructors (+search) | search-by-instructor applied after paging |
 | GET | / | Admin (w/ ?includeUnpublished=true) | Same feed INCLUDING drafts (admin console) | added M9 |
+| GET | / | Instructor (w/ ?includeUnpublished=true) | Own published + draft courses only (ownership-scoped) | added M11 |
 | GET | /{id} | anon | Course by id | |
 | GET | /{id} | anon | Draft by id → 404 unless Admin/SuperAdmin or owner instructor | added M9 |
 | POST | / | Instructor,SuperAdmin | Create course (unpublished) | |
@@ -51,8 +52,9 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 ## Lessons — `api/lessons` (LessonsController)
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
-| GET | / | anon | Paged independent lessons (+search) | list returns ProductId; filters IsPublished=1 (M8) |
+| GET | / | Anon | Paged independent lessons (+search) | list returns ProductId; filters IsPublished=1 (M8) |
 | GET | / | Admin (w/ ?includeUnpublished=true) | Same feed INCLUDING drafts (admin console) | added M9 |
+| GET | / | Instructor (w/ ?includeUnpublished=true) | Own published + draft lessons only (ownership-scoped) | added M11 |
 | GET | /{id}/info | anon | Public cover sheet (title/summary/price/thumbnail/instructor) — never video/body | added M9 |
 | GET | /{id} | auth | Lesson by id (instructor-owner OR enrolled OR admin) | |
 | POST | / | Instructor,SuperAdmin | Create independent lesson | |

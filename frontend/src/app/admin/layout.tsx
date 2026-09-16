@@ -2,9 +2,10 @@
 
 // ============================================================
 // /admin LAYOUT — role gate + console shell.
-// Admin/SuperAdmin see everything; Instructors get Courses only
-// (matching backend [Authorize(Roles)] exactly). Unauthorized
-// users get an explanatory screen, never a blank redirect.
+// Admin/SuperAdmin see everything; Instructors get Courses and
+// their own standalone Lessons (matching backend [Authorize(Roles)]
+// and the ownership-scoped course/lesson feeds). Unauthorized users
+// get an explanatory screen, never a blank redirect.
 // ============================================================
 
 import { useEffect } from "react";
