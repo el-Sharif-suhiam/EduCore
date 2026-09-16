@@ -5,13 +5,13 @@
 //     "has more" is inferred from page fullness.
 //   * enums arrive as NUMBERS (no JsonStringEnumConverter);
 //     label maps live at the bottom of this file.
-//   * GET /api/courses returns ALL non-deleted courses but has
-//     no isPublished flag — publish state comes from the detail
-//     endpoint only (documented backend gap, do not fake it).
+//   * GET /api/courses and GET /api/lessons only show PUBLISHED items
+//     to the public; the admin feeds pass includeUnpublished=true and
+//     are honoured only for Admin/SuperAdmin (renders drafts too).
 // ============================================================
 
 import { api } from "./api";
-import type { CourseSummary } from "./courses";
+import { type CourseSummary } from "./courses";
 
 const qs = (params: Record<string, string | number | undefined>) => {
   const sp = new URLSearchParams();
