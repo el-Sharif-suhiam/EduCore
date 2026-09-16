@@ -40,16 +40,27 @@ export function getUsers(
   kind: PeopleKind,
   pageNumber = 1,
   pageSize = 20,
-  search = ""
+  search = "",
+  includeInactive = false
 ): Promise<AdminUser[]> {
   return api.get<AdminUser[]>(
-    `/api/users/${kind}${qs({ PageNumber: pageNumber, PageSize: pageSize, search })}`
+    `/api/users/${kind}${qs({
+      PageNumber: pageNumber,
+      PageSize: pageSize,
+      search,
+      includeInactive: includeInactive ? "true" : undefined,
+    })}`
   );
 }
 
-/** Soft-deactivate a user. No re-activate endpoint exists yet. */
+/** Soft-deactivate a user. */
 export function deactivateUser(id: number): Promise<void> {
   return api.del<void>(`/api/users/${id}`);
+}
+
+/** Bring a deactivated account back. Admin/SuperAdmin. */
+export function activateUser(id: number): Promise<void> {
+  return api.post(`/api/users/${id}/activate`).then(() => undefined);
 }
 
 export function promoteToInstructor(id: number): Promise<unknown> {
@@ -369,6 +380,55 @@ export function getLogs(pageNumber = 1, pageSize = 20): Promise<LogEntry[]> {
   return api.get<LogEntry[]>(`/api/logs${qs({ PageNumber: pageNumber, PageSize: pageSize })}`);
 }
 
+// ---------------- commerce (orders & payments, admin) -----------
+
+export type AdminOrder = {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  totalPrice: number;
+  status: number; // enOrderStatus as number
+  createdAt: string;
+};
+
+export type AdminPayment = {
+  id: number;
+  orderId: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  createdAt: string;
+  paidAt: string | null;
+  price: number;
+  discountId: number | null;
+  discountPrice: number | null;
+  paymentMethod: string | null;
+  status: number; // enPaymentStatus as number
+  transactionId: string | null;
+  finalPrice: number;
+};
+
+export function getAdminOrders(
+  pageNumber = 1,
+  pageSize = 20,
+  search = ""
+): Promise<AdminOrder[]> {
+  return api.get<AdminOrder[]>(
+    `/api/orders${qs({ PageNumber: pageNumber, PageSize: pageSize, search })}`
+  );
+}
+
+export function getAdminPayments(
+  pageNumber = 1,
+  pageSize = 20,
+  search = ""
+): Promise<AdminPayment[]> {
+  return api.get<AdminPayment[]>(
+    `/api/payments${qs({ PageNumber: pageNumber, PageSize: pageSize, search })}`
+  );
+}
+
 // ---------------- enum label maps (wire values are numeric) ----
 
 export const AUDIT_ACTION_LABELS: Record<number, string> = {
@@ -400,9 +460,10 @@ export const AUDIT_ACTION_LABELS: Record<number, string> = {
   25: "Removed from admins",
   26: "Removed from instructors",
   27: "Enrolled in product",
-  28: "Create user",
-  29: "Update user",
-  30: "Delete user",
+28: "Create user",
+   29: "Update user",
+   30: "Delete user",
+   31: "Reactivated user",
 };
 
 export const LOG_TYPE_LABELS: Record<number, string> = {
@@ -412,4 +473,19 @@ export const LOG_TYPE_LABELS: Record<number, string> = {
   3: "Critical",
   4: "Debug",
   5: "Trace",
+};
+
+export const ORDER_STATUS_LABELS: Record<number, string> = {
+  0: "Pending",
+  1: "Completed",
+  2: "Cancelled",
+  3: "Empty",
+};
+
+export const PAYMENT_STATUS_LABELS: Record<number, string> = {
+  0: "Pending",
+  1: "Succeeded",
+  2: "Failed",
+  3: "Expired",
+  4: "Cancelled",
 };

@@ -24,13 +24,13 @@ namespace EduCoreAPI.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("students")]
         public async Task<ActionResult<List<UsersViewModel>>> GetStudents(
-            [FromQuery] PageRequest pageRequest,string? search)
+            [FromQuery] PageRequest pageRequest,string? search, bool? includeInactive)
         {
              clsApiValidators.ValidatePaging(pageRequest);
 
             var users = await clsUser.GetAllStudents(
                 pageRequest.PageNumber,
-                pageRequest.PageSize,false,search);
+                pageRequest.PageSize, includeInactive ?? false,search);
 
             return Ok(users);
         }
@@ -40,13 +40,13 @@ namespace EduCoreAPI.Controllers
         // =========================
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("admins")]
-        public async Task<ActionResult<List<UsersViewModel>>> GetAdmins([FromQuery] PageRequest pageRequest,string? search)
+        public async Task<ActionResult<List<UsersViewModel>>> GetAdmins([FromQuery] PageRequest pageRequest,string? search, bool? includeInactive)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
             var users = await clsUser.GetAllAdmin(
                 pageRequest.PageNumber,
-                pageRequest.PageSize,false,search);
+                pageRequest.PageSize, includeInactive ?? false,search);
 
             return Ok(users);
         }
@@ -57,13 +57,13 @@ namespace EduCoreAPI.Controllers
         [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpGet("instructors")]
         public async Task<ActionResult<List<UsersViewModel>>> GetInstructors(
-            [FromQuery] PageRequest pageRequest, string? search)
+            [FromQuery] PageRequest pageRequest, string? search, bool? includeInactive)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
             var users = await clsUser.GetAllInstructor(
                 pageRequest.PageNumber,
-                pageRequest.PageSize,false,search);
+                pageRequest.PageSize, includeInactive ?? false,search);
 
             return Ok(users);
         }
@@ -155,6 +155,25 @@ namespace EduCoreAPI.Controllers
 
             if (!result)
                 throw new ConflictException("Failed to delete user");
+
+            return Ok(userMapper.ToUserRespone(user));
+        }
+
+        // =========================
+        // POST: Reactivate user
+        // =========================
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [HttpPost("{id:int}/activate")]
+        public async Task<ActionResult> Activate([FromRoute] int id)
+        {
+            var user = await clsUser.Find(id);
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            int actionByUserId = int.Parse(userId);
+
+            var result = await clsUser.ReactivateUser(id, actionByUserId);
+
+            if (!result)
+                throw new ConflictException("Failed to reactivate user");
 
             return Ok(userMapper.ToUserRespone(user));
         }

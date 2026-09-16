@@ -5,7 +5,38 @@
 
 ---
 
-## 2026-09-16 — Session 9: admin bundles console + P1/P2/P3 close-out
+## 2026-09-16 — Session 10: admin commerce dashboards + publish/reactivate controls
+
+**Goal:** Close the remaining admin gaps from Session 9's review (orders/payments dashboards,
+course publish state in admin list, user re-activation). Certificates deferred by owner
+("اترك موضوع الشهادات لاحقا").
+
+**Modifications (backend — additive only):**
+- `CourseWithInstructorViewModel` + `IsPublished`; course list SELECT/reader/mapping updated.
+- Users: `clsUsersData.ActivateUser(id)` + `clsUser.ReactivateUser(id, actionByUserId)` with
+  `enAuditActionType.UserReactivated` (appended as 31 — no renumber). UsersController gains
+  `includeInactive` (bool?, default false) on students/admins/instructors feeds and
+  `POST /api/users/{id}/activate` (Admin,SuperAdmin).
+- NEW `Common/ViewModels/CommerceAdminViewModels.cs` (PaymentAdminViewModel, OrderAdminViewModel).
+- NEW paged feeds backed by joins (newest first, LIKE search on buyer name/email):
+  `clsOrderData.GetAllOrdersView`, `clsPaymentData.GetAllPaymentsView` + BL pass-throughs
+  (clsOrder/clsPayment) + `GET /api/orders` and `GET /api/payments` (Admin,SuperAdmin, PageRequest).
+
+**Modifications (frontend):**
+- CourseSummary + `isPublished`; /admin/courses has Draft/Published badge + quick Publish/Hide
+  toggle (toast feedback); keep Manage → builder.
+- lib/admin: `getUsers(..., includeInactive)`, `activateUser(id)`; /admin/people shows
+  deactivated accounts with a Reactivate button; deactivate copy updated.
+- NEW /admin/orders + /admin/payments (paged tables + detail modal + debounced search),
+  status label maps; admin-shell nav entries (Orders, Payments) for Admin/SuperAdmin.
+- AUDIT_ACTION_LABELS + 31 "Reactivated user".
+
+**Tests executed:** `dotnet build` 0 errors (0 warnings after repass); `npm run lint` 0;
+`npm run build` passes — 26 routes (incl. /admin/orders, /admin/payments).
+
+**Unresolved:** None blocking. IntegrationTests project has no discoverable tests (needs live DB).
+
+---
 
 **Goal:** Close the remaining frontend work from the approved P1/P2/P3 plan: give admin real
 bundle management (the biggest known backend gap — no unpublished visibility), add the public

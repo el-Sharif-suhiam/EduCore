@@ -9,15 +9,19 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus } from "lucide-react";
+import { Eye, EyeOff, Plus } from "lucide-react";
 import { AdminPageHeader, DataTable, TableEmpty } from "@/components/admin/data-table";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Badge } from "@/components/ui/badge";
+import { useToast } from "@/components/ui/toast";
 import {
   getCoursesPaged,
   createCourse,
+  publishCourse,
+  unpublishCourse,
   type CourseSummary,
 } from "@/lib/admin";
 
@@ -25,12 +29,14 @@ const PAGE_SIZE = 12;
 
 export default function AdminCoursesPage() {
   const router = useRouter();
+  const { toast } = useToast();
 
   const [rows, setRows] = useState<CourseSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [busyId, setBusyId] = useState<number | null>(null);
 
   const [newOpen, setNewOpen] = useState(false);
   const searchParams = useSearchParamsShim();
@@ -53,6 +59,31 @@ export default function AdminCoursesPage() {
       clearTimeout(t);
     };
   }, [search, page]);
+
+  async function togglePublish(c: CourseSummary) {
+    if (busyId !== null) return;
+    setBusyId(c.id);
+    try {
+      if (c.isPublished) {
+        await unpublishCourse(c.id);
+        toast({ title: "Course unpublished", description: `"${c.title}" is now a draft.`, variant: "success" });
+      } else {
+        await publishCourse(c.id);
+        toast({ title: "Course published", description: `"${c.title}" is now live.`, variant: "success" });
+      }
+      setRows((prev) =>
+        (prev ?? []).map((row) => (row.id === c.id ? { ...row, isPublished: !c.isPublished } : row))
+      );
+    } catch (err) {
+      toast({
+        title: "Could not change publish state",
+        description: err instanceof Error ? err.message : "Try again.",
+        variant: "error",
+      });
+    } finally {
+      setBusyId(null);
+    }
+  }
 
   return (
     <div className="mx-auto max-w-5xl">
@@ -81,10 +112,10 @@ export default function AdminCoursesPage() {
       </div>
 
       <div className="mt-4">
-        <DataTable head={["Course", "Instructors", "Price", "Created", ""]} isLoading={rows === null && !error} error={error}>
+        <DataTable head={["Course", "Instructors", "Price", "Status", "Created", ""]} isLoading={rows === null && !error} error={error}>
           {rows !== null && rows.length === 0 && (
             <TableEmpty
-              colSpan={5}
+              colSpan={6}
               message={search ? "No courses match that search." : "No courses yet — create the first one."}
             />
           )}
@@ -107,13 +138,33 @@ export default function AdminCoursesPage() {
               <td className="px-5 py-3.5 font-mono text-muted-foreground">
                 ${c.basePrice.toFixed(2)}
               </td>
+              <td className="px-5 py-3.5">
+                {c.isPublished ? (
+                  <Badge variant="secondary">Published</Badge>
+                ) : (
+                  <Badge variant="outline">Draft</Badge>
+                )}
+              </td>
               <td className="px-5 py-3.5 text-muted-foreground">
                 {new Date(c.createdAt).toLocaleDateString()}
               </td>
               <td className="px-5 py-3.5 text-end">
-                <Button variant="ghost" size="sm" asChild>
-                  <Link href={`/admin/courses/${c.id}`}>Manage</Link>
-                </Button>
+                <div className="flex items-center justify-end gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    disabled={busyId !== null}
+                    title={c.isPublished ? "Unpublish" : "Publish"}
+                    aria-label={c.isPublished ? "Unpublish course" : "Publish course"}
+                    onClick={() => togglePublish(c)}
+                  >
+                    {c.isPublished ? <EyeOff data-icon="inline-start" /> : <Eye data-icon="inline-start" />}
+                    {c.isPublished ? "Hide" : "Publish"}
+                  </Button>
+                  <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/admin/courses/${c.id}`}>Manage</Link>
+                  </Button>
+                </div>
               </td>
             </tr>
           ))}

@@ -247,3 +247,48 @@ behavior, keeps SuperAdmin-only principle for destructive ops.
 
 **Unresolved:** None blocking. Docs updated (endpoint-inventory, FRONTEND_LOG/TODO). Uncommitted —
 awaiting owner push approval.
+
+---
+
+## 2026-09-16 - Admin commerce dashboards + publish/reactivate controls (session 11)
+
+**Goal:** Close the remaining admin console gaps surfaced in session ~10: order/payment
+dashboards, publish state in the admin course list, and user re-activation. Certificates
+explicitly deferred by owner ("???? ????? ???????? ?????").
+
+**Modifications (backend - additive, owner-approved pattern):**
+- `CourseViewModel.cs` / `clsCoursesData.cs`: `CourseWithInstructorViewModel.IsPublished` now
+  selected in the list query (CourseSummary isPublished consumed by /admin/courses).
+- Users: `clsUsersData.ActivateUser(id)`; `clsUser.ReactivateUser(id, actionByUserId)` with audit
+  record; `enAuditActionType.UserReactivated` appended as 31 (order untouched). UsersController:
+  `includeInactive` (bool?, default false) on GET students/admins/instructors + `POST
+  /api/users/{id}/activate` [Admin,SuperAdmin] (mirrors Delete shape).
+- NEW `Common/ViewModels/CommerceAdminViewModels.cs`: PaymentAdminViewModel (price, discount,
+  tax/Coupon? no - price/discountPrice/finalPrice, method, status, transactionId, paidAt) +
+  OrderAdminViewModel (totalPrice, status, createdAt + buyer name/email).
+- `clsOrderData.GetAllOrdersView(page,size,search)` and `clsPaymentData.GetAllPaymentsView(...)`:
+  JOIN Users, ORDER BY CreatedAt DESC, OFFSET/FETCH, LIKE search on name/email, enums parsed
+  from DB strings. BL pass-throughs added (clsOrder/clsPayment). Repaired an earlier edit that
+  dropped a brace on GetAllPaymentsForUser (compile caught it on the first build).
+- Controllers: `GET api/orders` + `GET api/payments` [Admin,SuperAdmin], PageRequest + optional
+  search, validated via clsApiValidators.ValidatePaging (fixed namespace: PageRequest lives in
+  EduCoreAPI.Helpers.Dtos.RequestDto, not Models.RequestModels).
+
+**Modifications (frontend):**
+- CourseSummary + isPublished; /admin/courses Published/Draft badge + inline Publish/Hide toggle
+  (toast feedback), Manage keeps route to builder.
+- lib/admin: getUsers(..., includeInactive), activateUser(id); /admin/people requests inactive
+  too and renders a Reactivate action (Role icon UserRoundCheck), deactivate confirm copy updated.
+- NEW /admin/orders + /admin/payments: paged tables (no totals), detail modals, debounced search
+  by buyer; ORDER_STATUS_LABELS / PAYMENT_STATUS_LABELS. admin-shell nav entries (Orders,
+  Payments) Admin/SuperAdmin only; AUDIT_ACTION_LABELS gains 31 "Reactivated user".
+- Toast usage follows the single `toast({title,description,variant})` API; `qs` param maps are
+  string|number|undefined so includeInactive is serialized as "true".
+
+**Tests executed:** `dotnet build` (solution) 0 errors, 0 warnings; `npm run lint` 0; `npm run
+build` passes - 26 routes (incl. /admin/orders, /admin/payments). IntegrationTests project built
+but exposes no discoverable tests (requires live DB).
+
+**Unresolved:** None blocking. backlog unchanged: certificates (M14), standalone lesson product
+sales (no ProductId on LessonsWithOutCoursesViewModel), current-user enrollments/payments feed
+(L9). Docs updated; commit pushed to origin/main.

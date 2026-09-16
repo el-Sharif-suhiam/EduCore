@@ -257,6 +257,23 @@ namespace EduCore_BusinessLayer
             return result;
         }
 
+        public static async Task<bool> ReactivateUser(int id, int actionByUserId)
+        {
+            bool result = await clsUsersData.ActivateUser(id);
+
+            if (!result)
+                throw new ConflictException("Failed to reactivate user");
+
+            await clsAudit.LogAsync(
+                actionByUserId,
+                enAuditActionType.UserReactivated,
+                "User",
+                id,
+                $"User {id} was reactivated");
+
+            return result;
+        }
+
         public static async Task<List<UsersViewModel>> GetAllStudents(int pageNumber,int pageSize, bool IncludeNonActive = false,string searchText = "")
         {
             if (IncludeNonActive)

@@ -15,6 +15,7 @@ import {
   ShieldPlus,
   ShieldMinus,
   UserRoundX,
+  UserRoundCheck,
 } from "lucide-react";
 import { AdminPageHeader, DataTable, TableEmpty } from "@/components/admin/data-table";
 import { Modal } from "@/components/ui/modal";
@@ -26,6 +27,7 @@ import { useAuth } from "@/lib/auth-context";
 import {
   getUsers,
   deactivateUser,
+  activateUser,
   promoteToInstructor,
   removeInstructorRole,
   promoteToAdmin,
@@ -69,7 +71,7 @@ export default function AdminPeoplePage() {
       () => {
         setError(null);
         setRows(null);
-        getUsers(kind, 1, PAGE_SIZE, search.trim())
+        getUsers(kind, 1, PAGE_SIZE, search.trim(), true)
           .then((data) => {
             if (cancelled) return;
             setRows(data);
@@ -90,7 +92,7 @@ export default function AdminPeoplePage() {
   const loadMore = useCallback(async () => {
     if (error) return;
     try {
-      const next = await getUsers(kind, pageRef + 1, PAGE_SIZE, search.trim());
+      const next = await getUsers(kind, pageRef + 1, PAGE_SIZE, search.trim(), true);
       setRows((prev) => {
         if (!prev) return prev;
         const seen = new Set(prev.map((u) => u.id));
@@ -171,7 +173,24 @@ export default function AdminPeoplePage() {
               </td>
               <td className="px-5 py-3.5">
                 <div className="flex flex-wrap items-center gap-1">
-                  {/* deactivation is soft but has no reverse endpoint — always confirm */}
+                  {!u.isActive && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        run(
+                          () => activateUser(u.id),
+                          "Reactivate account?",
+                          `${u.name} can sign in again as soon as this is confirmed.`,
+                          "Account reactivated",
+                          u.name
+                        )
+                      }
+                    >
+                      <UserRoundCheck data-icon="inline-start" />
+                      Reactivate
+                    </Button>
+                  )}
                   {u.isActive && (
                     <Button
                       variant="ghost"
@@ -181,7 +200,7 @@ export default function AdminPeoplePage() {
                         run(
                           () => deactivateUser(u.id),
                           "Deactivate account?",
-                          `${u.name} will no longer be able to sign in. There is no re-activate endpoint yet — this needs a support path.`,
+                          `${u.name} will no longer be able to sign in. Reactivation is possible from this page.`,
                           "Account deactivated",
                           u.name
                         )

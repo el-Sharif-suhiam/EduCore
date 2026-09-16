@@ -63,6 +63,9 @@ namespace EduCore_BusinessLayer
             return new clsPayment(payment);
         }
 
+        public static async Task<List<Common.ViewModels.PaymentAdminViewModel>> GetAllPaymentsView(int pageNumber, int pageSize, string searchText = "")
+            => await clsPaymentData.GetAllPaymentsView(pageNumber, pageSize, searchText);
+
         private static string GenerateIdempotencyKey()
         {
             return Guid.NewGuid().ToString("N");

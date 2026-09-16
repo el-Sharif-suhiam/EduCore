@@ -1,4 +1,5 @@
 ﻿using Common.Dtos;
+using Common.ViewModels;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -240,6 +241,90 @@ namespace EduCore_DataAccess
 
                             IdempotencyKey = reader.GetString(idempotencyKeyIndex),
 
+                            FinalPrice = reader.GetDecimal(finalPriceIndex)
+                        });
+                    }
+                }
+            }
+
+            return payments;
+        }
+
+        /// <summary>Admin feed of all payments, newest first, joined with the buyer.</summary>
+        public static async Task<List<PaymentAdminViewModel>> GetAllPaymentsView(int pageNumber, int pageSize, string searchText = "")
+        {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize <= 0) pageSize = 20;
+
+            var payments = new List<PaymentAdminViewModel>();
+
+            string query = @"SELECT
+                                P.Id,
+                                P.OrderId,
+                                O.UserId,
+                                U.Name      AS UserName,
+                                U.Email     AS UserEmail,
+                                P.CreatedAt,
+                                P.PaidAt,
+                                P.Price,
+                                P.DiscountId,
+                                P.DiscountPrice,
+                                P.PaymentMethod,
+                                P.Status,
+                                P.TransactionId,
+                                P.FinalPrice
+                             FROM Payments P
+                             JOIN Orders O ON P.OrderId = O.Id
+                             JOIN Users U ON O.UserId = U.Id
+                             WHERE (@SearchText IS NULL OR U.Name LIKE @SearchText OR U.Email LIKE @SearchText)
+                             ORDER BY P.CreatedAt DESC
+                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
+                             FETCH NEXT @RowsPerPage ROWS ONLY;";
+
+            using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand cmd = new SqlCommand(query, conn))
+            {
+                cmd.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
+                cmd.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
+                cmd.Parameters.Add("@SearchText", SqlDbType.NVarChar)
+                    .Value = String.IsNullOrWhiteSpace(searchText) ? DBNull.Value : $"%{searchText}%";
+
+                await conn.OpenAsync();
+
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                {
+                    int idIndex = reader.GetOrdinal("Id");
+                    int orderIdIndex = reader.GetOrdinal("OrderId");
+                    int userIdIndex = reader.GetOrdinal("UserId");
+                    int userNameIndex = reader.GetOrdinal("UserName");
+                    int userEmailIndex = reader.GetOrdinal("UserEmail");
+                    int createdAtIndex = reader.GetOrdinal("CreatedAt");
+                    int paidAtIndex = reader.GetOrdinal("PaidAt");
+                    int priceIndex = reader.GetOrdinal("Price");
+                    int discountIdIndex = reader.GetOrdinal("DiscountId");
+                    int discountPriceIndex = reader.GetOrdinal("DiscountPrice");
+                    int paymentMethodIndex = reader.GetOrdinal("PaymentMethod");
+                    int statusIndex = reader.GetOrdinal("Status");
+                    int transactionIdIndex = reader.GetOrdinal("TransactionId");
+                    int finalPriceIndex = reader.GetOrdinal("FinalPrice");
+
+                    while (await reader.ReadAsync())
+                    {
+                        payments.Add(new PaymentAdminViewModel
+                        {
+                            Id = reader.GetInt32(idIndex),
+                            OrderId = reader.GetInt32(orderIdIndex),
+                            UserId = reader.GetInt32(userIdIndex),
+                            UserName = reader.GetString(userNameIndex),
+                            UserEmail = reader.GetString(userEmailIndex),
+                            CreatedAt = reader.GetDateTime(createdAtIndex),
+                            PaidAt = reader.IsDBNull(paidAtIndex) ? null : reader.GetDateTime(paidAtIndex),
+                            Price = reader.GetDecimal(priceIndex),
+                            DiscountId = reader.IsDBNull(discountIdIndex) ? null : reader.GetInt16(discountIdIndex),
+                            DiscountPrice = reader.IsDBNull(discountPriceIndex) ? null : reader.GetDecimal(discountPriceIndex),
+                            PaymentMethod = reader.IsDBNull(paymentMethodIndex) ? null : reader.GetString(paymentMethodIndex),
+                            Status = Enum.Parse<enPaymentStatus>(reader.GetString(statusIndex)),
+                            TransactionId = reader.IsDBNull(transactionIdIndex) ? null : reader.GetString(transactionIdIndex),
                             FinalPrice = reader.GetDecimal(finalPriceIndex)
                         });
                     }

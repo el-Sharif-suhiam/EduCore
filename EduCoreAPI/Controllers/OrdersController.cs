@@ -3,7 +3,9 @@ using Common.Exceptions;
 using EduCore_BusinessLayer;
 using Microsoft.AspNetCore.Mvc;
 using EduCoreAPI.Helpers.Models.RequestModels;
+using EduCoreAPI.Helpers.Dtos.RequestDto;
 using EduCoreAPI.Helpers.Mappers;
+using EduCoreAPI.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
 namespace EduCoreAPI.Controllers
@@ -12,6 +14,24 @@ namespace EduCoreAPI.Controllers
     [ApiController]
     public class OrdersController : ControllerBase
     {
+        // =========================
+        // GET: All orders (admin feed)
+        // =========================
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [HttpGet]
+        public async Task<ActionResult<List<Common.ViewModels.OrderAdminViewModel>>> GetAllOrders(
+            [FromQuery] PageRequest pageRequest, string? search)
+        {
+            clsApiValidators.ValidatePaging(pageRequest);
+
+            var orders = await clsOrder.GetAllOrdersView(
+                pageRequest.PageNumber,
+                pageRequest.PageSize,
+                search ?? "");
+
+            return Ok(orders);
+        }
+
         // =========================
         // POST: Create Order (cart)
         // ينشئ سلة جديدة للمستخدم الحالي

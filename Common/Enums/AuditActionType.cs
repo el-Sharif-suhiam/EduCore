@@ -42,6 +42,8 @@ namespace Common.Enums
 
         CreateUser,
         UpdateUser,
-        DeleteUser
+        DeleteUser,
+
+        UserReactivated
     }
 }

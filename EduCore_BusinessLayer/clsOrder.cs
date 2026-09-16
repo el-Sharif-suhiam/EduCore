@@ -111,6 +111,9 @@ namespace EduCore_BusinessLayer
             return new clsOrder();
         }
 
+        public static async Task<List<Common.ViewModels.OrderAdminViewModel>> GetAllOrdersView(int pageNumber, int pageSize, string searchText = "")
+            => await clsOrderData.GetAllOrdersView(pageNumber, pageSize, searchText);
+
         // =========================
         // ADD ITEM
         // =========================

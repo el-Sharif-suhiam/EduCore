@@ -263,6 +263,26 @@ namespace EduCore_DataAccess
 
             return (rowAffected > 0);
         }
+
+        public static async Task<bool> ActivateUser(int id)
+        {
+            string query = @"UPDATE Users
+                                SET IsActive = 1
+                                WHERE Id = @Id;";
+
+            int rowAffected = 0;
+
+            using (SqlConnection sqlConnection = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand sqlCommand = new SqlCommand(query, sqlConnection))
+            {
+                sqlCommand.Parameters.Add("@Id", SqlDbType.Int).Value = id;
+                await sqlConnection.OpenAsync();
+
+                rowAffected = await sqlCommand.ExecuteNonQueryAsync();
+            }
+
+            return (rowAffected > 0);
+        }
         public static async Task<bool> IsEmailExist(string email)
         {
             string query = @"SELECT TOP 1 result = 1 FROM Users WHERE Email = @Email";

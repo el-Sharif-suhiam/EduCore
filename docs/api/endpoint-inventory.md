@@ -13,13 +13,14 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 ## Users — `api/users` (UsersController)
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
-| GET | /students | Admin,SuperAdmin | Paged students (+search) | |
-| GET | /admins | Admin,SuperAdmin | Paged admins (+search) | includes SuperAdmins via LIKE '%Admin' |
-| GET | /instructors | Admin,SuperAdmin | Paged instructors (+search) | |
+| GET | /students | Admin,SuperAdmin | Paged students (+search); `includeInactive=true` lists deactivated | |
+| GET | /admins | Admin,SuperAdmin | Paged admins (+search + includeInactive) | includes SuperAdmins via LIKE '%Admin' |
+| GET | /instructors | Admin,SuperAdmin | Paged instructors (+search + includeInactive) | |
 | GET | /{id} | auth + UserOwnerOrAdmin | Get user profile | |
 | GET | /by-email | Admin,SuperAdmin | Lookup by email | |
 | POST | /students | anon | Register student | no rate limit (M13); GUID refresh token (M15) |
 | DELETE | /{id} | Admin,SuperAdmin | Deactivate user (soft) | |
+| POST | /{id}/activate | Admin,SuperAdmin | Reactivate a deactivated account | added admin console phase |
 | GET | /email-exists | anon | Email enumeration | enumeration surface |
 | PUT | /{id} | auth + UserOwnerOnly | Update name/email/birthdate | email conflict → 500 via SQL exception |
 | PUT | /{id}/password | auth + UserOwnerOnly | Change password (old required) | |
@@ -77,6 +78,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 |---|---|---|---|---|
 | POST | / | auth | Create cart (returns existing pending cart if any) | added phase 2 (C9) |
 | GET | /{id} | auth + UserOwnerOrAdmin(order.UserId) | Order by id | |
+| GET | / | Admin,SuperAdmin | Paged orders feed (+search by buyer name/email) | added admin console phase; joins Users, newest first |
 | GET | /cart/{userId} | auth + UserOwnerOrAdmin | Current pending cart | fake empty order when none (M7) |
 | POST | /{OrderId}/items/{ItemId} | auth + UserOwnerOrAdmin | Add product (SP) | unpublished products rejected (H6 fixed) |
 | DELETE | /{id}/items/{productId} | auth + UserOwnerOrAdmin | Remove item (SP) | silent success when absent (M8) |
@@ -87,6 +89,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
 | GET | /{id} | auth + UserOwnerOrAdmin(order.UserId) | Payment details | |
+| GET | / | Admin,SuperAdmin | Paged payments feed (+search by buyer name/email) | added admin console phase; joins Orders+Users, newest first |
 | POST | / | auth + UserOwnerOrAdmin | Create payment (optional discount code + idempotency key) | client key replayed, not duplicated (H7 fixed) |
 | PUT | /{id}/checkOut-succeed | auth + UserOwnerOrAdmin | Mark Succeeded + enrollments + complete order | self-service w/o gateway (H1); completes order + expires stale pendings (H5) |
 | PUT | /{id}/fail | auth + UserOwnerOrAdmin | Mark Failed | |

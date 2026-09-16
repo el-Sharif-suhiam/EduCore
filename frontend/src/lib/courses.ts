@@ -18,6 +18,7 @@ export type CourseSummary = {
   thumbnailUrl: string | null;
   coverImageUrl: string | null;
   isDeleted: boolean;
+  isPublished: boolean;
   courseInstructors: CourseInstructor[] | null;
 };
 

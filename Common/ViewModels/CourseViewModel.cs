@@ -16,6 +16,7 @@ namespace Common.ViewModels
         public string? ThumbnailUrl { get; set; } // P.ThumbnailUrl (nullable)
         public string? CoverImageUrl { get; set; }// C.CoverImageUrl (nullable)
         public bool IsDeleted { get; set; }
+        public bool IsPublished { get; set; }      // P.IsPublished — admin publish state
         public List<InstructorsViewModel> CourseInstructors { get; set; }
         
     }

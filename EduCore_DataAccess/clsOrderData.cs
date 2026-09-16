@@ -157,6 +157,68 @@ namespace EduCore_DataAccess
             return null;
         }
 
+        /// <summary>Admin feed of all orders, newest first, joined with the buyer.</summary>
+        public static async Task<List<Common.ViewModels.OrderAdminViewModel>> GetAllOrdersView(int pageNumber, int pageSize, string searchText = "")
+        {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize <= 0) pageSize = 20;
+
+            var orders = new List<Common.ViewModels.OrderAdminViewModel>();
+
+            string query = @"SELECT
+                                O.Id,
+                                O.UserId,
+                                U.Name      AS UserName,
+                                U.Email     AS UserEmail,
+                                O.TotalPrice,
+                                O.Status,
+                                O.CreatedAt
+                             FROM Orders O
+                             JOIN Users U ON O.UserId = U.Id
+                             WHERE (@SearchText IS NULL OR U.Name LIKE @SearchText OR U.Email LIKE @SearchText)
+                             ORDER BY O.CreatedAt DESC
+                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
+                             FETCH NEXT @RowsPerPage ROWS ONLY;";
+
+            using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand cmd = new SqlCommand(query, conn))
+            {
+                cmd.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
+                cmd.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
+                cmd.Parameters.Add("@SearchText", SqlDbType.NVarChar)
+                    .Value = String.IsNullOrWhiteSpace(searchText) ? DBNull.Value : $"%{searchText}%";
+
+                await conn.OpenAsync();
+
+                using (SqlDataReader reader = await cmd.ExecuteReaderAsync())
+                {
+                    int idIndex = reader.GetOrdinal("Id");
+                    int userIdIndex = reader.GetOrdinal("UserId");
+                    int userNameIndex = reader.GetOrdinal("UserName");
+                    int userEmailIndex = reader.GetOrdinal("UserEmail");
+                    int totalIndex = reader.GetOrdinal("TotalPrice");
+                    int statusIndex = reader.GetOrdinal("Status");
+                    int createdAtIndex = reader.GetOrdinal("CreatedAt");
+
+                    while (await reader.ReadAsync())
+                    {
+                        orders.Add(new Common.ViewModels.OrderAdminViewModel
+                        {
+                            Id = reader.GetInt32(idIndex),
+                            UserId = reader.GetInt32(userIdIndex),
+                            UserName = reader.GetString(userNameIndex),
+                            UserEmail = reader.GetString(userEmailIndex),
+                            TotalPrice = reader.GetDecimal(totalIndex),
+                            Status = (Common.Enums.enOrderStatus)Enum.Parse(typeof(Common.Enums.enOrderStatus), reader.GetString(statusIndex)),
+                            CreatedAt = reader.GetDateTime(createdAtIndex)
+                        });
+                    }
+                }
+            }
+
+            return orders;
+        }
+
 
     }
 }

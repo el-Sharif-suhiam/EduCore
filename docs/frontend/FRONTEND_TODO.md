@@ -245,6 +245,25 @@
 - [x] .env.example: NEXT_PUBLIC_SITE_URL documented
 - [x] lint 0 · tsc clean · production build passes (24 routes)
 
+## Milestone 7 — Admin commerce dashboards + publish/reactivate (session 10)
+
+### Backend (minimal, additive)
+- [x] `CourseWithInstructorViewModel.IsPublished` (course list shows publish state)
+- [x] `POST /api/users/{id}/activate` + `ActivateUser` DAL/BL + `UserReactivated` audit action;
+      `includeInactive` param on students/admins/instructors filters
+- [x] `PaymentAdminViewModel` + `OrderAdminViewModel` (Common/ViewModels)
+- [x] `GetAllOrdersView` / `GetAllPaymentsView` paged feeds (join Users, LIKE search) + BL pass-throughs
+- [x] `GET api/orders` + `GET api/payments` (Admin,SuperAdmin)
+
+### Frontend
+- [x] /admin/courses: Published/Draft badge + quick Publish/Hide toggle (toast feedback)
+- [x] lib/admin: getUsers includeInactive + activateUser; /admin/people Reactivate button for
+      deactivated rows (showDeactivated included), deactivate copy updated
+- [x] /admin/orders: paged table + detail modal + debounced search
+- [x] /admin/payments: paged table + detail modal + debounced search
+- [x] admin-shell Orders + Payments nav entries (Admin/SuperAdmin); AUDIT_ACTION_LABELS + 31
+- [x] lint 0 · tsc clean · production build passes (26 routes)
+
 ## Backlog (needs backend decisions — do not start without owner)
 - Certificate verification endpoint + shareable URLs (M14)
 - Independent lesson products can't be sold from UI (no ProductId exposed)
@@ -252,6 +271,7 @@
 ## Known backend gaps affecting frontend (do NOT fix silently)
 - ~~Courses don't expose ProductId~~ FIXED in M3 (owner-approved backend addition).
 - ~~No Stripe checkout-session endpoint yet~~ LIVE since M3.5.
+- ~~No admin orders/payments feeds~~ FIXED in M7 (owner-approved additive endpoints).
 - Missing `GET current-user enrollments/payments` endpoints (backend issue L9) — "My Learning" needs it.
 - Independent lessons don't expose ProductId either (LessonsWithOutCoursesViewModel) — needed before lessons can be sold individually from UI.
 - Pagination responses have no totals — avoid building "page X of Y" UI.

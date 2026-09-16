@@ -274,6 +274,7 @@ namespace EduCore_DataAccess
                                 P.ThumbnailUrl,
                                 C.CoverImageUrl,
                                 C.IsDeleted,
+                                P.IsPublished,
                                 U.Id        AS InstructorId,
                                 U.Name      AS InstructorName
                             FROM PagedCourses PC
@@ -310,6 +311,7 @@ namespace EduCore_DataAccess
                     int instrIdIndex = reader.GetOrdinal("InstructorId");
                     int instrNameIndex = reader.GetOrdinal("InstructorName");
                     int isDeletedIndex = reader.GetOrdinal("IsDeleted");
+                    int isPublishedIndex = reader.GetOrdinal("IsPublished");
 
                     while (await reader.ReadAsync())
                     {
@@ -328,6 +330,7 @@ namespace EduCore_DataAccess
                                 ThumbnailUrl = reader.IsDBNull(thumbnailIndex) ? null : reader.GetString(thumbnailIndex),
                                 CoverImageUrl = reader.IsDBNull(coverIndex) ? null : reader.GetString(coverIndex),
                                 IsDeleted = reader.GetBoolean(isDeletedIndex),
+                                IsPublished = reader.GetBoolean(isPublishedIndex),
                                 CourseInstructors = new List<InstructorsViewModel>()
                             };
                             coursesDict.Add(courseId, course);

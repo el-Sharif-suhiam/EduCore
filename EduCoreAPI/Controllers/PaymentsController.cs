@@ -2,6 +2,8 @@
 using Common.Exceptions;
 using EduCore_BusinessLayer;
 using EduCoreAPI.Helpers.Models.RequestModels;
+using EduCoreAPI.Helpers.Dtos.RequestDto;
+using EduCoreAPI.Helpers;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
@@ -11,6 +13,24 @@ using System.Security.Claims;namespace EduCoreAPI.Controllers
     [ApiController]
     public class PaymentsController : ControllerBase
     {
+        // =========================
+        // GET: All payments (admin feed)
+        // =========================
+        [Authorize(Roles = "Admin,SuperAdmin")]
+        [HttpGet]
+        public async Task<ActionResult<List<Common.ViewModels.PaymentAdminViewModel>>> GetAllPayments(
+            [FromQuery] PageRequest pageRequest, string? search)
+        {
+            clsApiValidators.ValidatePaging(pageRequest);
+
+            var payments = await clsPayment.GetAllPaymentsView(
+                pageRequest.PageNumber,
+                pageRequest.PageSize,
+                search ?? "");
+
+            return Ok(payments);
+        }
+
         // =========================
         // GET: Payment By Id
         // =========================
