@@ -129,3 +129,80 @@ pre-existing nullable CS86xx).
 
 **Next recommended actions:** Phase 4 — integration tests via WebApplicationFactory against a test
 SQL Server DB (no DI seam).
+
+---
+
+## 2026-08-25 — Frontend-driven backend addition (session 4, owner-approved)
+
+**Objective:** Unblock the frontend cart (milestone 3): the cart API requires Products.Id
+but course endpoints only exposed Courses.Id. Owner approved a minimal additive change.
+
+**Modifications:**
+- Common/ViewModels/CourseViewModel.cs: added ProductId to CourseWithInstructorViewModel.
+- EduCore_DataAccess/clsCoursesData.cs: GetAllCoursesWithInstructorViewModelInternal —
+  SELECT now includes C.ProductId AS ProductId; reader ordinal + assignment added.
+- EduCoreAPI/Helpers/Models/ResponeModels/CourseResponse.cs: added ProductId.
+- EduCoreAPI/Helpers/Mappers/CourseMapper.cs: maps course.ProductId.
+- No DB/schema changes; no existing field renamed or removed (additive only).
+
+**Tests executed:** dotnet build EduCore.slnx → 0 errors (warnings pre-existing).
+Frontend milestone 3 built against the updated contract; see docs/frontend/FRONTEND_LOG.md.
+
+**Unresolved issues:** unchanged (H1 payment-gateway verification remains the key blocker
+for real checkout; frontend stubs document the integration point in
+rontend/src/lib/payments.ts).
+
+---
+
+## 2026-08-25 — Stripe payment gateway (session 5, frontend-driven)
+
+**Objective:** Complete the purchase loop: hosted checkout + verified webhook as the
+source of truth (closes audit H1 self-service-success finding).
+
+**Modifications:**
+- NEW EduCore_BusinessLayer/clsStripeGateway.cs: raw Stripe REST via static HttpClient
+  (no SDK, owner decision). CreateCheckoutSessionAsync — form-encoded, mode=payment,
+  client_reference_id/metadata carry our paymentId server-side, Idempotency-Key derived
+  from Payments.IdempotencyKey; VerifyWebhookSignature — HMAC-SHA256 over "t.payload",
+  constant-time compare against any v1 entry, +/-300 s tolerance.
+- EduCoreAPI/Controllers/PaymentsController.cs: added
+  POST api/payments/{id}/stripe-checkout-session ([Authorize] + UserOwnerOrAdmin,
+  pending-only) returning { url, sessionId }; success/cancel composed from FRONTEND_URL.
+  checkOut-succeed action marked DEPRECATED in comments (kept for compat).
+- NEW EduCoreAPI/Controllers/StripeWebhookController.cs [AllowAnonymous]:
+  verifies signature on RAW body before parsing; checkout.session.completed /
+  async_payment_succeeded -> clsCheckoutService.CompletePaymentAsync(order.UserId,
+  payment, payment_intent|session_id); expired -> MarkAsExpired;
+  async_payment_failed -> MarkAsFailed; replays no-op via pending-state guards;
+  unknown events acknowledged. 503 when STRIPE_WEBHOOK_SECRET missing (Stripe retries).
+- .env.example: STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, FRONTEND_URL documented.
+
+**Contract notes:** currency hardcoded usd (const in gateway, marked CHANGE HERE);
+amount = FinalPrice * 100 rounded away-from-zero; TransactionId stores PaymentIntent id.
+
+**Tests executed:** dotnet build EduCore.slnx -> 0 errors. Live webhook flow NOT executed
+(no Stripe keys on this machine); README section 5 documents exact local test procedure.
+
+---
+
+## 2026-08-25 — Enrollments endpoint (session 6, frontend-driven, L9 closed)
+
+**Objective:** Expose current-user enrollments (ENGINEERING_TODO L9: DAL existed, never
+exposed) so the frontend learning dashboard can be built.
+
+**Modifications:**
+- NEW Common/ViewModels/EnrollmentViewModel.cs: Id, ProductId, ProductName, ProductTypeId,
+  ThumbnailUrl, Summary, EnrolledAt, ExpireAt + CourseId/LessonId deep-link ids
+  (LEFT JOIN Courses/Lessons on ProductId; IsDeleted=0 filters).
+- EduCore_DataAccess/clsEnrollmentsData.cs: added GetUserEnrollmentViewModels
+  (paged OFFSET/FETCH, active-only via ExpireAt filter).
+- EduCore_BusinessLayer/clsEnrollment.cs: added GetUserEnrollments (userId validation).
+- NEW EduCoreAPI/Controllers/EnrollmentsController.cs: GET api/enrollments/my —
+  [Authorize], resolves CURRENT user from claims (no userId route param by design),
+  reuses PageRequest + clsApiValidators.ValidatePaging.
+
+**Contract notes:** ProductTypeId is the raw enProductType byte (Lesson=1, Course=2,
+Bundle=3). Deep-link ids exist because progress endpoints take Courses.Id while
+enrollments store Products.Id.
+
+**Tests executed:** dotnet build EduCore.slnx -> 0 errors. Frontend milestone 4 consumes it.

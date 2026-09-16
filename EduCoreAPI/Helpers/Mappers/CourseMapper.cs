@@ -10,6 +10,7 @@ namespace EduCoreAPI.Helpers.Mappers
             return new CourseResponse
             {
                 Id = course.Id,
+                ProductId = course.ProductId,
                 Name = course.Name,
                 CreatedAt = course.CreatedAt,
                 BasePrice = course.BasePrice,

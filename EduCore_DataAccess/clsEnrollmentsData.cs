@@ -1,4 +1,5 @@
 ﻿using Common.Dtos;
+using Common.ViewModels;
 using Microsoft.Data.SqlClient;
 using System;
 using System.Collections.Generic;
@@ -96,8 +97,7 @@ namespace EduCore_DataAccess
         }
 
         public static async Task<List<DtoEnrollment>> GetAllUserEnrollments(int UserId,int pageNumber, int pageSize)
-        {
-            if (pageNumber < 1) pageNumber = 1;
+        {            if (pageNumber < 1) pageNumber = 1;
             if (pageSize <= 0) pageSize = 10;
 
             string query = @"SELECT Id, UserId, ProductId, EnrolledAt, ExpireAt, PaymentId
@@ -146,6 +146,96 @@ namespace EduCore_DataAccess
             }
 
             return enrollments;
+        }
+
+        // ============================================================
+        // L9: enrollments joined with Products for display, plus the
+        // deep-link ids (Courses.Id / Lessons.Id) the frontend needs —
+        // progress endpoints take Courses.Id while enrollment carries
+        // only Products.Id.
+        // ============================================================
+        public static async Task<List<EnrollmentViewModel>> GetUserEnrollmentViewModels(
+            int userId, int pageNumber, int pageSize)
+        {
+            if (pageNumber < 1) pageNumber = 1;
+            if (pageSize <= 0) pageSize = 10;
+
+            string query = @"
+                            SELECT
+                                E.Id,
+                                E.ProductId,
+                                P.Name          AS ProductName,
+                                P.ProductType   AS ProductTypeId,
+                                P.ThumbnailUrl,
+                                P.Summary,
+                                E.EnrolledAt,
+                                E.ExpireAt,
+                                C.Id            AS CourseId,
+                                L.Id            AS LessonId
+                            FROM Enrollments E
+                            INNER JOIN Products P ON E.ProductId = P.Id
+                            LEFT  JOIN Courses  C ON C.ProductId = E.ProductId AND C.IsDeleted = 0
+                            LEFT  JOIN Lessons  L ON L.ProductId = E.ProductId AND L.IsDeleted = 0
+                            WHERE E.UserId = @UserId
+                              AND (E.ExpireAt IS NULL OR E.ExpireAt > SYSUTCDATETIME())
+                            ORDER BY E.EnrolledAt DESC
+                            OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
+                            FETCH NEXT @RowsPerPage ROWS ONLY;";
+
+            var result = new List<EnrollmentViewModel>();
+
+            using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.Add("@UserId", SqlDbType.Int).Value = userId;
+                command.Parameters.Add("@PageNumber", SqlDbType.Int).Value = pageNumber;
+                command.Parameters.Add("@RowsPerPage", SqlDbType.Int).Value = pageSize;
+
+                await connection.OpenAsync();
+
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    int idIndex = reader.GetOrdinal("Id");
+                    int productIdIndex = reader.GetOrdinal("ProductId");
+                    int productNameIndex = reader.GetOrdinal("ProductName");
+                    int productTypeIdIndex = reader.GetOrdinal("ProductTypeId");
+                    int thumbnailIndex = reader.GetOrdinal("ThumbnailUrl");
+                    int summaryIndex = reader.GetOrdinal("Summary");
+                    int enrolledAtIndex = reader.GetOrdinal("EnrolledAt");
+                    int expireAtIndex = reader.GetOrdinal("ExpireAt");
+                    int courseIdIndex = reader.GetOrdinal("CourseId");
+                    int lessonIdIndex = reader.GetOrdinal("LessonId");
+
+                    while (await reader.ReadAsync())
+                    {
+                        result.Add(new EnrollmentViewModel
+                        {
+                            Id = reader.GetInt32(idIndex),
+                            ProductId = reader.GetInt32(productIdIndex),
+                            ProductName = reader.GetString(productNameIndex),
+                            ProductTypeId = reader.GetByte(productTypeIdIndex),
+                            ThumbnailUrl = reader.IsDBNull(thumbnailIndex)
+                                ? null
+                                : reader.GetString(thumbnailIndex),
+                            Summary = reader.IsDBNull(summaryIndex)
+                                ? null
+                                : reader.GetString(summaryIndex),
+                            EnrolledAt = reader.GetDateTime(enrolledAtIndex),
+                            ExpireAt = reader.IsDBNull(expireAtIndex)
+                                ? null
+                                : reader.GetDateTime(expireAtIndex),
+                            CourseId = reader.IsDBNull(courseIdIndex)
+                                ? null
+                                : reader.GetInt32(courseIdIndex),
+                            LessonId = reader.IsDBNull(lessonIdIndex)
+                                ? null
+                                : reader.GetInt32(lessonIdIndex),
+                        });
+                    }
+                }
+            }
+
+            return result;
         }
 
     }

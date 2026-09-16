@@ -1,6 +1,7 @@
 ﻿using Common.Dtos;
 using Common.Enums;
 using Common.Exceptions;
+using Common.ViewModels;
 using EduCore_DataAccess;
 using Microsoft.Data.SqlClient;
 using System;
@@ -60,6 +61,21 @@ namespace EduCore_BusinessLayer
         public static async Task<bool> IsUserEnrolled(int userId, int productId)
         {
             return await clsEnrollmentsData.IsUserEnrolled(userId, productId);
+        }
+
+        // ============================================================
+        // L9: active enrollments for the learner, enriched with
+        // product display info + deep-link ids. See
+        // Common/ViewModels/EnrollmentViewModel.cs.
+        // ============================================================
+        public static async Task<List<EnrollmentViewModel>> GetUserEnrollments(
+            int userId, int pageNumber, int pageSize)
+        {
+            if (userId <= 0)
+                throw new ValidationException("User id is not valid.");
+
+            return await clsEnrollmentsData.GetUserEnrollmentViewModels(
+                userId, pageNumber, pageSize);
         }
 
     }

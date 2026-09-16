@@ -5,9 +5,7 @@ using EduCoreAPI.Helpers.Models.RequestModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.ComponentModel.DataAnnotations;
-using System.Security.Claims;
-
-namespace EduCoreAPI.Controllers
+using System.Security.Claims;namespace EduCoreAPI.Controllers
 {
     [Route("api/payments")]
     [ApiController]
@@ -103,11 +101,74 @@ namespace EduCoreAPI.Controllers
             });
         }
 
-        // =========================
-        // PUT: Mark As Succeeded
-        // بعد تأكيد Payment Gateway
-        // يسجل TransactionId و PaidAt
-        // =========================
+        // ============================================================
+        // ============ PAYMENT GATEWAY: STRIPE =======================
+        // ============================================================
+        // POST: Create a Stripe hosted-checkout session for a payment.
+        //
+        //   POST api/payments/{id}/stripe-checkout-session
+        //     -> { url, sessionId }
+        //
+        // The CLIENT then redirects to `url` (see
+        // frontend/src/lib/payments.ts). The payment is NOT marked
+        // succeeded here — the webhook (StripeWebhookController) is
+        // the source of truth. This fixes audit finding H1: users can
+        // no longer self-declare success via checkOut-succeed.
+        //
+        // To switch gateway: change clsStripeGateway + webhook only.
+        // ============================================================
+        [Authorize]
+        [HttpPost("{id:int}/stripe-checkout-session")]
+        public async Task<ActionResult> CreateStripeCheckoutSession(
+            [FromRoute] int id,
+            [FromServices] IAuthorizationService authorizationService)
+        {
+            clsPayment payment = await clsPayment.FindAsync(id);
+
+            clsOrder order = await clsOrder.Find(payment.OrderId);
+
+            var authResult = await authorizationService.AuthorizeAsync(
+               User,
+               order.UserId,
+               "UserOwnerOrAdmin");
+
+            if (!authResult.Succeeded)
+                return Forbid(); // 403
+
+            if (!payment.IsPending)
+                throw new ConflictException("This payment can no longer be processed.");
+
+            // Human-readable item line for the Stripe product name.
+            string itemName = order.Items is { Count: > 0 }
+                ? string.Join(", ", order.Items.Select(i => i.Name))
+                : $"EduCore purchase #{payment.OrderId}";
+
+            // Success/cancel land back on the frontend cart page; it
+            // reads ?checkout=success|cancelled&paymentId=… and polls
+            // GET /api/payments/{id} until the webhook has landed.
+            string frontendUrl =
+                Environment.GetEnvironmentVariable("FRONTEND_URL") ?? "http://localhost:3000";
+
+            var session = await clsStripeGateway.CreateCheckoutSessionAsync(
+                payment.Id,
+                payment.FinalPrice,
+                itemName,
+                successUrl: $"{frontendUrl}/cart?checkout=success&paymentId={payment.Id}",
+                cancelUrl: $"{frontendUrl}/cart?checkout=cancelled&paymentId={payment.Id}",
+                idempotencyKey: payment.IdempotencyKey);
+
+            return Ok(new { url = session.Url, sessionId = session.SessionId });
+        }
+
+        // ============================================================
+        // PUT: Mark As Succeeded  (DEPRECATED — DO NOT USE IN NEW UI)
+        // ============================================================
+        // Self-service success endpoint kept only for backward
+        // compatibility / manual ops. Security audit finding H1:
+        // ownership does NOT prove money moved. Real completion must
+        // come from the verified Stripe webhook. Remove once nothing
+        // calls it.
+        // ============================================================
         [Authorize]
         [HttpPut("{id:int}/checkOut-succeed")]
         public async Task<ActionResult> CheckOutSucceeded(

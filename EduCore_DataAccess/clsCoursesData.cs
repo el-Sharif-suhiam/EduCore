@@ -264,9 +264,10 @@ namespace EduCore_DataAccess
                                 OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                                 FETCH NEXT @RowsPerPage ROWS ONLY
                             )
-                            SELECT 
-                                C.Id        AS Id,
-                                P.Name      AS Title,
+                              SELECT 
+                                  C.Id        AS Id,
+                                  C.ProductId AS ProductId,
+                                  P.Name      AS Title,
                                 P.Summary,
                                 P.BasePrice,
                                 P.CreatedAt,
@@ -298,8 +299,9 @@ namespace EduCore_DataAccess
 
                 using (SqlDataReader reader = await sqlCommand.ExecuteReaderAsync())
                 {
-                    int idIndex = reader.GetOrdinal("Id");
-                    int titleIndex = reader.GetOrdinal("Title");
+                      int idIndex = reader.GetOrdinal("Id");
+                      int productIdIndex = reader.GetOrdinal("ProductId");
+                      int titleIndex = reader.GetOrdinal("Title");
                     int summaryIndex = reader.GetOrdinal("Summary");
                     int basePriceIndex = reader.GetOrdinal("BasePrice");
                     int createdAtIndex = reader.GetOrdinal("CreatedAt");
@@ -315,10 +317,11 @@ namespace EduCore_DataAccess
 
                         if (!coursesDict.TryGetValue(courseId, out var course))
                         {
-                            course = new CourseWithInstructorViewModel
-                            {
-                                Id = courseId,
-                                Title = reader.GetString(titleIndex),
+                              course = new CourseWithInstructorViewModel
+                              {
+                                  Id = courseId,
+                                  ProductId = reader.GetInt32(productIdIndex),
+                                  Title = reader.GetString(titleIndex),
                                 Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
                                 BasePrice = reader.GetDecimal(basePriceIndex),
                                 CreatedAt = reader.GetDateTime(createdAtIndex),

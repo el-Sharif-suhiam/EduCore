@@ -8,6 +8,7 @@ namespace Common.ViewModels
     {
 
         public int Id { get; set; }               // C.Id
+        public int ProductId { get; set; }        // C.ProductId (Products.Id) — needed by cart API
         public string Title { get; set; }         // P.Name As Title
         public string? Summary { get; set; }      // P.Summary (nullable)
         public decimal BasePrice { get; set; }    // P.BasePrice (SMALLMONEY)
