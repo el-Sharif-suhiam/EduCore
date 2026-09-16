@@ -8,6 +8,7 @@
 // ============================================================
 
 import { PlayCircle, User } from "lucide-react";
+import Link from "next/link";
 import { AddToCartButton } from "@/components/shared/add-to-cart-button";
 import type { LessonSummary } from "@/lib/courses";
 import { cn } from "@/lib/utils";
@@ -53,7 +54,12 @@ export function LessonCard({ lesson }: { lesson: LessonSummary }) {
       {/* body */}
       <div className="flex flex-1 flex-col gap-1.5 p-4">
         <h3 className="font-display text-lg leading-snug font-semibold text-balance">
-          {lesson.title}
+          <Link
+            href={`/lessons/${lesson.id}`}
+            className="transition-colors duration-200 hover:text-primary"
+          >
+            {lesson.title}
+          </Link>
         </h3>
         {lesson.summary && (
           <p className="line-clamp-2 text-sm leading-relaxed text-muted-foreground">

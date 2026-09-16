@@ -276,13 +276,29 @@
 - [x] NEW lesson-card (thumbnail, instructor, price, `AddToCartButton` via ProductId)
 - [x] /courses `LessonsSection` (first 9 + Load more; hidden when empty/unreachable)
 
+## Milestone 9 — Courses+lessons correctness & performance pass (session 12)
+
+### Backend (additive/minimal)
+- [x] Public `GET /api/courses` published-only; `?includeUnpublished=true` for Admin/SuperAdmin
+- [x] `GET /api/courses/{id}` 404 for drafts unless admin/owner instructor
+- [x] `GET /api/lessons/{id}/info` (anon) — sanitized public lesson cover sheet (no video/body)
+- [x] admin `getCoursesPaged` sends includeUnpublished
+
+### Frontend
+- [x] useInView hook — Bundles/Lessons sections lazy-fetch at scroll (skeleton placeholders)
+- [x] Session GET cache + single-flight dedupe in lib/courses.ts (60s TTL, cache-misses evicted)
+- [x] NEW /lessons/[id] RSC detail page (metadata, hero, purchase rail, unlocks-note)
+- [x] LessonCard titles → /lessons/[id]
+- [x] admin-shell CommandPalette via next/dynamic (smaller shell bundle)
+- [x] lint 0 · build passes (27 routes)
+
 ## Backlog (needs backend decisions — do not start without owner)
 - Certificate verification endpoint + shareable URLs (M14)
-- Public course detail stays visible when unpublished (GET /api/courses ignores IsPublished — drafts leak to the public storefront)
 - Lesson detail page pre-purchase (would need a public endpoint; video/body must stay owner/enrolled-gated)
 
 ## Known backend gaps affecting frontend (do NOT fix silently)
 - ~~Courses don't expose ProductId~~ FIXED in M3 (owner-approved backend addition).
+- ~~Drafts leak to public storefront~~ FIXED in M9 (published-only feed + draft 404 for anon).
 - ~~No Stripe checkout-session endpoint yet~~ LIVE since M3.5.
 - ~~No admin orders/payments feeds~~ FIXED in M7 (owner-approved additive endpoints).
 - Missing `GET current-user enrollments/payments` endpoints (backend issue L9) — "My Learning" needs it.

@@ -24,29 +24,59 @@ namespace EduCoreAPI.Controllers
     {
         // =========================
         // GET: All Courses
+        // Published only for the public storefront.
+        // Admin/SuperAdmin may pass includeUnpublished=true to see drafts.
         // =========================
         [AllowAnonymous]
         [HttpGet]
         public async Task<ActionResult<List<DtoCourse>>> GetAllCourses(
-            [FromQuery] PageRequest pageRequest,string? search)
+            [FromQuery] PageRequest pageRequest,string? search, bool? includeUnpublished)
         {
             clsApiValidators.ValidatePaging(pageRequest);
 
+            bool privileged =
+                User.Identity?.IsAuthenticated == true &&
+                (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
+
             var courses = await clsCourse.GetAllCoursesWithInstructors(
                 pageRequest.PageNumber,
-                pageRequest.PageSize,false,search);
+                pageRequest.PageSize,
+                false,
+                search,
+                privileged && includeUnpublished == true);
 
             return Ok(courses);
         }
 
         // =========================
         // GET: by id
+        // Drafts are staff-only: anonymous visitors or non-owners get 404.
         // =========================
         [AllowAnonymous]
         [HttpGet("{id:int}")]
         public async Task<ActionResult> GetCourseById([FromRoute] int id)
         {
             clsCourse course = await clsCourse.Find(id);
+
+            if (!course.IsPublished)
+            {
+                bool privileged =
+                    User.Identity?.IsAuthenticated == true &&
+                    (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
+
+                if (privileged)
+                    return Ok(CourseMapper.ToCourseRespone(course));
+
+                if (int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int userId)
+                    && userId > 0
+                    && await clsCoursesInstructors.IsInstructorOwnProduct(userId, enProductType.Course, id, 0, 0))
+                {
+                    return Ok(CourseMapper.ToCourseRespone(course));
+                }
+
+                throw new NotFoundException("Course not found");
+            }
+
             return Ok(CourseMapper.ToCourseRespone(course));
         }
 

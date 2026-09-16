@@ -5,7 +5,40 @@
 
 ---
 
-## 2026-09-16 — Session 11: standalone lessons buyable from the catalog
+## 2026-09-16 — Session 12: courses+lessons close-out with a performance pass
+
+**Goal:** Owner directive — finish courses and lessons "and everything about them", professional
+UX, and no bandwidth waste: fewer requests, lazy loading, nothing fetched that isn't seen.
+
+**Modifications (backend — additive/minimal):**
+- Public course feed is now **published-only**; `GET /api/courses` (anon) hides drafts while
+  Admin/SuperAdmin may pass `?includeUnpublished=true` (the admin console now sends it).
+  DAL `GetAllCoursesWithInstructorViewModelInternal` gained an `@IncludeUnpublished` predicate.
+- `GET /api/courses/{id}` now returns 404 for drafts unless the caller is Admin/SuperAdmin or the
+  owner instructor (`IsInstructorOwnProduct`). Draft URLs no longer leak to the public.
+- NEW `GET /api/lessons/{id}/info` (anon): sanitized `LessonPublicInfoViewModel` (no video/body —
+  content stays enrolled/owner/admin-gated) served by a tiny view query.
+
+**Modifications (frontend — performance & UX):**
+- NEW `lib/use-in-view.ts` (IntersectionObserver hook): Bundles + Standalone-lessons sections no
+  longer fire on page load — they fetch only when scrolled near the viewport (480px rootMargin),
+  with stable-height skeletons. Empty/unreachable sections vanish quietly.
+- NEW `lib/courses.ts` session cache (`cached()`): any identical catalog GET within 60s shares one
+  promise — collapses StrictMode double-fetches, re-mounts, and palette/re-open duplicates. Failed
+  responses are evicted, never cached.
+- NEW `/lessons/[id]` public detail page (RSC): metadata, hero, instructor, purchase rail
+  (`AddToCartButton` via ProductId) + "unlocks after purchase" note; `notFound()` on bad ids.
+  LessonCard titles now link here.
+- admin-shell: CommandPalette split into a `next/dynamic` chunk (ssr:false) — /admin first paint no
+  longer carries its JS.
+
+**Tests executed:** `dotnet build` 0 errors; `npm run lint` 0; `npm run build` passes (27 routes,
+incl. /lessons/[id]).
+
+**Unresolved:** none for this scope. Storefront image handling still plain `<img>` + native lazy
+(next/image needs remotePatterns for user-defined URLs). Batch pushed to origin/main.
+
+---
 
 **Goal:** Owner confirmed the earlier gap report — `GET /api/lessons` already listed standalone
 lessons, but (a) the list hid `ProductId` so they could never be added to a cart, and (b) the

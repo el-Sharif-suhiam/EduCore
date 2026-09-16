@@ -53,21 +53,44 @@ export async function getCoursesServer(
 }
 
 // ------------------------------------------------------------
+// Session cache for anonymous catalog GETs.
+// Cuts duplicate bandwidth (re-mounts, StrictMode double-effects,
+// palette re-opens) while a short TTL keeps publish-state fresh.
+// Concurrent identical calls share ONE pending promise.
+// ------------------------------------------------------------
+type CacheEntry<T> = { promise: Promise<T>; expires: number };
+const sessionCache = new Map<string, CacheEntry<unknown>>();
+const DEFAULT_TTL_MS = 60_000;
+
+function cached<T>(key: string, ttlMs: number, loader: () => Promise<T>): Promise<T> {
+  const hit = sessionCache.get(key);
+  if (hit && hit.expires > Date.now()) return hit.promise as Promise<T>;
+
+  const promise = loader().catch((err) => {
+    sessionCache.delete(key); // don't hold failed responses
+    throw err;
+  });
+  sessionCache.set(key, { promise, expires: Date.now() + ttlMs });
+  return promise;
+}
+
+// ------------------------------------------------------------
 // CLIENT-side fetcher — goes through native-fetch wrapper
 // (same-origin proxy in dev). See src/lib/api.ts.
 // ------------------------------------------------------------
-export async function getCourses(
+const catalogTtl = DEFAULT_TTL_MS;
+
+export function getCourses(
   pageNumber = 1,
   pageSize = 12,
   search = ""
 ): Promise<CourseSummary[]> {
-  const { api } = await import("./api");
-  const qs = new URLSearchParams({
-    PageNumber: String(pageNumber),
-    PageSize: String(pageSize),
-  });
+  const qs = new URLSearchParams({ PageNumber: String(pageNumber), PageSize: String(pageSize) });
   if (search) qs.set("search", search);
-  return api.get<CourseSummary[]>(`/api/courses?${qs.toString()}`, false);
+  return cached(`courses:${qs.toString()}`, catalogTtl, async () => {
+    const { api } = await import("./api");
+    return api.get<CourseSummary[]>(`/api/courses?${qs.toString()}`, false);
+  });
 }
 
 // ------------------------------------------------------------
@@ -90,18 +113,17 @@ export type LessonSummary = {
 // ------------------------------------------------------------
 // CLIENT-side fetcher for the public standalone-lessons feed.
 // ------------------------------------------------------------
-export async function getLessons(
+export function getLessons(
   pageNumber = 1,
   pageSize = 9,
   search = ""
 ): Promise<LessonSummary[]> {
-  const { api } = await import("./api");
-  const qs = new URLSearchParams({
-    PageNumber: String(pageNumber),
-    PageSize: String(pageSize),
-  });
+  const qs = new URLSearchParams({ PageNumber: String(pageNumber), PageSize: String(pageSize) });
   if (search) qs.set("search", search);
-  return api.get<LessonSummary[]>(`/api/lessons?${qs.toString()}`, false);
+  return cached(`lessons:${qs.toString()}`, catalogTtl, async () => {
+    const { api } = await import("./api");
+    return api.get<LessonSummary[]>(`/api/lessons?${qs.toString()}`, false);
+  });
 }
 
 // ------------------------------------------------------------
@@ -193,14 +215,35 @@ export type BundleItems = {
 };
 
 /** Published bundles only (public endpoint). */
-export async function getBundles(): Promise<BundleSummary[]> {
-  const { api } = await import("./api");
-  return api.get<BundleSummary[]>("/api/bundles", false);
+export function getBundles(): Promise<BundleSummary[]> {
+  return cached("bundles", catalogTtl, async () => {
+    const { api } = await import("./api");
+    return api.get<BundleSummary[]>("/api/bundles", false);
+  });
 }
 
-export async function getBundleItems(id: number): Promise<BundleItems> {
-  const { api } = await import("./api");
-  return api.get<BundleItems>(`/api/bundles/${id}/items`, false);
+export function getBundleItems(id: number): Promise<BundleItems> {
+  return cached(`bundle-items:${id}`, catalogTtl, async () => {
+    const { api } = await import("./api");
+    return api.get<BundleItems>(`/api/bundles/${id}/items`, false);
+  });
+}
+
+// ------------------------------------------------------------
+// Standalone lesson detail — mirrors LessonPublicInfoViewModel.cs
+// (public cover sheet; video/body stay enrolled/owner-gated).
+// ------------------------------------------------------------
+export type LessonPublicInfo = LessonSummary;
+
+export function getLessonInfo(id: number): Promise<LessonSummary> {
+  return cached(`lesson-info:${id}`, catalogTtl, async () => {
+    const { api } = await import("./api");
+    return api.get<LessonSummary>(`/api/lessons/${id}/info`, false);
+  });
+}
+
+export function getLessonInfoServer(id: number): Promise<LessonSummary> {
+  return serverJson(`/api/lessons/${id}/info`);
 }
 
 // ------------------------------------------------------------

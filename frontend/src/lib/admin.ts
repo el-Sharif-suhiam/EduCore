@@ -91,7 +91,12 @@ export function getCoursesPaged(
   search = ""
 ): Promise<CourseSummary[]> {
   return api.get<CourseSummary[]>(
-    `/api/courses${qs({ PageNumber: pageNumber, PageSize: pageSize, search })}`
+    `/api/courses${qs({
+      PageNumber: pageNumber,
+      PageSize: pageSize,
+      search,
+      includeUnpublished: "true",
+    })}`
   );
 }
 

@@ -361,6 +361,11 @@ namespace EduCore_BusinessLayer
             return await clsLessonsData.GetAllLessonsWithOutCourses(pageNumber, pageSize,searchText);
         }
 
+        public static async Task<LessonPublicInfoViewModel?> GetLessonPublicInfo(int lessonId)
+        {
+            return await clsLessonsData.GetLessonPublicInfo(lessonId);
+        }
+
         public static async Task<List<DtoLessons>> GetAllLessons(int pageNumber, int pageSize,bool includeDeleted = false)
         {
             if (includeDeleted)

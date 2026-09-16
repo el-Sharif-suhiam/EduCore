@@ -323,3 +323,47 @@ stays enrolled/owner/admin-gated (content protection); enrolled playback already
 /learn/lessons/[id]. Purchase path: catalog card -> cart -> pay -> /learn. Course publish-state
 gap on the public list (drafts visible anonymously) remains open, now tracked in FRONTEND_TODO.
 Docs updated; commit pushed to origin/main.
+
+---
+
+## 2026-09-16 - Courses+lessons close-out + performance pass (session 13)
+
+**Goal:** Owner directive (Arabic): implement courses-and-everything-about-them then the remaining
+lessons, with optimization, lazy loading, excellent UX, and no frontend bandwidth waste (no
+unnecessary requests).
+
+**Modifications (backend - additive/minimal, dotnet build 0 errors):**
+- clsCoursesData.GetAllCoursesWithInstructorViewModelInternal gained IncludeUnpublished flag ->
+  WHERE (@IncludeUnpublished = 1 OR P.IsPublished = 1). Public wrapper + BL
+  clsCourse.GetAllCoursesWithInstructors pass it through.
+- CoursesController.GetAllCourses accepts bool? includeUnpublished; only authenticated
+  Admin/SuperAdmin may actually see drafts (privileged && includeUnpublished == true).
+- CoursesController.GetCourseById 404s drafts for everyone except Admin/SuperAdmin or the course's
+  owner instructor (clsCoursesInstructors.IsInstructorOwnProduct with enProductType.Course).
+- NEW Common/ViewModels/LessonPublicInfoViewModel (Id, ProductId, Title, Summary, BasePrice,
+  CreatedAt, ThumbnailUrl, InstructorId, InstructorName - sanitized, never VideoUrl/BodyText).
+- clsLessonsData.GetLessonPublicInfo: single-row query over vwLessonsWithOutCourses WHERE
+  Id=@Id AND IsPublished=1 -> null when missing. BL pass-through; LessonsController
+  GET {id:int}/info AllowAnonymous -> NotFoundException when null.
+- Minor repair: an @IncludeUnpublished param had landed in GetCourseById's command params and was
+  moved to the paged VM command where it belongs.
+
+**Modifications (frontend - performance/UX):**
+- NEW lib/use-in-view.ts (IntersectionObserver, 480px rootMargin): Bundles + Standalone-lessons
+  sections no longer request on mount - they render stable-height skeletons and fetch only near the
+  viewport; empty/unreachable feeds disappear without a trace.
+- lib/courses.ts: session cache `cached()` - 60s TTL, in-flight single-flight (one promise shared),
+  entry deleted on any failure -> reloads retry cleanly. Wraps getCourses/getLessons/getBundles/
+  getBundleItems/getLessonInfo (client fetchers only; RSC fetchers stay uncached).
+- NEW app/lessons/[id]/page.tsx (RSC, params promise, notFound() for bad/missing ids, metadata):
+  back-link, badge, title, instructor + date, summary, hero cover, "unlocks after purchase" note,
+  sticky purchase rail with AddToCartButton(productId).
+- lesson-card.tsx title now links to /lessons/{id}.
+- admin-shell.tsx: CommandPalette via next/dynamic(ssr:false) - trimmed from the shell's main chunk.
+
+**Tests executed:** dotnet build 0 errors; npm run lint 0 (fixed a react-hooks/set-state-in-effect by
+deferring the no-IO fallback through setTimeout); npm run build passes - 27 routes. Docs updated.
+
+**Unresolved:** storefront images still plain <img> + native lazy (next/image requires remote
+patterns for user-defined URLs - fine to leave). Backlog unchanged otherwise: certificates (M14),
+current-user enrollments/payments feed (L9). Commit pushed to origin/main.

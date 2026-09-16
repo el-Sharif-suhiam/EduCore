@@ -18,6 +18,7 @@ import { LessonCard } from "@/components/shared/lesson-card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useInView } from "@/lib/use-in-view";
 import {
   getCourses,
   getBundles,
@@ -200,13 +201,15 @@ function CatalogList({ search }: { search: string }) {
 
 // ------------------------------------------------------------
 // BUNDLES — published bundles beneath the course grid.
-// Loads once (not per-search): bundles are few and the public
-// endpoint has no search parameter.
+// Lazy-loaded: nothing is fetched until the section scrolls near
+// the viewport (see useInView). Loads once, not per-search.
 // ------------------------------------------------------------
 function BundlesSection() {
   const [bundles, setBundles] = useState<BundleSummary[] | null>(null);
+  const { ref, inView } = useInView();
 
   useEffect(() => {
+    if (!inView || bundles !== null) return;
     let cancelled = false;
     getBundles()
       .then((data) => {
@@ -216,31 +219,39 @@ function BundlesSection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [inView, bundles]);
 
-  if (bundles === null || bundles.length === 0) return null;
+  if (inView && bundles !== null && bundles.length === 0) return null;
 
   return (
-    <section className="mt-16" aria-labelledby="bundles-heading">
+    <section className="mt-16" aria-labelledby="bundles-heading" ref={ref}>
       <h2 id="bundles-heading" className="font-display text-2xl font-semibold tracking-tight">
         Bundles
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Grouped learning paths at a better price than buying separately.
       </p>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {bundles.map((b) => (
-          <BundleCard key={b.id} bundle={b} />
-        ))}
-      </div>
+      {bundles === null ? (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="aspect-[3/4] w-full rounded-xl" />
+          ))}
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {bundles.map((b) => (
+            <BundleCard key={b.id} bundle={b} />
+          ))}
+        </div>
+      )}
     </section>
   );
 }
 
 // ------------------------------------------------------------
 // STANDALONE LESSONS — sold one at a time, so each card carries
-// its own Add to cart (ProductId drives the cart API). Hidden
-// entirely when the feed is empty or unreachable.
+// its own Add to cart (ProductId drives the cart API). Fetched
+// lazily the same way as bundles. Hidden when empty/unreachable.
 // ------------------------------------------------------------
 const LESSON_PAGE_SIZE = 9;
 
@@ -250,8 +261,10 @@ function LessonsSection() {
   const [loadingMore, setLoadingMore] = useState(false);
   const pageRef = useRef(1);
   const requestId = useRef(0);
+  const { ref, inView } = useInView();
 
   useEffect(() => {
+    if (!inView || lessons !== null) return;
     let cancelled = false;
     const id = ++requestId.current;
     getLessons(1, LESSON_PAGE_SIZE)
@@ -264,7 +277,7 @@ function LessonsSection() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [inView, lessons]);
 
   const loadMore = useCallback(async () => {
     if (loadingMore || exhausted || lessons === null) return;
@@ -285,35 +298,47 @@ function LessonsSection() {
     }
   }, [exhausted, lessons, loadingMore]);
 
-  if (lessons === null || lessons.length === 0) return null;
+  if (inView && lessons !== null && lessons.length === 0) return null;
 
   return (
-    <section className="mt-16" aria-labelledby="lessons-heading">
+    <section className="mt-16" aria-labelledby="lessons-heading" ref={ref}>
       <h2 id="lessons-heading" className="font-display text-2xl font-semibold tracking-tight">
         Standalone lessons
       </h2>
       <p className="mt-1 text-sm text-muted-foreground">
         One focused skill, yours forever — no need to buy the whole course.
       </p>
-      <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-        {lessons.map((l) => (
-          <LessonCard key={l.id} lesson={l} />
-        ))}
-      </div>
-
-      {!exhausted && (
-        <div className="mt-8 flex justify-center">
-          <Button
-            variant="outline"
-            size="lg"
-            className="h-10 px-6"
-            onClick={() => void loadMore()}
-            disabled={loadingMore}
-          >
-            {loadingMore && <LoaderCircle data-icon="inline-start" className="animate-spin" />}
-            Load more
-          </Button>
+      {lessons === null ? (
+        <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">
+          {Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="aspect-[3/4] w-full rounded-xl" />
+          ))}
         </div>
+      ) : (
+        <>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {lessons.map((l) => (
+              <LessonCard key={l.id} lesson={l} />
+            ))}
+          </div>
+
+          {!exhausted && (
+            <div className="mt-8 flex justify-center">
+              <Button
+                variant="outline"
+                size="lg"
+                className="h-10 px-6"
+                onClick={() => void loadMore()}
+                disabled={loadingMore}
+              >
+                {loadingMore && (
+                  <LoaderCircle data-icon="inline-start" className="animate-spin" />
+                )}
+                Load more
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </section>
   );

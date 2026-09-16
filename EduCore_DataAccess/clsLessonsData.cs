@@ -420,6 +420,60 @@ namespace EduCore_DataAccess
             return lessons;
         }
 
+        public static async Task<LessonPublicInfoViewModel?> GetLessonPublicInfo(int lessonId)
+        {
+            if (lessonId <= 0) return null;
+
+            const string query = @"SELECT v.Id,
+                                          v.ProductId,
+                                          v.Title,
+                                          v.Summary,
+                                          v.BasePrice,
+                                          v.CreatedAt,
+                                          v.ThumbnailUrl,
+                                          v.InstructorId,
+                                          v.InstructorName
+                                   FROM vwLessonsWithOutCourses v
+                                   WHERE v.Id = @Id AND v.IsPublished = 1;";
+
+            using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.Add("@Id", SqlDbType.Int).Value = lessonId;
+
+                await connection.OpenAsync();
+
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    if (!await reader.ReadAsync())
+                        return null;
+
+                    int idIndex = reader.GetOrdinal("Id");
+                    int productIdIndex = reader.GetOrdinal("ProductId");
+                    int titleIndex = reader.GetOrdinal("Title");
+                    int summaryIndex = reader.GetOrdinal("Summary");
+                    int basePriceIndex = reader.GetOrdinal("BasePrice");
+                    int createdAtIndex = reader.GetOrdinal("CreatedAt");
+                    int thumbnailUrlIndex = reader.GetOrdinal("ThumbnailUrl");
+                    int instructorIdIndex = reader.GetOrdinal("InstructorId");
+                    int instructorNameIndex = reader.GetOrdinal("InstructorName");
+
+                    return new LessonPublicInfoViewModel
+                    {
+                        Id = reader.GetInt32(idIndex),
+                        ProductId = reader.GetInt32(productIdIndex),
+                        Title = reader.GetString(titleIndex),
+                        Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
+                        BasePrice = reader.GetDecimal(basePriceIndex),
+                        CreatedAt = reader.GetDateTime(createdAtIndex),
+                        ThumbnailUrl = reader.IsDBNull(thumbnailUrlIndex) ? null : reader.GetString(thumbnailUrlIndex),
+                        InstructorId = reader.GetInt32(instructorIdIndex),
+                        InstructorName = reader.GetString(instructorNameIndex),
+                    };
+                }
+            }
+        }
+
         public static async Task<List<LessonsByCourseViewModel>> GetLessonsByCourse(int courseId)
         {
             List<LessonsByCourseViewModel> lessons = new List<LessonsByCourseViewModel>();

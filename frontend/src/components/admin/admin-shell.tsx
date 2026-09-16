@@ -9,6 +9,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import {
   BadgePercent,
@@ -28,7 +29,12 @@ import { Logo } from "@/components/shared/logo";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { UserMenu } from "@/components/shared/user-menu";
 import { Button } from "@/components/ui/button";
-import { CommandPalette } from "@/components/admin/command-palette";
+// Palette is only ever opened on demand — split it out of the shell
+// bundle so /admin first paint doesn't pay for its (small) JS.
+const CommandPalette = dynamic(() =>
+  import("@/components/admin/command-palette").then((m) => m.CommandPalette),
+  { ssr: false }
+);
 import { useAuth } from "@/lib/auth-context";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";

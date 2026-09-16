@@ -35,6 +35,22 @@ namespace EduCoreAPI.Controllers
 
 
         // =========================
+        // GET: Public lesson info (pre-purchase cover sheet).
+        // Never exposes video/body — those stay enrolled/owner/admin-only.
+        // =========================
+        [AllowAnonymous]
+        [HttpGet("{id:int}/info")]
+        public async Task<ActionResult<Common.ViewModels.LessonPublicInfoViewModel>> GetLessonPublicInfo([FromRoute] int id)
+        {
+            var lesson = await clsLesson.GetLessonPublicInfo(id);
+
+            if (lesson is null)
+                throw new NotFoundException("Lesson not found");
+
+            return Ok(lesson);
+        }
+
+        // =========================
         // GET: by id
         // =========================
         [Authorize]

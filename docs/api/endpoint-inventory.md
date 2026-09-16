@@ -33,7 +33,9 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
 | GET | / | anon | Paged courses w/ instructors (+search) | search-by-instructor applied after paging |
+| GET | / | Admin (w/ ?includeUnpublished=true) | Same feed INCLUDING drafts (admin console) | added M9 |
 | GET | /{id} | anon | Course by id | |
+| GET | /{id} | anon | Draft by id → 404 unless Admin/SuperAdmin or owner instructor | added M9 |
 | POST | / | Instructor,SuperAdmin | Create course (unpublished) | |
 | PUT | /{id} | Instructor,SuperAdmin + InstructorOwnership | Update course | |
 | POST | /{id}/publish | Instructor,SuperAdmin + InstructorOwnership | Publish course | added phase 2 (H4) |
@@ -50,6 +52,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | Method | Route | Auth | Purpose | Issues |
 |---|---|---|---|---|
 | GET | / | anon | Paged independent lessons (+search) | list returns ProductId; filters IsPublished=1 (M8) |
+| GET | /{id}/info | anon | Public cover sheet (title/summary/price/thumbnail/instructor) — never video/body | added M9 |
 | GET | /{id} | auth | Lesson by id (instructor-owner OR enrolled OR admin) | |
 | POST | / | Instructor,SuperAdmin | Create independent lesson | |
 | PUT | /{id} | Instructor,SuperAdmin + InstructorOwnership | Update lesson | |
