@@ -387,6 +387,20 @@ stripe trigger checkout.session.completed        # or use test card 4242 4242 42
 
 ---
 
+## 🚀 Production Deployment
+
+> The code is production-hardened (fail-fast secrets, forwarded headers, HSTS,
+> env-driven CORS, admin-only payment hooks, config test suite). Before launch
+> the operator must provide real secrets/hosting — follow the
+> **[Deployment Checklist](./docs/deployment/PRODUCTION_CHECKLIST.md)**.
+
+Key config: backend reads `EduCoreAPI/.env` (see `.env.example`); frontend reads
+`frontend/.env.local` (see `frontend/.env.example`). In production set
+`NEXT_PUBLIC_API_BASE_URL`/`SERVER_API_BASE_URL` to the API origin, put a TLS
+proxy in front, and allow your real origin via `CORS_ALLOWED_ORIGINS`.
+
+---
+
 ## 🧭 Documentation
 
 | Doc | What it covers |
@@ -396,6 +410,7 @@ stripe trigger checkout.session.completed        # or use test card 4242 4242 42
 | [`docs/domain/lifecycles.md`](./docs/domain/lifecycles.md) | Domain model: users, products, orders, payments, enrollments, certificates |
 | [`docs/security/audit-2026-08-22.md`](./docs/security/audit-2026-08-22.md) | Security audit & findings |
 | [`docs/decisions/0001-discovery-phase.md`](./docs/decisions/0001-discovery-phase.md) | Architecture decisions (ADRs) |
+| [`docs/deployment/PRODUCTION_CHECKLIST.md`](./docs/deployment/PRODUCTION_CHECKLIST.md) | Everything needed before going live |
 | [`docs/database/schema.md`](./docs/database/schema.md) | Database schema documentation |
 
 ---
@@ -404,7 +419,7 @@ stripe trigger checkout.session.completed        # or use test card 4242 4242 42
 
 | Symptom | Fix |
 |---|---|
-| Backend starts then dies with `JWT_SECRET_KEY` null | `.env` missing beside `EduCoreAPI.csproj` or var name typo |
+| Backend starts then dies with `JWT_SECRET_KEY` error | `.env` missing beside `EduCoreAPI.csproj`, var name typo, or the secret is under 32 bytes (API now fails fast by design) |
 | SQL errors referencing `SP_*` not found | Re-run `EduCore.sql` against your database |
 | CORS/network errors in dev | Backend must run on `https://localhost:7009`; trust dev cert: `dotnet dev-certs https --trust` |
 | Featured courses empty | Expected with no published data — run `docs/database/seed-demo-courses.sql` |

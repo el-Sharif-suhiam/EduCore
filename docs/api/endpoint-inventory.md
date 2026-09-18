@@ -97,7 +97,7 @@ Issues reference docs/agent/ENGINEERING_TODO.md ids.
 | GET | /{id} | auth + UserOwnerOrAdmin(order.UserId) | Payment details | |
 | GET | / | Admin,SuperAdmin | Paged payments feed (+search by buyer name/email) | added admin console phase; joins Orders+Users, newest first |
 | POST | / | auth + UserOwnerOrAdmin | Create payment (optional discount code + idempotency key) | client key replayed, not duplicated (H7 fixed) |
-| PUT | /{id}/checkOut-succeed | auth + UserOwnerOrAdmin | Mark Succeeded + enrollments + complete order | self-service w/o gateway (H1); completes order + expires stale pendings (H5) |
+| PUT | /{id}/checkOut-succeed | Admin,SuperAdmin (was: auth+owner) | Mark Succeeded + enrollments + complete order | ADMIN-ONLY since production hardening (H1 closed: students can never self-declare success; frontend never calls it); completes order + expires stale pendings (H5) |
 | PUT | /{id}/fail | auth + UserOwnerOrAdmin | Mark Failed | |
 | PUT | /{id}/expire | auth + UserOwnerOrAdmin | Mark Expired | |
 

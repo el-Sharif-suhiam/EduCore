@@ -427,3 +427,36 @@ etc.). Verified the complete page map; found two genuine instructor gaps and clo
 
 **Unresolved:** none in scope. Deleted-lesson restore UI and certificate verification remain backlog
 (need backend feeds/endpoints). Commit pushed to origin/main.
+
+---
+
+## 2026-09-18 - Production hardening (session 16)
+
+**Goal:** Owner directive: "اكمل كل ما يلزم الان حتى يكون جاهز للانتاج" — do everything
+needed to be production-ready.
+
+**Review basis:** backend production-config review (config secret source, startup fail-fast,
+hosting/TLS, CORS, deprecated endpoints, test project dead code).
+
+**Modifications (backend — all verified by dotnet build 0 errors):**
+- NEW `EduCoreAPI/Helpers/EnvConfig.cs`: single source of truth for JWT issuer/audience/secret +
+  missing/weak-secret fail-fast (>= 32 bytes, HS256) + env-list parsing for CORS.
+- `Program.cs`: fail-fast `JWT_SECRET_KEY` check at startup; JWT validation now reads EnvConfig
+  (was hardcoded "EduCoreApi"/"EduCoreApiUsers"); CORS origins now from `CORS_ALLOWED_ORIGINS`
+  (default localhost pair); `UseForwardedHeaders` (X-Forwarded-For/Proto) first in the pipeline so
+  rate limiting sees the real client IP behind a proxy; `UseHsts()` in non-Development; Swagger stays
+  dev-only.
+- `AuthController.cs`: login + refresh JWTs now sign/issue with EnvConfig (same values as validation).
+- `PaymentsController.cs`: `checkOut-succeed` restricted to **Admin,SuperAdmin** (audit H1 fully
+  closed — frontend never calls the endpoint).
+
+**Tests:** filled the previously-empty `EduCore.IntegrationTests` project with 8 xunit tests
+(`EnvConfigTests`) covering defaults, overrides, fail-fast on missing/weak secret, CORS list parsing
+and fallback. `dotnet test` → 8/8 passed.
+
+**Docs:** new `docs/deployment/PRODUCTION_CHECKLIST.md` (env matrix, TLS/proxy, Stripe webhook,
+DB, smoke-test checklist, rotations); README gains a Production Deployment section + doc link;
+`EduCoreAPI/.env.example` documents the new vars; endpoint-inventory + ENGINEERING_TODO H1 updated.
+
+**Unresolved:** operational items moved to the checklist (real secrets, TLS proxy, monitoring);
+H8 (DI seam) and M12 (N+1) remain open backlog items. Commit pushed to origin/main.

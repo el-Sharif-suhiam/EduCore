@@ -183,30 +183,21 @@ using System.Security.Claims;namespace EduCoreAPI.Controllers
         // ============================================================
         // PUT: Mark As Succeeded  (DEPRECATED — DO NOT USE IN NEW UI)
         // ============================================================
-        // Self-service success endpoint kept only for backward
-        // compatibility / manual ops. Security audit finding H1:
-        // ownership does NOT prove money moved. Real completion must
+        // Manual-ops/admin-only compatibility hook. Security audit
+        // finding H1: a client-supplied TransactionId proves NOTHING,
+        // so STUDENTS can never self-declare success here — only
+        // Admin/SuperAdmin may run it (e.g. reconcile a payment that
+        // the gateway confirmed out-of-band). Real completion must
         // come from the verified Stripe webhook. Remove once nothing
         // calls it.
         // ============================================================
-        [Authorize]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("{id:int}/checkOut-succeed")]
         public async Task<ActionResult> CheckOutSucceeded(
             [FromRoute] int id,
-            [FromBody] string TransactionId,
-            [FromServices] IAuthorizationService authorizationService)
+            [FromBody] string TransactionId)
         {
             clsPayment payment = await clsPayment.FindAsync(id);
-
-            clsOrder order = await clsOrder.Find(payment.OrderId);
-
-            var authResult = await authorizationService.AuthorizeAsync(
-               User,
-               order.UserId,
-               "UserOwnerOrAdmin");
-
-            if (!authResult.Succeeded)
-                return Forbid(); // 403
 
             var userId = User.FindFirstValue(ClaimTypes.NameIdentifier);
             int actionbyId = int.Parse(userId);

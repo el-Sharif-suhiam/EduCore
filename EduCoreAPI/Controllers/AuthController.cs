@@ -1,5 +1,6 @@
 ﻿using Common.Enums;
 using EduCore_BusinessLayer;
+using EduCoreAPI.Helpers;
 using EduCoreAPI.Helpers.Models.RequestModels;
 using EduCoreAPI.Helpers.Models.ResponeModels;
 using Microsoft.AspNetCore.Http;
@@ -65,8 +66,9 @@ namespace EduCoreAPI.Controllers
             DotNetEnv.Env.Load();
 
             // This key must match the key used in JWT validation middleware.
+            // Single source of truth: EnvConfig (Program.cs uses the same).
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_SECRET_KEY")));
+                Encoding.UTF8.GetBytes(EnvConfig.JwtSecretKey));
 
 
             // This specifies the algorithm used to sign the token.
@@ -76,8 +78,8 @@ namespace EduCoreAPI.Controllers
             // Create the JWT token.
             // The token includes issuer, audience, claims, expiration, and signature.
             var token = new JwtSecurityToken(
-                issuer: "EduCoreApi",
-                audience: "EduCoreApiUsers",
+                issuer: EnvConfig.JwtIssuer,
+                audience: EnvConfig.JwtAudience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(30),
                 signingCredentials: creds
@@ -150,13 +152,13 @@ namespace EduCoreAPI.Controllers
 
             DotNetEnv.Env.Load();
             var key = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_SECRET_KEY")));
+                Encoding.UTF8.GetBytes(EnvConfig.JwtSecretKey));
 
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var jwt = new JwtSecurityToken(
-                issuer: "EduCoreApi",
-                audience: "EduCoreApiUsers",
+                issuer: EnvConfig.JwtIssuer,
+                audience: EnvConfig.JwtAudience,
                 claims: claims,
                 expires: DateTime.UtcNow.AddMinutes(30),
                 signingCredentials: creds

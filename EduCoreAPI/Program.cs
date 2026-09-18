@@ -1,5 +1,7 @@
 using EduCore_API.Middlewares;
 using EduCoreAPI.Authorization;
+using EduCoreAPI.Helpers;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
@@ -17,6 +19,12 @@ var builder = WebApplication.CreateBuilder(args);
 
 DotNetEnv.Env.Load();
 QuestPDF.Settings.License = LicenseType.Community;
+
+// Fail fast: verify the JWT secret exists and is HS256-strength at
+// STARTUP instead of on the first login attempt. The same secret and
+// issuer/audience values are reused by token GENERATION in
+// AuthController (see EnvConfig below).
+_ = EnvConfig.JwtSecretKey;
 
 // Register authentication services in the dependency injection container.
 // JwtBearerDefaults.AuthenticationScheme tells ASP.NET Core that
@@ -44,17 +52,18 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 
             // The expected issuer value (must match the issuer used when creating the JWT).
-            ValidIssuer = "EduCoreApi",
+            // Single source of truth: EnvConfig — shared with AuthController.
+            ValidIssuer = EnvConfig.JwtIssuer,
 
 
             // The expected audience value (must match the audience used when creating the JWT).
-            ValidAudience = "EduCoreApiUsers",
+            ValidAudience = EnvConfig.JwtAudience,
 
 
             // The secret key used to validate the JWT signature.
             // This must be the same key used when generating the token.
             IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_SECRET_KEY")))
+                Encoding.UTF8.GetBytes(EnvConfig.JwtSecretKey))
         };
     });
 
@@ -210,20 +219,33 @@ builder.Services.AddSwaggerGen(options =>
     });
 });
 
+// CORS allow-list is driven by CORS_ALLOWED_ORIGINS so each
+// environment (dev / staging / prod) can name its real frontend
+// origin without code changes.
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("EduCoreApiCorsPolicies", policy =>
     {
-        policy.WithOrigins("https://localhost:7009",
-            "http://localhost:5087")
-        .AllowAnyHeader()
-        .AllowAnyMethod();
+        policy.WithOrigins(
+                EnvConfig.List("CORS_ALLOWED_ORIGINS", "https://localhost:7009,http://localhost:5087"))
+            .AllowAnyHeader()
+            .AllowAnyMethod();
     });
 });
 
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+// Trust X-Forwarded-For / X-Forwarded-Proto from the reverse proxy
+// (nginx/IIS/caddy). Placed FIRST so exception middleware, the rate
+// limiter and HTTPS redirection all see the REAL client IP and
+// scheme. Safe in dev: no proxy → no forwarded headers → no change.
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
+
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -231,6 +253,13 @@ if (app.Environment.IsDevelopment())
 }
 app.UseMiddleware<ExceptionMiddleware>();
 
+// HSTS: force browsers to HTTPS once deployed. Off in dev because the
+// dev cert is self-signed. UseHsts ignores requests already on HTTPS
+// back to the proxy (which owns the TLS cert in production).
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHsts();
+}
 
 app.UseHttpsRedirection();
 app.UseCors("EduCoreApiCorsPolicies");

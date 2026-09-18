@@ -71,7 +71,7 @@ Security, data integrity, serious logic errors.
 ## High
 Important architectural or functional problems.
 
-- H1. Self-service payment success: `PUT /api/payments/{id}/checkOut-succeed` accepts client-supplied TransactionId with no gateway verification → free enrollments. Restrict to admin/gateway. (`PaymentsController.cs`) [~] phase 1 added auth+ownership; still no gateway verification — needs real gateway integration
+- H1. Self-service payment success: `PUT /api/payments/{id}/checkOut-succeed` accepts client-supplied TransactionId with no gateway verification → free enrollments. Restrict to admin/gateway. (`PaymentsController.cs`) [x] fixed — phase 1 auth+ownership, then production hardening restricted it to **Admin,SuperAdmin** (frontend never calls it; Stripe webhook = source of truth)
 - H2. `MarkAsComplete`/certificate have no enrollment check → any user can complete any lesson/course. (`clsProgress.cs`, `ProgressController.cs`) [x] fixed phase 1 (50f2de1)
 - H3. Audit IP field stores `HttpContext.Connection.Id` (GUID) instead of remote IP in all controllers. [x] fixed phase 1 (50f2de1)
 - H4. Courses/lessons cannot be published via API (only bundles have publish endpoints) → unsellable. [x] fixed phase 2 (publish/unpublish endpoints for courses + lessons)
