@@ -253,15 +253,19 @@ if (app.Environment.IsDevelopment())
 }
 app.UseMiddleware<ExceptionMiddleware>();
 
-// HSTS: force browsers to HTTPS once deployed. Off in dev because the
-// dev cert is self-signed. UseHsts ignores requests already on HTTPS
-// back to the proxy (which owns the TLS cert in production).
+// HTTPS redirection + HSTS are PRODUCTION concerns only. In dev the
+// backend is intentionally plain-HTTP on :5087 (see next.config.ts and
+// courses.ts) — forcing a redirect to the self-signed https://:7009
+// cert breaks Node's SERVER-side fetch (React Server Components and the
+// dev proxy both reject DEPTH_ZERO_SELF_SIGNED_CERT). Behind a
+// TLS-terminating proxy in production, X-Forwarded-Proto (handled by
+// UseForwardedHeaders above) lets UseHttpsRedirection redirect genuine
+// plain-HTTP traffic to HTTPS correctly.
 if (!app.Environment.IsDevelopment())
 {
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
-
-app.UseHttpsRedirection();
 app.UseCors("EduCoreApiCorsPolicies");
 
 app.UseRateLimiter();

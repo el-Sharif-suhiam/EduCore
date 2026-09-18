@@ -460,3 +460,32 @@ DB, smoke-test checklist, rotations); README gains a Production Deployment secti
 
 **Unresolved:** operational items moved to the checklist (real secrets, TLS proxy, monitoring);
 H8 (DI seam) and M12 (N+1) remain open backlog items. Commit pushed to origin/main.
+
+---
+
+## 2026-09-18 - Dev wiring fix: RSC fetches rejected by self-signed HTTPS redirect (session 17)
+
+**Report:** Owner noticed the landing Featured-courses section stayed in its "backend API may be
+offline" fallback and asked to review hero + wiring ("الفرونت غير مربوط مع الباك").
+
+**Diagnosis (reproduced end-to-end, not guessed):**
+- Backend up on :5087 (browser proxy path `localhost:3000/api/*` → 200), yet EVERY React Server
+  Component fetch (FeaturedCourses, course/bundle/lesson detail, learn pages) hit the fallback.
+- Root cause: Kestrel's `UseHttpsRedirection` → every `http://…:5087/*` call returns **307 to
+  `https://…:7009`**, whose dev cert is self-signed. Node/undici rejects it
+  (`DEPTH_ZERO_SELF_SIGNED_CERT`) — PowerShell/WinHTTP survives only because the dev cert is in the
+  Windows trust store. So browser-side looked fine while every server-side fetch died.
+
+**Fix (`Program.cs`):** `UseHsts()` + `UseHttpsRedirection()` now run only in non-Development.
+Dev stays plain-HTTP on :5087 (matches next.config.ts/courses.ts intent); in production the TLS proxy
+sets X-Forwarded-Proto (already handled) so redirection still behaves correctly.
+
+**Verification:** rebuilt 0 errors; fresh backend instance bound to :5087+:7009 → plain HTTP probe
+returns 200 directly (was 307); `node fetch http://localhost:5087/…` → 200 (was cert error); landing
+page now embeds real courses (fallback gone, HTML 82,760 → 103,876 bytes).
+
+**Note:** backend currently restarted as PID 4576 (detached, bin DLL, Development) because the old
+instance was locked by Visual Studio. Stop with `Stop-Process -Id 4576` before relaunching from VS.
+
+**Open:** hero element check — current hero matches UiUxDesign §6–9 and the file is unchanged since
+the finalize commit; awaiting owner input on which previously-seen elements are expected back.
