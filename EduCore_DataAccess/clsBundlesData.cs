@@ -146,19 +146,21 @@ namespace EduCore_DataAccess
         {
             List<BundleViewModel> bundles = new List<BundleViewModel>();
 
-            // Public catalog: published, non-deleted bundles only.
+            // Public catalog: published bundles only.
             // includeUnpublished=true powers the admin console (drafts + published).
+            // NOTE: Products/Bundles have no soft-delete column (unlike Courses/Lessons),
+            // so there is no IsDeleted filter here — deleting that predicate is what
+            // kept this endpoint from 500-ing on "Invalid column name 'IsDeleted'".
             string query = @"SELECT B.Id, B.ProductId, P.Name, P.CreatedAt, P.BasePrice,
                             P.ThumbnailUrl, P.Summary, P.IsPublished
                             FROM Bundles B
                             JOIN Products P ON P.Id = B.ProductId
-                            WHERE P.IsDeleted = 0";
-            if (!includeUnpublished)
-                query += " AND P.IsPublished = 1";
+                            WHERE (@IncludeUnpublished = 1 OR P.IsPublished = 1)";
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
+                command.Parameters.Add("@IncludeUnpublished", SqlDbType.Bit).Value = includeUnpublished;
                 await connection.OpenAsync();
 
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())

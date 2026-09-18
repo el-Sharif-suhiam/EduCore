@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import { Geist, Geist_Mono, Fraunces, Caveat } from "next/font/google";
 import { ThemeProvider } from "@/components/shared/theme-provider";
 import { AuthProvider } from "@/lib/auth-context";
@@ -51,6 +52,12 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} ${caveat.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
+        {/* Pre-hydration theme restore: kills the light→dark flash on
+            reload. Mirrors next-themes' resolution (localStorage "theme",
+            falling back to the OS scheme) so both agree. */}
+        <Script id="theme-init" strategy="beforeInteractive">
+          {`(function(){try{var t=localStorage.getItem("theme");var m=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches;var d=t?t==="dark"||(t==="system"&&m):m;document.documentElement.classList.toggle("dark",!!d);}catch(e){}})();`}
+        </Script>
         <ThemeProvider>
           <AuthProvider>
             <CartProvider>

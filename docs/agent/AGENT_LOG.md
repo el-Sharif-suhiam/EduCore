@@ -493,3 +493,43 @@ links, course-fragment index cards, progress line "start → … → certified!"
 labels; study-notes DNA; same motion tokens, reduced-motion safe) as
 `frontend/src/components/landing/knowledge-network.tsx` and swapped it into hero layer 1
 (`learning-path.tsx` kept for the auth brand panel). Lint clean, build ok, landing HTML verified.
+
+---
+
+## 2026-09-18 - Owner review: hero v2, theme toggle hardening, backend wiring sweep (session 18)
+
+**Report:** Owner: knowledge-map in hero looks inconsistent/bad; dark/light toggle "not working";
+wire everything to the backend and check all links/routes.
+
+**1) Knowledge-network v2 (geometry, not hand-picked):** v1 was a hand-placed scatter (labels/cards
+close to edges, no structure). Rewrote with a computed hub-and-spoke design: six symmetric positions
+on two polar rings (r=150/r=235), ink spokes hub→inner ring, dashed reach inner→outer ring, two
+outer chords, a drawn progress spine start→…→certified! (accent milestone, 60° upper-right, halo +
+check), labels placed radially OUTSIDE the rings, two course-fragment cards anchored outside the
+graph. Verified via a headless-Edge/CDP overlap check that no label collides with a node/card (the
+only flagged "overlaps" are the enclosing dashed boundary circle, by construction).
+
+**2) Theme toggle:** automated CDP probe proved the toggle WORKS (class dark↔light, localStorage
+persists, computed colors flip: dark bg lab(4.8)/light bg lab(98.6)). Hardened regardless: canonical
+Tailwind variant `@custom-variant dark (&:where(.dark, .dark *));`, SSR-safe icon rendering driven by
+`resolvedTheme` (useSyncExternalStore client gate — lint-clean, no hydration mismatch), and a
+`beforeInteractive` `theme-init` script in the root layout to kill the light→dark flash on reload.
+
+**3) Backend wiring/route sweep — real bugs found & fixed:**
+- `GET /api/bundles` and `GET /api/lessons` returned **500**. Root causes (DB + SQL read via
+  SqlClient, then fixed):
+  - Bundles: `clsBundlesData.GetAllBundlesView` filtered `P.IsDeleted = 0`, but Products/Bundles
+    have NO soft-delete column (`Invalid column name 'IsDeleted'` → 500). Rewrote the filter as
+    `WHERE (@IncludeUnpublished = 1 OR P.IsPublished = 1)`.
+  - Lessons: the live DB's `vwLessonsWithOutCourses` was STALE (no `ProductId` column) vs
+    `EduCore.sql` (`CREATE OR ALTER VIEW`). Re-applied the committed view definition to the local
+    DB (additive, matches repo). Both endpoints now 200.
+- Rebuilt, restarted backend (now PID via cmd wrapper `run-be.cmd`; logging to `%TEMP%\opencode`).
+- Full crawl (headless fetch, all 23 routes + 404 probe): every page 200, no offline/fetch markers,
+  unknown ids render the 404 UI, `/not-a-real-page-xyz` → 404; all internal links (courses,
+  bundles, auth, admin, learn, assets) resolve 200 — no broken hrefs.
+- Note: the frontend dev server had stopped during the session; restarted via
+  `run-fedev.cmd` (logging to `%TEMP%\opencode\fedev.log`).
+
+**Open:** none new. (H8 DI seam, M12 N+1, M14 certificate, M15 refresh-token consistency, M16
+SetCreatedByUser, deleted-lesson restore UI, CI, typecheck script — untouched backlog.)

@@ -5,6 +5,40 @@
 
 ---
 
+## 2026-09-18 — Session 16: hero knowledge-network v2 + theme toggle hardening
+
+**Goal:** owner feedback — knowledge-map in the hero looks inconsistent/bad; the dark/light toggle
+seems broken; "wire everything to the backend".
+
+**Hero v2 — computed geometry (replaces v1 scatter):**
+- v1 (session 15) used hand-placed coordinates → labels/cards sat close to lines and there was no
+  underlying structure. Rewrote `knowledge-network.tsx` with generated positions: a hub at the
+  centre, two polar rings (r=150 r=235, six evenly spaced nodes), ink spokes vs dashed "reach",
+  two outer chords, a drawn progress spine `start → … → certified!`, the certified milestone
+  (60° upper-right) with halo + check, radial labels outside the rings, and the two course-fragment
+  cards anchored below the graph. Reduced-motion safe; same motion tokens.
+- Objectively verified: headless Edge + CDP measured every text/circle/rect bounding box — no label
+  collides with a node or card (the sole flagged pairs are with the enclosing dashed boundary
+  circle, which contains them by design).
+
+**Theme toggle — verified working, hardened:**
+- Automated CDP click test: html class flips dark↔light, localStorage persists ("dark"/"light"),
+  computed `--background`/`--foreground`/`primary` change (dark bg oklch-ish vs light paper). So the
+  toggle functions; any perceived breakage most likely came from the earlier offline/RSC state or a
+  reload flash.
+- Hardening: canonical `@custom-variant dark (&:where(.dark, .dark *));` in globals.css; the toggle
+  icon now mirrors `resolvedTheme` via a `useSyncExternalStore` client gate (SSR-safe, lint-clean,
+  no setState-in-effect); added a `theme-init` beforeInteractive script in `app/layout.tsx` that
+  restores the stored/system theme pre-hydration (kills the light→dark flash on reload).
+
+**Verify:** the frontend dev server had stopped mid-session (restarted via `run-fedev.cmd`, log at
+`%TEMP%\opencode\fedev.log`). Full page crawl afterwards: all 23 routes 200, no "backend API may be
+offline"/fetch-error markers, `/not-a-real-page-xyz` → 404, every internal link 200. `npm run lint`
+clean; `npm run build` succeeds (28 routes listed).
+Commits pushed to origin/main.
+
+---
+
 ## 2026-09-18 — Session 15: dev-wiring fix + hero knowledge-network restored
 
 **Goal:** owner reported "hero lost elements it used to have" and "frontend not wired to backend".
