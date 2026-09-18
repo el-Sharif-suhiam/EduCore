@@ -154,6 +154,9 @@
 - [x] globals.css utilities: paper-grain / ruled-paper / index-card / sticky-note
 - [x] Hero: knowledge-network SVG → self-drawing `learning-path.tsx` (milestone doodles,
       handwritten labels; parallax + scroll choreography preserved; reduced-motion static)
+- [x] Hero (2026-09-18): knowledge network RESTORED as `knowledge-network.tsx` (owner request:
+      nodes/ink links/course-fragment cards/progress line → "certified!"); `learning-path.tsx`
+      retained for the auth brand panel
 - [x] Landing touches: index cards, handwritten step numbers, dashed journey rail,
       certificate stamp, nav highlighter hover, footer ruled strip
 - [x] Auth split-screen via AuthBrandPanel (login + register)

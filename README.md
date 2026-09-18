@@ -422,6 +422,7 @@ proxy in front, and allow your real origin via `CORS_ALLOWED_ORIGINS`.
 | Backend starts then dies with `JWT_SECRET_KEY` error | `.env` missing beside `EduCoreAPI.csproj`, var name typo, or the secret is under 32 bytes (API now fails fast by design) |
 | SQL errors referencing `SP_*` not found | Re-run `EduCore.sql` against your database |
 | CORS/network errors in dev | Backend must run on `https://localhost:7009`; trust dev cert: `dotnet dev-certs https --trust` |
+| Landing shows "backend API may be offline" while the API responds in a browser | Kestrel's dev HTTPS redirect (`http://:5087` → `https://:7009`) is rejected by Node's server-side fetch (self-signed cert). Dev API deliberately serves plain HTTP on :5087 — check the backend was NOT built from an older commit and restart it; RSC pages fetch `SERVER_API_BASE_URL` directly |
 | Featured courses empty | Expected with no published data — run `docs/database/seed-demo-courses.sql` |
 
 ---

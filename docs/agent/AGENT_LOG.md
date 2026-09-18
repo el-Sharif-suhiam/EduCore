@@ -487,5 +487,9 @@ page now embeds real courses (fallback gone, HTML 82,760 → 103,876 bytes).
 **Note:** backend currently restarted as PID 4576 (detached, bin DLL, Development) because the old
 instance was locked by Visual Studio. Stop with `Stop-Process -Id 4576` before relaunching from VS.
 
-**Open:** hero element check — current hero matches UiUxDesign §6–9 and the file is unchanged since
-the finalize commit; awaiting owner input on which previously-seen elements are expected back.
+**Hero (follow-up):** owner confirmed the previously-seen element = the knowledge-network
+(node-graph) visual replaced in the session-7a rework. Rebuilt it (spec: UiUxDesign §9 — nodes, ink
+links, course-fragment index cards, progress line "start → … → certified!", halo orbit, handwritten
+labels; study-notes DNA; same motion tokens, reduced-motion safe) as
+`frontend/src/components/landing/knowledge-network.tsx` and swapped it into hero layer 1
+(`learning-path.tsx` kept for the auth brand panel). Lint clean, build ok, landing HTML verified.

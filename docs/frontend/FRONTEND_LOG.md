@@ -5,6 +5,41 @@
 
 ---
 
+## 2026-09-18 — Session 15: dev-wiring fix + hero knowledge-network restored
+
+**Goal:** owner reported "hero lost elements it used to have" and "frontend not wired to backend".
+
+**Wiring — root cause and fix (backend file, owned by this wiring report):**
+- Symptom: landing FeaturedCourses stuck on the "backend API may be offline" fallback even though
+  the browser proxy (`:3000/api/*` → Kestrel) returned 200. Every React Server Component fetch
+  (FeaturedCourses, course/bundle/lesson detail, learn pages) was failing instead.
+- Cause: Kestrel's `UseHttpsRedirection` 307'd every `http://…:5087/*` server-side request to
+  `https://…:7009`, whose dev cert is self-signed; Node/undici rejected it
+  (`DEPTH_ZERO_SELF_SIGNED_CERT`). WinHTTP (browser/PowerShell) survives only because the dev cert
+  lives in the Windows trust store — masking the break server-side.
+- Fix: `UseHsts()` + `UseHttpsRedirection()` now run only in non-Development (`Program.cs`). Dev
+  stays plain-HTTP :5087 (matches next.config.ts + courses.ts defaults); production proxy still sets
+  X-Forwarded-Proto so AWS-redirection keeps working.
+- Verified: rebuilt; fresh backend (Http+https :5087+:7009): plain-HTTP probe returns 200 directly
+  (was 307); `node fetch` returns 200 (was cert error); landing HTML now embeds real courses
+  (HAS_COURSE=True, fallback gone).
+
+**Hero — knowledge network restored:**
+- The session-7a rework replaced the hero node-graph with `learning-path.tsx`. Owner confirmed they
+  want the KNOWLEDGE NETWORK back. The old SVG was gone (single-commit history), so it was rebuilt
+  from UiUxDesign §9 (lines, nodes, geometric structures, course fragments, progress indicators,
+  subtle symbols) in the study-notes DNA: constellation of nodes + dashed faint network + solid ink
+  links, a drawn progress line `start → … → certified!`, two floating index-card course fragments
+  (one accent with play button), handwritten labels, halo orbit. Same motion tokens, reduced-motion
+  safe. `learning-path.tsx` KEPT (still used by auth brand panel).
+- Swapped into hero layer 1; parallax + scroll choreography unchanged.
+
+**Verify:** `npm run lint` clean; `npm run build` → compiled successfully; landing HTML contains the
+new labels ("certified!", "curiosity") and no longer contains the old trail path.
+Commits: `3a7de09` (wiring fix) + knowledge-network commit (below).
+
+---
+
 ## 2026-09-17 — Session 14: instructor ownership scope for courses & lessons
 
 **Goal:** owner asked whether every console page exists for both Instructor and Admin (audit, logs,

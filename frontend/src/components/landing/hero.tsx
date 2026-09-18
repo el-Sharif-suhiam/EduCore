@@ -6,7 +6,7 @@
 // BOTH mouse and scroll:
 //
 //   layer 0  static gradient atmosphere + paper grain (CSS)
-//   layer 1  learning path        — medium parallax
+//   layer 1  knowledge network    — medium parallax
 //   layer 2  light glow           — strongest, follows cursor
 //   layer 3  typography/content   — subtle counter-motion
 //
@@ -29,7 +29,7 @@ import { ArrowRight, MousePointer2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Container } from "@/components/shared/container";
 import { Mark } from "@/components/shared/mark";
-import { LearningPath } from "@/components/landing/learning-path";
+import { KnowledgeNetwork } from "@/components/landing/knowledge-network";
 import { duration, ease } from "@/lib/motion";
 
 export function Hero() {
@@ -123,7 +123,7 @@ export function Hero() {
         }
         className="absolute inset-0 flex items-center justify-end text-primary md:pe-[4vw]"
       >
-        <LearningPath className="h-auto w-[min(54rem,90vw)] translate-x-[4%] opacity-90 sm:translate-x-0" />
+        <KnowledgeNetwork className="h-auto w-[min(54rem,90vw)] translate-x-[4%] opacity-90 sm:translate-x-0" />
       </motion.div>
 
       {/* layer 3 — typography & actions */}
