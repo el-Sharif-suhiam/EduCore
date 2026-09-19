@@ -1,21 +1,21 @@
-# 🎓 EduCore — Learning Management Platform
+# 🎓 EduCore — Learning Management Platform (Backend)
 
 <div align="center">
 
-**A full-stack e-learning platform built from the ground up — database design, T-SQL, secure .NET Core API, and a modern Next.js frontend.**
+**A secure, production-grade e-learning backend — database design, T-SQL, layered .NET Core API, authenticatable APIs with Stripe payments and certificates.**
 
 ![.NET](https://img.shields.io/badge/.NET%2010-512BD4?logo=.net&logoColor=white&style=for-the-badge)
 ![C#](https://img.shields.io/badge/C%23-239120?logo=csharp&logoColor=white&style=for-the-badge)
 ![SQL Server](https://img.shields.io/badge/SQL%20Server-CC2927?logo=microsoftsqlserver&logoColor=white&style=for-the-badge)
-![Next.js](https://img.shields.io/badge/Next.js%2016-000000?logo=next.js&logoColor=white&style=for-the-badge)
-![React 19](https://img.shields.io/badge/React%2019-61DAFB?logo=react&logoColor=black&style=for-the-badge)
-![Tailwind](https://img.shields.io/badge/Tailwind%20CSS%20v4-06B6D4?logo=tailwindcss&logoColor=white&style=for-the-badge)
 ![JWT](https://img.shields.io/badge/JWT%20Auth-000000?logo=jsonwebtokens&logoColor=white&style=for-the-badge)
 ![Stripe](https://img.shields.io/badge/Stripe%20Checkout-635BFF?logo=stripe&logoColor=white&style=for-the-badge)
 
-**Node.js · TypeScript · ADO.NET · T-SQL · BCrypt · Rate Limiting · QuestPDF · shadcn/ui**
+**ADO.NET · T-SQL · BCrypt · Rate Limiting · QuestPDF · Swagger/OpenAPI**
 
 </div>
+
+> **Status:** backend-only at this stage. The frontend (Next.js) is being
+> developed in a separate phase and will be folded into this repository later.
 
 ---
 
@@ -39,38 +39,37 @@
 
 ## 🌟 Overview
 
-**EduCore** is a complete learning management platform (LMS) where students discover, purchase, and complete courses — and earn printable certificates.
+**EduCore** is a complete learning management platform (LMS) **backend**: students discover,
+purchase, and complete courses — and earn printable certificates — entirely through the REST API.
 
-Students can:
-- 🔍 Browse a catalog of **courses, standalone lessons, and bundles**
-- 🛒 Build a cart and apply **discount codes**
-- 💳 Check out securely with **Stripe hosted checkout**
-- ▶️ Watch lessons with a **video player** and track progress
-- 📜 Earn a **certificate** at 100% course completion
+The API supports:
 
-Instructors and Admins can:
-- 🏗️ Create and manage courses, lessons, and bundles with a **course builder**
-- 👥 Manage users and assign roles (Instructor / Admin)
-- 🎫 Issue and track discount codes
-- 🔍 Review **audit logs** and **system logs**
+- 🔍 Catalog of **courses, standalone lessons, and bundles**
+- 🛒 Cart and orders with **discount codes**
+- 💳 Stripe hosted checkout (HMAC-verified webhooks)
+- ▶️ Lesson progress tracking (per-lesson completion)
+- 📜 **Certificate** generation at 100% course completion (PDF)
+- 👥 User management with **Instructor / Admin roles**
+- 🎫 Discount-code management and auditing
 
-> Built as a final software development project — the focus is on **engineering discipline**: requirements analysis → database design (T-SQL) → layered backend with security best practices → production-quality frontend.
+> Built as a final software development project — the focus is on **engineering discipline**:
+> requirements analysis → database design (T-SQL) → layered backend with security best practices →
+> a clean, testable REST API.
 
 ---
 
 ## 🎯 Why This Project
 
-This project demonstrates the complete, hands-on skillset expected of a backend / full-stack developer:
+This project demonstrates the complete, hands-on skillset expected of a backend developer:
 
 | Skill | Where it's proven |
 |---|---|
-| **Requirements & system design** | `docs/decisions/0001-discovery-phase.md`, `UiUxDesign.md`, domain lifecycle models |
+| **Requirements & system design** | `docs/decisions/0001-discovery-phase.md`, domain lifecycle models |
 | **Database design & T-SQL** | `EduCore.sql` — 15+ tables, constraints, filtered indexes, stored procedures, seed data |
 | **3-tier architecture** | API → Business → Data layers with a shared `Common` library |
 | **Raw ADO.NET (no ORM)** | `EduCore_DataAccess/cls*Data.cs` — parameterized commands, transactions, stored procedures |
 | **Security** | JWT authentication, resource-based authorization, BCrypt, rate limiting, HMAC webhook verification, exception middleware |
 | **Payments integration** | Stripe hosted checkout + verified webhooks with atomic enrollment completion |
-| **Frontend engineering** | Next.js 16 App Router, React 19, TypeScript, Tailwind v4, shadcn/ui, silent token refresh |
 
 ---
 
@@ -126,8 +125,6 @@ The system follows a strict **3-tier / layered architecture**, keeping concerns 
 
 ## 🛠 Tech Stack
 
-### Backend
-
 | Technology | Purpose |
 |---|---|
 | **.NET 10 / ASP.NET Core Web API** | REST API host (`net10.0`) |
@@ -142,18 +139,6 @@ The system follows a strict **3-tier / layered architecture**, keeping concerns 
 | **Stripe REST (raw HttpClient)** | Hosted checkout + HMAC-verified webhooks (no SDK) |
 | **DotNetEnv** | `.env`-based configuration (secrets never in source) |
 
-### Frontend
-
-| Technology | Purpose |
-|---|---|
-| **Next.js 16 (App Router)** | React framework + API proxy |
-| **React 19** | UI runtime |
-| **TypeScript** | Type safety end-to-end |
-| **Tailwind CSS v4** | Utility-first styling |
-| **shadcn/ui + Radix** | Accessible component library |
-| **Motion** | Animations & transitions |
-| **next-themes** | Dark/light theming |
-
 ---
 
 ## ✨ Features
@@ -164,7 +149,7 @@ The system follows a strict **3-tier / layered architecture**, keeping concerns 
 - Shopping cart with **discount codes** (expiry + usage limits)
 - Stripe hosted checkout with success/cancellation flow
 - **12-month enrollments** created atomically on validated payment
-- Video lesson player with **progress tracking** (per-lesson completion)
+- Lesson video metadata + **progress tracking** (per-lesson completion)
 - Course-completion percentage and **printable certificate**
 
 ### 👨‍🏫 Instructor & Admin Experience
@@ -203,7 +188,7 @@ Security is a first-class concern, not an afterthought:
 
 ## 🗄 Database Design
 
->The full schema lives in **`EduCore.sql`** — clean enough to read line-by-line.
+> The full schema lives in **`EduCore.sql`** — clean enough to read line-by-line.
 
 ### Core tables
 
@@ -288,20 +273,14 @@ EduCore/
 │   └── clsGeneralData.cs           Shared ExecuteTransaction helper
 │
 ├── EduCore.IntegrationTests/       xUnit test project (Testcontainers-ready)
-├── frontend/                       Next.js 16 app
-│   ├── src/app/                    Pages: landing, auth, catalog, cart,
-│   │                               learn (video + certificate), profile, admin/*
-│   ├── src/lib/                    api.ts (fetch + silent refresh), auth/cart
-│   │                               contexts, typed API clients
-│   └── src/components/             shadcn/ui + shared components
+├── frontend/                       Next.js app — will be added in a later phase
 └── docs/
     ├── api/endpoint-inventory.md   Every endpoint + auth level + known issues
     ├── architecture/               Actual architecture notes
-    ├── database/                   Schema docs + demo seed
+    ├── database/                   Schema docs + demo seed + catalog reset
     ├── security/                   Security audit write-up
     ├── decisions/                  ADRs (0001-discovery-phase)
     ├── domain/                     Lifecycle models
-    ├── frontend/                   Frontend context & checklists
     └── testing/                    Test strategy
 ```
 
@@ -313,7 +292,6 @@ EduCore/
 
 - **.NET 10 SDK**
 - **SQL Server** (LocalDB, Express, Developer, or any reachable instance)
-- **Node.js ≥ 20** + npm
 - *(Optional)* [Stripe CLI](https://stripe.com/docs/stripe-cli) for local payment testing
 
 ### 1. Database (once)
@@ -349,17 +327,6 @@ Generate a JWT secret quickly:
 - HTTP: `http://localhost:5087` · HTTPS: `https://localhost:7009`
 - Swagger: `https://localhost:7009/swagger` (Development only)
 
-### 3. Frontend
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-- App: `http://localhost:3000`
-- Dev API traffic is proxied by Next.js rewrites (`/api/*` → backend) — **no CORS config needed in dev**.
-
 ---
 
 ## 💳 Stripe Payments (End-to-End)
@@ -376,7 +343,6 @@ cart → create payment → Stripe hosted checkout → redirect → webhook (HMA
 | `EduCore_BusinessLayer/clsStripeGateway.cs` | Raw Stripe REST via `HttpClient` + webhook HMAC verification (**no SDK** — provider-switch point) |
 | `EduCoreAPI/Controllers/PaymentsController.cs` | `POST /api/payments/{id}/stripe-checkout-session` → `{ url }` |
 | `EduCoreAPI/Controllers/StripeWebhookController.cs` | Verified webhook → runs the transactional completion chain |
-| `frontend/src/lib/payments.ts` | Frontend gateway touch points |
 
 Test locally with the Stripe CLI:
 
@@ -394,10 +360,8 @@ stripe trigger checkout.session.completed        # or use test card 4242 4242 42
 > the operator must provide real secrets/hosting — follow the
 > **[Deployment Checklist](./docs/deployment/PRODUCTION_CHECKLIST.md)**.
 
-Key config: backend reads `EduCoreAPI/.env` (see `.env.example`); frontend reads
-`frontend/.env.local` (see `frontend/.env.example`). In production set
-`NEXT_PUBLIC_API_BASE_URL`/`SERVER_API_BASE_URL` to the API origin, put a TLS
-proxy in front, and allow your real origin via `CORS_ALLOWED_ORIGINS`.
+Key config: the backend reads `EduCoreAPI/.env` (see `.env.example`). Expose the API
+behind a TLS proxy and allow your real origin via `CORS_ALLOWED_ORIGINS`.
 
 ---
 
@@ -405,7 +369,6 @@ proxy in front, and allow your real origin via `CORS_ALLOWED_ORIGINS`.
 
 | Doc | What it covers |
 |---|---|
-| [`UiUxDesign.md`](./UiUxDesign.md) | Full product design direction (student/admin/landing experiences) |
 | [`docs/api/endpoint-inventory.md`](./docs/api/endpoint-inventory.md) | Authoritative endpoint + auth matrix |
 | [`docs/domain/lifecycles.md`](./docs/domain/lifecycles.md) | Domain model: users, products, orders, payments, enrollments, certificates |
 | [`docs/security/audit-2026-08-22.md`](./docs/security/audit-2026-08-22.md) | Security audit & findings |
@@ -421,10 +384,8 @@ proxy in front, and allow your real origin via `CORS_ALLOWED_ORIGINS`.
 |---|---|
 | Backend starts then dies with `JWT_SECRET_KEY` error | `.env` missing beside `EduCoreAPI.csproj`, var name typo, or the secret is under 32 bytes (API now fails fast by design) |
 | SQL errors referencing `SP_*` not found | Re-run `EduCore.sql` against your database |
-| CORS/network errors in dev | Backend must run on `https://localhost:7009`; trust dev cert: `dotnet dev-certs https --trust` |
-| Landing shows "backend API may be offline" while the API responds in a browser | Kestrel's dev HTTPS redirect (`http://:5087` → `https://:7009`) is rejected by Node's server-side fetch (self-signed cert). Dev API deliberately serves plain HTTP on :5087 — check the backend was NOT built from an older commit and restart it; RSC pages fetch `SERVER_API_BASE_URL` directly |
-| Featured courses empty | Expected with no published data — run `docs/database/seed-demo-courses.sql` |
 | `GET /api/bundles` or `GET /api/lessons` returns 500 "Invalid column name" | Database out of sync with `EduCore.sql` (or an old binaries draft queryed a `Products.IsDeleted` column — fixed in code). Re-run `EduCore.sql` (idempotent; `CREATE OR ALTER VIEW vwLessonsWithOutCourses` refreshes the stale view), then restart the API |
+| Catalog endpoints return empty lists | Expected with no published data — run `docs/database/seed-demo-courses.sql` |
 
 ---
 
@@ -436,7 +397,7 @@ proxy in front, and allow your real origin via `CORS_ALLOWED_ORIGINS`.
 
 <div align="center">
 
-**Built with discipline, designed with care** — from requirements and T-SQL to secure APIs and a polished frontend.
+**Built with discipline, designed with care** — from requirements and T-SQL to a secure, layered .NET API.
 
 _Questions, feedback, or opportunities? Let's talk._
 
