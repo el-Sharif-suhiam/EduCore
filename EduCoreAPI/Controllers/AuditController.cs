@@ -1,5 +1,6 @@
 ﻿using Common.Dtos;
 using EduCore_BusinessLayer;
+using EduCoreAPI.Helpers;
 using EduCoreAPI.Helpers.Dtos.RequestDto;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
@@ -15,6 +16,8 @@ namespace EduCoreAPI.Controllers
         [HttpGet]
         public async Task<ActionResult> GetAllLogs([FromQuery] PageRequest pageRequest)
         {
+            clsApiValidators.ValidatePaging(pageRequest);
+
             List<DtoAudit> logs = await clsAudit.GetAllAsync(pageRequest.PageNumber, pageRequest.PageSize);
 
             return Ok(logs);

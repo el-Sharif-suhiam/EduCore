@@ -165,6 +165,10 @@ namespace EduCore_BusinessLayer
             string cleanTransactionId = transactionId.Trim();
             DateTime finalPaidAt = paidAt ?? DateTime.UtcNow;
 
+            // Conditional on Pending: two concurrent webhook deliveries of the
+            // same event both pass the in-memory IsPending check above; only
+            // the first conditional UPDATE matches. The loser re-checks the
+            // stored state and no-ops when the payment is already Succeeded.
             bool updated =
                 await clsPaymentData.UpdateStatusWithTransaction(
                     _Payment.Id,
@@ -172,10 +176,28 @@ namespace EduCore_BusinessLayer
                     cleanTransactionId,
                     finalPaidAt,
                     conn,
-                    tx);
+                    tx,
+                    fromStatus: enPaymentStatus.Pending);
 
             if (!updated)
-                throw new ConflictException("Failed to update payment status");
+            {
+                // Lost the race — verify the winner's state is coherent.
+                DtoPayment current = await clsPaymentData.GetPaymentByIdAsync(_Payment.Id);
+
+                if (current is null)
+                    throw new ConflictException("Payment not found while completing");
+
+                if (current.Status == enPaymentStatus.Succeeded)
+                {
+                    // Idempotent replay: adopt the stored transaction id.
+                    _Payment.Status = enPaymentStatus.Succeeded;
+                    _Payment.TransactionId = current.TransactionId;
+                    _Payment.PaidAt = current.PaidAt;
+                    return true;
+                }
+
+                throw new ConflictException("Payment already processed");
+            }
 
             _Payment.Status = enPaymentStatus.Succeeded;
             _Payment.TransactionId = cleanTransactionId;
@@ -205,15 +227,20 @@ namespace EduCore_BusinessLayer
             if (_Payment.Status == enPaymentStatus.Failed)
                 return true;
 
+            if (_Payment.Status != enPaymentStatus.Pending)
+                throw new ConflictException(
+                    "Only a pending payment can be marked as failed");
+
             bool updated =
                 await clsPaymentData.UpdateStatus(
                     _Payment.Id,
                     enPaymentStatus.Failed,
                     transactionId,
-                    null);
+                    null,
+                    fromStatus: enPaymentStatus.Pending);
 
             if (!updated)
-                throw new ConflictException("Failed to update payment status");
+                throw new ConflictException("Payment already processed");
 
             _Payment.Status = enPaymentStatus.Failed;
 
@@ -237,15 +264,20 @@ namespace EduCore_BusinessLayer
             if (_Payment.Status == enPaymentStatus.Expired)
                 return true;
 
+            if (_Payment.Status != enPaymentStatus.Pending)
+                throw new ConflictException(
+                    "Only a pending payment can be marked as expired");
+
             bool updated =
                 await clsPaymentData.UpdateStatus(
                     _Payment.Id,
                     enPaymentStatus.Expired,
                     null,
-                    null);
+                    null,
+                    fromStatus: enPaymentStatus.Pending);
 
             if (!updated)
-                throw new ConflictException("Failed to update payment status");
+                throw new ConflictException("Payment already processed");
 
             _Payment.Status = enPaymentStatus.Expired;
 

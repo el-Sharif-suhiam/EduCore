@@ -27,16 +27,13 @@ next to the published DLL, or platform env vars — the code reads
 > Do **not** copy `EduCoreAPI/.env` (gitignored) into the host — generate
 > fresh values.
 
-## 2. Required config (frontend)
+## 2. Client configuration
 
-| Variable | Value |
-|---|---|
-| `NEXT_PUBLIC_API_BASE_URL` | Full API origin, e.g. `https://api.your-domain.com` (browser calls it directly; CORS must allow it). |
-| `SERVER_API_BASE_URL` | Same API origin, reachable from the Next.js server. |
-| `NEXT_PUBLIC_SITE_URL` | Canonical site URL (used for `metadataBase`). |
-| `API_PROXY_TARGET` | Only if serving `/api/*` through the Next.js proxy in production — normally set it to the same API origin. |
-
-Run production build with `npm run build` then `npm run start`.
+EduCore is a **backend-only** API. There is no shipped frontend; any client
+(browser app, mobile app, Postman collection) is configured separately and
+must be listed in `CORS_ALLOWED_ORIGINS` above. `FRONTEND_URL` is still
+required — it is used to build the Stripe checkout success/cancel redirect
+URLs and the certificate QR verification links.
 
 ## 3. Hosting / TLS / proxy
 
@@ -67,7 +64,8 @@ Run production build with `npm run build` then `npm run start`.
   (audit finding H1). Students can never self-declare success; the webhook
   is the source of truth. Keep it only if manual ops need it; otherwise
   remove the endpoint entirely.
-- The frontend never calls this endpoint — safe to leave off.
+- The admin-only manual hook is a compatibility shim — safe to leave off;
+  clients must rely on the verified webhook.
 
 ## 6. Database
 
@@ -81,14 +79,11 @@ Run production build with `npm run build` then `npm run start`.
 Run on the production build:
 
 ```powershell
-# Backend config tests (fast, no DB)
+# Backend tests (config unit tests + DB/API integration tests)
 dotnet test EduCore.IntegrationTests\EduCore.IntegrationTests.csproj
 
 # Backend compile
 dotnet build EduCoreAPI\EduCoreAPI.csproj
-
-# Frontend lint + prod build
-cd frontend; npm run lint; npm run build
 ```
 
 Smoke test checklist (manual):

@@ -179,19 +179,13 @@ namespace EduCoreAPI.Controllers
         }
 
         // =========================
-        // CHECK EMAIL
+        // CHECK EMAIL (removed)
         // =========================
-        [AllowAnonymous]
-        [HttpGet("email-exists")]
-        public async Task<ActionResult> EmailExists([FromQuery] string email)
-        {
-            var exists = await clsUser.IsEmailExist(email);
-
-            return Ok(new
-            {
-                exists
-            });
-        }
+        // The anonymous GET /email-exists endpoint was removed:
+        // it let anyone probe whether an email has an account
+        // (enumeration) with no rate limit, and no supported flow
+        // (registration, login, recovery) depends on it —
+        // registration already responds 409 on duplicate email.
 
         // =========================
         // PUT: Update User
@@ -212,7 +206,15 @@ namespace EduCoreAPI.Controllers
             if(!string.IsNullOrEmpty(request.Name))
                 user.SetName(request.Name);
             if(!string.IsNullOrEmpty(request.Email))
-                user.SetEmail(request.Email);
+            {
+                string normalizedEmail = request.Email.Trim();
+                if (!string.Equals(normalizedEmail, user.Email, StringComparison.OrdinalIgnoreCase)
+                    && await clsUser.IsEmailExist(normalizedEmail))
+                {
+                    throw new ConflictException("Email already exists");
+                }
+                user.SetEmail(normalizedEmail);
+            }
 
             if (DateTime.TryParse(request.BirthDate,out DateTime newDate))
                 user.SetBirthDate(newDate);

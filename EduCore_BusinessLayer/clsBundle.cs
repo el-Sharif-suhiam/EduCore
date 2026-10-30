@@ -216,11 +216,11 @@ namespace EduCore_BusinessLayer
         public static async Task<BundleItemsViewModel> GetBundleItems(short bundleId)
             => await clsBundleItemsData.GetBundleWithCourses(bundleId);
         
-        public static async Task<bool> IsBundleExist(int bundleId)
-            => await clsBundlesData.BundleExists(bundleId);
+        public static async Task<bool> IsBundleExist(int bundleId, bool publishedOnly = false)
+            => await clsBundlesData.BundleExists(bundleId, publishedOnly);
 
-        public static async Task<List<BundleViewModel>> GetBundlesView(bool includeUnpublished = false)
-            => await clsBundlesData.GetAllBundlesView(includeUnpublished);
+        public static async Task<List<BundleViewModel>> GetBundlesView(bool includeUnpublished = false, bool ownOnly = false, int instructorId = 0)
+            => await clsBundlesData.GetAllBundlesView(includeUnpublished, ownOnly, instructorId);
 
         public static async Task<bool> AddItemToBundle(DtoBundleItem item)
             => await clsBundleItemsData.AddItemToBundle(item);

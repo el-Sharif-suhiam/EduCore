@@ -83,7 +83,7 @@ namespace EduCore_DataAccess
         public static async Task<CourseProgressViewModel> GetCourseProgress(int userId, int courseId)
         {
             string query = @"SELECT 
-                                 l.Id,
+                                 l.Id AS LessonId,
                                  l.Title,
                                  p.IsComplete,
                                  p.CompletedDate

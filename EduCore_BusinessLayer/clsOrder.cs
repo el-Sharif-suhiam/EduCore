@@ -115,6 +115,25 @@ namespace EduCore_BusinessLayer
             => await clsOrderData.GetAllOrdersView(pageNumber, pageSize, searchText);
 
         // =========================
+        // STATE MACHINE
+        // =========================
+
+        // An order is editable only while it is a live cart:
+        // 'Empty' (no items yet) or 'Pending' (has items, unpaid).
+        // Completed/Cancelled are final and must never be modified
+        // nor silently reset to Pending (see SP_AddNewItemToOrder /
+        // SP_RemoveItemFromOrder, which enforce the same rule in SQL).
+        private void EnsureEditable()
+        {
+            if (_order.Status != enOrderStatus.Pending &&
+                _order.Status != enOrderStatus.Empty)
+            {
+                throw new ConflictException(
+                    "Order can no longer be modified in its current state");
+            }
+        }
+
+        // =========================
         // ADD ITEM
         // =========================
 
@@ -125,6 +144,8 @@ namespace EduCore_BusinessLayer
         {
             if (Id <= 0)
                 throw new ValidationException("Order is not created");
+
+            EnsureEditable();
 
             clsProduct product = await clsProduct.Find(productId);
 
@@ -170,6 +191,8 @@ namespace EduCore_BusinessLayer
         {
             if (Id <= 0)
                 throw new ValidationException("Order is not created");
+
+            EnsureEditable();
 
             DtoOrderItem? toDelete =
                 _items.Find(i => i.ProductId == productId);

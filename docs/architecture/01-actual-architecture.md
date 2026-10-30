@@ -16,7 +16,6 @@ EduCore_DataAccess
    ▼
 Common (DTOs, enums, exceptions, clsValidation/clsCompare, ViewModels)
 ```
-`Dtos/` project is an orphaned duplicate of `Common/Dtos` (not in solution, unreferenced).
 
 ## Dependency direction
 API → Business → Data → Common. Respected. Business layer references DataAccess directly (static calls).
@@ -42,8 +41,9 @@ Every exception is also written to the `Logs` table (type, message, stack trace,
   revocable (RefreshTokenRevokedAt).
 - **AuthZ:** role attributes + 4 custom resource-based policies (UserOwnerOrAdmin, UserOwnerOnly,
   InstructorOwnership, IsUserEnrolledOrAdmin) evaluated via `IAuthorizationService` inside actions.
-- **Rate limiting:** fixed window 5/min/IP (`AuthLimiter`) on login + refresh only.
-- **CORS:** `https://localhost:7009`, `http://localhost:5087` (dev frontends).
+- **Rate limiting:** fixed window per IP (`AuthLimiter` 5/min on login/refresh/certificate,
+  `RegistrationLimiter` 3/min on registration); 429 → problem+json.
+- **CORS:** env-driven allow-list (`CORS_ALLOWED_ORIGINS`); localhost dev origins by default.
 - **Auditing:** `clsAudit.LogAsync` writes to `Audits` (optionally inside caller's transaction).
 - **Transactions:** `clsGeneralData.ExecuteTransaction` (open conn → begin tx → work → commit/rollback).
   Used for: user create (+role+audit), course/lesson/bundle create/update (product+entity+audit),

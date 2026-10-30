@@ -16,6 +16,13 @@ namespace EduCoreAPI.Controllers
     [ApiController]
     public class BundlesController : ControllerBase
     {
+        private bool IsPrivileged =>
+            User.Identity?.IsAuthenticated == true &&
+            (User.IsInRole("Admin") || User.IsInRole("SuperAdmin"));
+
+        private bool TryGetUserId(out int userId)
+            => int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out userId) && userId > 0;
+
         // =========================
         // GET: All Bundles
         // =========================
@@ -23,18 +30,34 @@ namespace EduCoreAPI.Controllers
         [HttpGet]
         public async Task<ActionResult<List<BundleViewModel>>> GetAllBundles()
         {
+            // Public storefront: published only. Unpublished bundles are
+            // never served here — visibility is enforced in the SQL query,
+            // not by frontend filtering.
             var bundles = await clsBundle.GetBundlesView();
             return Ok(bundles);
         }
 
         // =========================
-        // GET: All Bundles (Admin) — published AND drafts
+        // GET: All Bundles (Admin console) — drafts + published
+        // =========================
+        // Admin/SuperAdmin see everything. Instructors are scoped to their
+        // OWN bundles (published + drafts) so they can manage their console
+        // without ever receiving another instructor's unpublished content.
         // =========================
         [Authorize(Roles = "Instructor,SuperAdmin")]
         [HttpGet("all")]
         public async Task<ActionResult<List<BundleViewModel>>> GetAllBundlesForAdmin()
         {
-            var bundles = await clsBundle.GetBundlesView(includeUnpublished: true);
+            bool privileged = User.IsInRole("SuperAdmin");
+
+            bool ownOnly = !privileged;
+            int.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier), out int instructorId);
+
+            var bundles = await clsBundle.GetBundlesView(
+                includeUnpublished: true,
+                ownOnly,
+                instructorId);
+
             return Ok(bundles);
         }
 
@@ -56,24 +79,46 @@ namespace EduCoreAPI.Controllers
 
         // =========================
         // GET: by id
+        // Drafts are staff-only: anonymous visitors, students, and
+        // non-owning instructors get 404 (same rule as courses).
         // =========================
         [AllowAnonymous]
         [HttpGet("{id:int}")]
         public async Task<ActionResult> GetBundleById([FromRoute] int id)
         {
             clsBundle bundle = await clsBundle.Find(id);
-           
+
+            if (!bundle.IsPublished)
+            {
+                if (IsPrivileged)
+                    return Ok(bundleMapper.ToBundleResponse(bundle));
+
+                if (TryGetUserId(out int userId)
+                    && await clsCoursesInstructors.IsInstructorOwnProduct(
+                        userId, enProductType.Bundle, 0, 0, id))
+                {
+                    return Ok(bundleMapper.ToBundleResponse(bundle));
+                }
+
+                throw new NotFoundException("Bundle not found");
+            }
+
             return Ok(bundleMapper.ToBundleResponse(bundle));
         }
 
         // =========================
         // GET: Bundle Exists
         // =========================
+        // Existence probes must not reveal drafts: anonymous and
+        // non-privileged callers only see published bundles.
+        // =========================
         [AllowAnonymous]
         [HttpGet("{id:int}/exists")]
         public async Task<ActionResult> BundleExists([FromRoute] int id)
         {
-            var exists = await clsBundle.IsBundleExist(id);
+            bool publishedOnly = !IsPrivileged;
+
+            var exists = await clsBundle.IsBundleExist(id, publishedOnly);
             return Ok(new { exists });
         }
 

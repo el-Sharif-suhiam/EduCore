@@ -142,12 +142,16 @@ namespace EduCore_DataAccess
             return bundles;
         }
 
-        public static async Task<List<BundleViewModel>> GetAllBundlesView(bool includeUnpublished = false)
+        public static async Task<List<BundleViewModel>> GetAllBundlesView(bool includeUnpublished = false, bool ownOnly = false, int instructorId = 0)
         {
             List<BundleViewModel> bundles = new List<BundleViewModel>();
 
             // Public catalog: published bundles only.
             // includeUnpublished=true powers the admin console (drafts + published).
+            // ownOnly=true scopes the feed to bundles CREATED by instructorId so
+            // an instructor can preview their own drafts but never another
+            // instructor's unpublished content. The DB enforces both via
+            // Products.CreatedByUser.
             // NOTE: Products/Bundles have no soft-delete column (unlike Courses/Lessons),
             // so there is no IsDeleted filter here — deleting that predicate is what
             // kept this endpoint from 500-ing on "Invalid column name 'IsDeleted'".
@@ -155,12 +159,15 @@ namespace EduCore_DataAccess
                             P.ThumbnailUrl, P.Summary, P.IsPublished
                             FROM Bundles B
                             JOIN Products P ON P.Id = B.ProductId
-                            WHERE (@IncludeUnpublished = 1 OR P.IsPublished = 1)";
+                            WHERE (@IncludeUnpublished = 1 OR P.IsPublished = 1)
+                              AND (@OwnOnly = 0 OR P.CreatedByUser = @InstructorId);";
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 command.Parameters.Add("@IncludeUnpublished", SqlDbType.Bit).Value = includeUnpublished;
+                command.Parameters.Add("@OwnOnly", SqlDbType.Bit).Value = ownOnly;
+                command.Parameters.Add("@InstructorId", SqlDbType.Int).Value = instructorId;
                 await connection.OpenAsync();
 
                 using (SqlDataReader reader = await command.ExecuteReaderAsync())
@@ -193,13 +200,21 @@ namespace EduCore_DataAccess
 
         }
 
-        public static async Task<bool> BundleExists(int bundleId)
+        /// <summary>
+        /// Existence check. When <paramref name="publishedOnly"/> is set the
+        /// bundle must also be published — anonymous existence probes must
+        /// not reveal that a draft bundle id exists.
+        /// </summary>
+        public static async Task<bool> BundleExists(int bundleId, bool publishedOnly = false)
         {
             const string query = @"
                             SELECT CAST(
                                 CASE WHEN EXISTS (
-                                    SELECT 1 FROM Bundles B
+                                    SELECT 1
+                                    FROM Bundles B
+                                    JOIN Products P ON P.Id = B.ProductId
                                     WHERE B.Id = @Id
+                                      AND (@PublishedOnly = 0 OR P.IsPublished = 1)
                                 )
                                 THEN 1 ELSE 0 END
                             AS BIT)";
@@ -208,6 +223,7 @@ namespace EduCore_DataAccess
             using (SqlCommand command = new SqlCommand(query, connection))
             {
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = bundleId;
+                command.Parameters.Add("@PublishedOnly", SqlDbType.Bit).Value = publishedOnly;
 
                 await connection.OpenAsync();
                 var result = await command.ExecuteScalarAsync();

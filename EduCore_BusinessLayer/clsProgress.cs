@@ -390,15 +390,26 @@ namespace EduCore_BusinessLayer
             return courseProgress.ProgressPercentage == 100;
         }
 
+        // ------------------------------------------------------------
+        // Certificate storage: configurable via CERTIFICATES_STORAGE_PATH
+        // so deployments can point at a persistent volume. Defaults to a
+        // 'certificates' folder under the current working directory.
+        // Only the certificate CODE is stored/returned to clients — file
+        // paths never leave the server, and file names are always derived
+        // from a validated DB code (no user-controlled path segments).
+        // ------------------------------------------------------------
+        public static string CertificatesDirectory =>
+            Environment.GetEnvironmentVariable("CERTIFICATES_STORAGE_PATH")
+            ?? Path.Combine(Directory.GetCurrentDirectory(), "certificates");
+
+        private static string PdfPathFor(string certificateCode)
+            => Path.Combine(CertificatesDirectory, $"{certificateCode}.pdf");
+
         private static void SavePdf(CertificateDocument document, string certificateCode)
         {
-            string currentDir = Directory.GetCurrentDirectory();
+            Directory.CreateDirectory(CertificatesDirectory);
 
-            string dir = Path.Combine(currentDir, "certificates");
-
-            Directory.CreateDirectory(dir);
-
-            string pdfPath = Path.Combine(dir, $"{certificateCode}.pdf");
+            string pdfPath = PdfPathFor(certificateCode);
 
             document.GeneratePdf(pdfPath);
         }
@@ -414,35 +425,61 @@ namespace EduCore_BusinessLayer
             byte[] bytes = qr.GetGraphic(20);
             return bytes;
         }
-        public static async Task IssueCertificate(int userId, int courseId,string certificateEndPoint)
+        /// <summary>
+        /// Full certificate lifecycle (idempotent):
+        ///   1. eligibility — enrollment + 100% completion (also re-verified
+        ///      inside SP_IssueCertificate, server-side);
+        ///   2. one certificate row per (user, course) — repeated calls return
+        ///      the SAME certificate code;
+        ///   3. PDF generated once per code into the configured storage path;
+        ///   4. the code is verifiable via GET /api/certificates/{code}.
+        /// Throws ConflictException when the course is not completed and
+        /// surfaces storage failures as InvalidOperationException (500).
+        /// </summary>
+        public static async Task<DtoCertificate> IssueCertificate(int userId, int courseId)
         {
-            bool isComplated = await IsCourseComplated(userId, courseId);
-            if (!isComplated)
-                throw new ConflictException("Can't issue a certificate because user doesn't complate the course");
+            bool isCompleted = await IsCourseComplated(userId, courseId);
+            if (!isCompleted)
+                throw new ConflictException("Can't issue a certificate because the user hasn't completed the course");
 
-            clsCourse course = await clsCourse.Find(courseId);
+            DtoCertificate? certificate =
+                await clsCertificatesData.IssueCertificate(userId, courseId);
 
-            clsUser student = await clsUser.Find(userId);
+            if (certificate is null)
+                throw new ConflictException("Failed to issue certificate");
 
-            Guid certificateGuid = Guid.NewGuid();
+            string pdfPath = PdfPathFor(certificate.CertificateCode);
 
-            string certificateUrl =
-                $"{certificateEndPoint.TrimEnd('/')}/{certificateGuid}";
+            if (!File.Exists(pdfPath))
+            {
+                clsCourse course = await clsCourse.Find(courseId);
+                clsUser student = await clsUser.Find(userId);
 
-            byte[] qrImageBytes = CreateQrImage(certificateUrl);
+                string frontendBase =
+                    Environment.GetEnvironmentVariable("FRONTEND_URL")?.TrimEnd('/');
 
-            CertificateDocument document =
-                new CertificateDocument(
+                // QR content must be a MEANINGFUL, verifiable URL. The public
+                // verification endpoint resolves the code back to real data.
+                string verificationUrl = string.IsNullOrWhiteSpace(frontendBase)
+                    ? $"api/certificates/{certificate.CertificateCode}"
+                    : $"{frontendBase}/verify/{certificate.CertificateCode}";
+
+                byte[] qrImageBytes = CreateQrImage(verificationUrl);
+
+                CertificateDocument document = new CertificateDocument(
                     student.Name,
                     course.Name,
-                    DateTime.UtcNow.ToString("yyyy-MM-dd"),
-                    certificateGuid.ToString(),
+                    certificate.IssuedAt.ToString("yyyy-MM-dd"),
+                    certificate.CertificateCode,
                     "",
                     "",
                     "",
                     qrImageBytes);
 
-            SavePdf(document, certificateGuid.ToString());
+                SavePdf(document, certificate.CertificateCode);
+            }
+
+            return certificate;
         }
     }
 }

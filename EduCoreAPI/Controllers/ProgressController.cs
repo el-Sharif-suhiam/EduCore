@@ -1,4 +1,5 @@
-﻿using Common.Exceptions;
+﻿using Common.Dtos;
+using Common.Exceptions;
 using Common.ViewModels;
 using EduCore_BusinessLayer;
 using Microsoft.AspNetCore.Authorization;
@@ -84,16 +85,26 @@ namespace EduCoreAPI.Controllers
         }
 
 
+        // =========================
+        // GET: Issue Certificate (idempotent)
+        // =========================
         [HttpGet("courses/{courseId:int}/certificate")]
         [EnableRateLimiting("AuthLimiter")]
-        public async Task<ActionResult>
-           IssueCertificate(
+        public async Task<ActionResult> IssueCertificate(
             [FromRoute] int courseId)
         {
-            await clsProgress.IssueCertificate(CurrentUserId, courseId, "api/courses/certificate");
-           
+            DtoCertificate certificate =
+                await clsProgress.IssueCertificate(CurrentUserId, courseId);
 
-            return Ok();
+            // Same code on repeat calls — clients use it for download and
+            // public verification (GET /api/certificates/{code}).
+            return Ok(new
+            {
+                certificate.CertificateCode,
+                certificate.IssuedAt,
+                VerificationUrl = $"api/certificates/{certificate.CertificateCode}",
+                DownloadUrl = $"api/certificates/{certificate.CertificateCode}/download"
+            });
         }
         // =========================
         // PUT: Complete Lesson

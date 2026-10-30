@@ -431,18 +431,30 @@ namespace EduCore_DataAccess
             return payments;
         }
 
-        public static async Task<bool> UpdateStatusWithTransaction(int id, enPaymentStatus status,string? transactionId, DateTime? paidAt,SqlConnection conn,SqlTransaction? tx)
+        /// <summary>
+        /// Updates a payment's status. When <paramref name="fromStatus"/> is
+        /// supplied the UPDATE is conditional (WHERE Status = @FromStatus), so
+        /// concurrent transitions (e.g. two webhook deliveries, or fail/expire
+        /// racing success) cannot overwrite each other: the loser updates 0
+        /// rows and the caller can detect the lost race via the affected-row
+        /// count.
+        /// </summary>
+        public static async Task<bool> UpdateStatusWithTransaction(int id, enPaymentStatus status, string? transactionId, DateTime? paidAt, SqlConnection conn, SqlTransaction? tx, enPaymentStatus? fromStatus = null)
         {
             string query = @"UPDATE Payments
                             SET PaidAt = @PaidAt ,Status = @Status ,TransactionId = @TransactionId
-                            WHERE Id = @Id";
+                            WHERE Id = @Id
+                              AND (@FromStatus IS NULL OR Status = @FromStatus);";
 
             using (SqlCommand cmd = new SqlCommand(query, conn,tx))
             {
                 cmd.Parameters.Add("@Id", SqlDbType.Int).Value = id;
                 cmd.Parameters.Add("@Status", SqlDbType.VarChar, 50).Value = status.ToString();
                 cmd.Parameters.Add("@PaidAt", SqlDbType.DateTime).Value = (object?)paidAt ?? DBNull.Value;
-                cmd.Parameters.Add("@TransactionId", SqlDbType.NVarChar,200).Value = (object?)transactionId ?? DBNull.Value; 
+                cmd.Parameters.Add("@TransactionId", SqlDbType.NVarChar,200).Value = (object?)transactionId ?? DBNull.Value;
+
+                cmd.Parameters.Add("@FromStatus", SqlDbType.VarChar, 50).Value =
+                    (object?)fromStatus?.ToString() ?? DBNull.Value;
 
 
                 if (conn.State != ConnectionState.Open)
@@ -452,11 +464,11 @@ namespace EduCore_DataAccess
             }
         }
        
-        public static async Task<bool> UpdateStatus(int id,enPaymentStatus status, string? transactionId, DateTime? paidAt)
+        public static async Task<bool> UpdateStatus(int id,enPaymentStatus status, string? transactionId, DateTime? paidAt, enPaymentStatus? fromStatus = null)
         {
             using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
             {
-                return await UpdateStatusWithTransaction(id, status, transactionId, paidAt, conn,null);
+                return await UpdateStatusWithTransaction(id, status, transactionId, paidAt, conn,null, fromStatus);
             }
         }
 

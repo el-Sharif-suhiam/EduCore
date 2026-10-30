@@ -298,6 +298,21 @@ BEGIN
 END
 GO
 
+IF OBJECT_ID('dbo.Certificates', 'U') IS NULL
+BEGIN
+    CREATE TABLE Certificates (
+    Id INT PRIMARY KEY IDENTITY(1,1),
+    CertificateCode NVARCHAR(64) NOT NULL UNIQUE,
+    UserId INT NOT NULL,
+    CourseId INT NOT NULL,
+    IssuedAt DATETIME2 NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT FK_Certificate_User FOREIGN KEY (UserId) REFERENCES Users(Id),
+    CONSTRAINT FK_Certificate_Course FOREIGN KEY (CourseId) REFERENCES Courses(Id),
+    CONSTRAINT UQ_Certificate_User_Course UNIQUE (UserId, CourseId)
+    );
+END
+GO
+
 IF OBJECT_ID('dbo.Logs', 'U') IS NULL
 BEGIN
     CREATE TABLE Logs(
@@ -444,6 +459,15 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- State machine guard: only editable orders accept new items.
+        -- Completed/Cancelled are final; they must never be modified
+        -- or silently flipped back to Pending by this procedure.
+        IF NOT EXISTS (
+            SELECT 1 FROM Orders
+            WHERE Id = @OrderId AND Status IN ('Pending', 'Empty')
+        )
+            THROW 50011, 'Order is not editable in its current state', 1;
+
         DECLARE @PriceAtPurchase DECIMAL(9,2);
 
         SELECT @PriceAtPurchase = BasePrice
@@ -464,13 +488,21 @@ BEGIN
         FROM OrderItems
         WHERE OrderId = @OrderId;
 
+        -- Conditional update: the editable-state check is repeated in
+        -- the WHERE clause so a concurrent Complete/Cancel that commits
+        -- first cannot be overwritten. Rowcount 0 => state changed
+        -- underneath us => abort.
         UPDATE Orders
 		SET TotalPrice = @NewTotal,
-		Status = CASE 
+		    Status = CASE
                 WHEN @NewTotal = 0 THEN 'Empty'
                 ELSE 'Pending'
              END
-		WHERE Id = @OrderId;
+		WHERE Id = @OrderId
+		  AND Status IN ('Pending', 'Empty');
+
+        IF @@ROWCOUNT = 0
+            THROW 50011, 'Order is not editable in its current state', 1;
 
         COMMIT;
 
@@ -496,6 +528,13 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- State machine guard: only editable orders accept removals.
+        IF NOT EXISTS (
+            SELECT 1 FROM Orders
+            WHERE Id = @OrderId AND Status IN ('Pending', 'Empty')
+        )
+            THROW 50011, 'Order is not editable in its current state', 1;
+
         DELETE FROM OrderItems
         WHERE OrderId = @OrderId
           AND ProductId = @ProductId;
@@ -506,13 +545,20 @@ BEGIN
         FROM OrderItems
         WHERE OrderId = @OrderId;
 
+        -- Conditional update with the same state guard as the add path
+        -- (see SP_AddNewItemToOrder); a completed/cancelled order is
+        -- never modified and never reset to Pending/Empty.
         UPDATE Orders
         SET TotalPrice = @NewTotal,
             Status = CASE 
                         WHEN @NewTotal = 0 THEN 'Empty'
                         ELSE 'Pending'
                      END
-        WHERE Id = @OrderId;
+        WHERE Id = @OrderId
+          AND Status IN ('Pending', 'Empty');
+
+        IF @@ROWCOUNT = 0
+            THROW 50011, 'Order is not editable in its current state', 1;
 
         COMMIT;
 
@@ -678,6 +724,90 @@ BEGIN
               WHERE E.UserId = @UserId
                 AND E.ProductId = OI.ProductId
           );
+
+    END TRY
+    BEGIN CATCH
+        THROW;
+    END CATCH
+END
+GO
+
+-----------------------------------------------------------
+-- 7) Certificates (idempotent issuance + verification)
+-----------------------------------------------------------
+
+CREATE OR ALTER PROCEDURE SP_IssueCertificate
+    @UserId INT,
+    @CourseId INT
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    BEGIN TRY
+        DECLARE @ProductId INT;
+
+        SELECT @ProductId = ProductId
+        FROM Courses
+        WHERE Id = @CourseId;
+
+        IF @ProductId IS NULL
+            THROW 50020, 'Course not found', 1;
+
+        -- Authorization is enforced server-side: only an active
+        -- enrollment for this exact course product may earn a certificate.
+        IF NOT EXISTS (
+            SELECT 1 FROM Enrollments E
+            WHERE E.UserId = @UserId
+              AND E.ProductId = @ProductId
+              AND (E.ExpireAt IS NULL OR E.ExpireAt > SYSUTCDATETIME())
+        )
+            THROW 50021, 'User is not enrolled in this course', 1;
+
+        -- Only a fully completed course is eligible. Deleted lessons do
+        -- not count toward the total; a zero-lesson course is never
+        -- completable.
+        DECLARE @TotalLessons INT;
+        DECLARE @CompletedLessons INT;
+
+        SELECT @TotalLessons = COUNT(*)
+        FROM CoursesLessons cl
+        JOIN Lessons l ON l.Id = cl.LessonId AND l.IsDeleted = 0
+        WHERE cl.CourseId = @CourseId;
+
+        SELECT @CompletedLessons = COUNT(*)
+        FROM CoursesLessons cl
+        JOIN Lessons l ON l.Id = cl.LessonId AND l.IsDeleted = 0
+        JOIN Progress p ON p.LessonId = l.Id
+        WHERE cl.CourseId = @CourseId
+          AND p.UserId = @UserId
+          AND p.IsComplete = 1;
+
+        IF @TotalLessons = 0 OR @CompletedLessons < @TotalLessons
+            THROW 50022, 'Course is not fully completed', 1;
+
+        -- Idempotent issuance: one certificate per (user, course).
+        -- Repeated calls return the existing code instead of creating
+        -- duplicates or regenerating the PDF under a new identity.
+        IF EXISTS (
+            SELECT 1 FROM Certificates
+            WHERE UserId = @UserId AND CourseId = @CourseId
+        )
+        BEGIN
+            SELECT CertificateCode, IssuedAt
+            FROM Certificates
+            WHERE UserId = @UserId AND CourseId = @CourseId;
+        END
+        ELSE
+        BEGIN
+            DECLARE @Code NVARCHAR(64) = LOWER(REPLACE(NEWID(), '-', ''));
+
+            INSERT INTO Certificates (CertificateCode, UserId, CourseId)
+            VALUES (@Code, @UserId, @CourseId);
+
+            SELECT CertificateCode, IssuedAt
+            FROM Certificates
+            WHERE Id = SCOPE_IDENTITY();
+        END
 
     END TRY
     BEGIN CATCH
