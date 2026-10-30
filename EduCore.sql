@@ -725,6 +725,10 @@ BEGIN
                 AND E.ProductId = OI.ProductId
           );
 
+        -- Row counts are suppressed by SET NOCOUNT ON, so clients cannot
+        -- rely on ExecuteNonQuery(); expose the inserted count explicitly.
+        SELECT @@ROWCOUNT AS InsertedRows;
+
     END TRY
     BEGIN CATCH
         THROW;

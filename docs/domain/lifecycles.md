@@ -1,4 +1,4 @@
-# EduCore — Domain Model & Lifecycles (actual implementation, 2026-08-22)
+# EduCore — Domain Model & Lifecycles (actual implementation, current)
 
 ## Roles
 `Roles` table seeded: Admin(1), Instructor(2), Student(3), SuperAdmin(4) — matches `enRoles`.
@@ -23,38 +23,49 @@
   `POST /api/courses/{id}/lessons` with price forced to 0).
 - Instructor ownership: lessons → `Lessons.InstructorId`; courses → `CoursesInstructors` rows;
   bundles → `Products.CreatedByUser`.
-- **Dual representation bug:** course↔lesson also modeled by a `CourseLessons` join table in
-  progress/course-lesson data code, but the table was absent from `EduCore.sql` (C8).
+- Publication visibility: public feeds serve published items only; drafts are visible in
+  `/all` and `/{id}` only to admins or the owning instructor (SQL-enforced, covered by tests).
 
 ## Orders (cart)
 - Statuses (code enum): Pending, Completed, Cancelled, Empty. DB column is free varchar (no CHECK).
 - Filtered unique index: at most ONE Pending order per user (`UX_Orders_User_Pending`).
-- **No API endpoint creates an order** (C9). Item add/remove go through SPs that recompute TotalPrice
-  and flip Status Empty↔Pending.
-- `PUT /{id}/complete` sets Completed without payment → then SP_CreateNewPayment rejects the order
-  forever (requires Pending) → dead end (H5). Cancel leaves pending payments orphaned.
-- SP_AddNewItemToOrder prices only published products; unpublished → NULL PriceAtPurchase inserted (H6).
+- `POST /api/orders` creates the cart (returns existing pending cart if any).
+- **State machine enforced in BOTH layers:** item add/remove allowed only in Pending/Empty —
+  validated in `clsOrder` (business ConflictException) AND in the SPs (THROW 50011), so no
+  caller can flip a Completed/Cancelled order back to Pending.
+- Item add prices only published products (rejected otherwise, order untouched); remove of the
+  last Pending item transitions the order to `Empty`.
+- `PUT /{id}/complete` requires a succeeded payment; `PUT /{id}/cancel` expires pending payments.
 
 ## Payments
 - Statuses: Pending, Succeeded, Failed, Expired, Cancelled (CHECK constraint in DB).
 - Created via SP_CreateNewPayment: validates order Pending, computes discount (expiry + usage-limit check),
-  inserts Pending payment with server-generated IdempotencyKey (fresh GUID per call → no real idempotency, H7).
-- `FinalPrice` = Price − ISNULL(DiscountPrice,0) persisted computed column; CHECKs keep it ≥ 0.
-- Success flow (clsCheckoutService.CompletePaymentAsync, transactional):
-  MarkAsSucceeded (sets TransactionId/PaidAt) → SP_CreateEnrollmentsFromPaidOrder.
-  **Broken at runtime by C2 (double OpenAsync).**
-- Discount usage counter `TotalUserNumber` is never incremented anywhere (C10).
+  inserts Pending payment with the client-supplied IdempotencyKey (unique index; replays return the
+  existing payment instead of duplicating).
+- `FinalPrice` = Price - ISNULL(DiscountPrice,0) persisted computed column; CHECKs keep it ≥ 0.
+- Completion flow (clsCheckoutService.CompletePaymentAsync, transactional + race-safe):
+  - Guard: only a Pending payment may drive the chain (replays/terminal states → 409).
+  - MarkAsSucceeded uses a **conditional UPDATE (WHERE Status='Pending')**; the concurrent loser
+    re-checks stored state, adopts nothing, and aborts before re-applying side effects.
+  - Discount usage incremented once; enrollments created per order item (deduped by
+    UNIQUE(UserId,ProductId)); order → Completed; other pending payments → Expired.
+  - Failure/Expiry also conditional on Pending — Succeeded payments can never be flipped.
+- Discount usage counter incremented once per successful completion.
 
 ## Enrollments
 - Created per OrderItem product on payment success; unique (UserId, ProductId); ExpireAt = now + 12 months.
-- Access check `IsUserEnrolled` was inverted (C1) — fixed per TODO.
+- Access check `IsUserEnrolled` verified by tests.
 
 ## Progress & Certificates
 - Progress rows per (UserId, LessonId), upserted; CompletedDate set on completion.
-- **No enrollment validation** on mark-complete (H2).
-- Course progress computed from `CourseLessons` join (C8) → % complete; certificate at 100%.
-- Certificate: QuestPDF A4 landscape + QR (QRCoder) → written to `<cwd>/certificates/{guid}.pdf`.
-  No Certificates table, no verification/download endpoint, QR points to nonexistent route (M14).
+- Course progress computed from the course-lessons join → % complete; eligibility for a
+  certificate requires an active enrollment AND 100% lesson completion (verified server-side
+  in `SP_IssueCertificate`, not just in C#).
+- Certificates (full lifecycle): one row per (UserId, CourseId) with a GUID-"N" code;
+  issuance is idempotent (repeat calls return the same code; one PDF on disk under
+  `CERTIFICATES_STORAGE_PATH`). API: `GET /api/certificates/{code}` (public verify — valid
+  flag + student name + course title) and `GET /api/certificates/{code}/download`
+  (owner or admin, `application/pdf`). QR on the PDF points to the verification URL.
 
 ## Discounts
 - Code string, rate (1–100), optional expiry, optional usage limit (0/NULL = unlimited — inconsistent
@@ -63,6 +74,5 @@
 
 ## Audits & Logs
 - Audits: actor UserId, action enum, entity type/id, description, IP, UA. Written inline or inside the
-  caller's transaction. Known defects: IP actually Connection.Id in controllers (H3); wrong actor on
-  updates (M4); inverted messages in lesson flows (M4).
+  caller's transaction.
 - Logs: written by ExceptionMiddleware for every exception (type/message/stack/IP/UA/path).

@@ -1,4 +1,5 @@
 ﻿using Common.Enums;
+using Common.Exceptions;
 using EduCore_DataAccess;
 using System;
 using System.Collections.Generic;
@@ -16,6 +17,13 @@ namespace EduCore_BusinessLayer
         {
             if (payment == null)
                 throw new ValidationException("Payment is null.");
+
+            // Idempotency gate: only a Pending payment may drive the
+            // completion chain. Replays (already Succeeded) and terminal
+            // states (Failed/Expired) must never re-apply side effects
+            // (discount usage, enrollments, order completion).
+            if (payment.Status != enPaymentStatus.Pending)
+                throw new ConflictException("Payment already processed");
 
             return await clsGeneralData.ExecuteTransaction(
                 async (conn, tx) =>

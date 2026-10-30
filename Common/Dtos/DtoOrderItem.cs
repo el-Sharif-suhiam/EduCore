@@ -13,7 +13,7 @@ namespace Common.Dtos
 
         public decimal? PriceAtPurchase { get; set; }
         public string Name { get; set; }
-        public string Summary { get; set; }
+        public string? Summary { get; set; }
         public string ProductType { get; set; }
 
     }

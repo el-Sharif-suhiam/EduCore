@@ -122,7 +122,7 @@ namespace EduCore_DataAccess
                             ProductId = reader.GetInt32(productIdIndex),
                             PriceAtPurchase = reader.IsDBNull(priceIndex) ? null : reader.GetDecimal(priceIndex),
                             Name = reader.GetString(nameIndex),
-                            Summary = reader.GetString(summaryIndex),
+                            Summary = reader.IsDBNull(summaryIndex) ? null : reader.GetString(summaryIndex),
                             ProductType = reader.GetString(productTypeIndex)
                             
                         });

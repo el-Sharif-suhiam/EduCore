@@ -189,11 +189,15 @@ namespace EduCore_BusinessLayer
 
                 if (current.Status == enPaymentStatus.Succeeded)
                 {
-                    // Idempotent replay: adopt the stored transaction id.
+                    // Lost the race: another delivery already completed this
+                    // payment. Report "not applied" so the caller skips the
+                    // side-effect chain (discount usage / enrollments) that
+                    // the winner already applied. Returning true here would
+                    // double-count effects under concurrent replays.
                     _Payment.Status = enPaymentStatus.Succeeded;
                     _Payment.TransactionId = current.TransactionId;
                     _Payment.PaidAt = current.PaidAt;
-                    return true;
+                    return false;
                 }
 
                 throw new ConflictException("Payment already processed");
@@ -209,7 +213,7 @@ namespace EduCore_BusinessLayer
                 "Payment",
                 _Payment.Id,
                 $"Payment succeeded. TransactionId: {cleanTransactionId}",
-                null,null,
+                null, null,
                 conn,
                 tx);
 

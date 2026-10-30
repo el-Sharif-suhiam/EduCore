@@ -23,10 +23,14 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@ExpireAt", SqlDbType.DateTime2)
                     .Value = (object?)enrollment.ExpireAt ?? DBNull.Value;
 
-                int rowsAffected = await command.ExecuteNonQueryAsync();
+                // The SP runs with SET NOCOUNT ON, so ExecuteNonQuery would
+                // always return -1 and this check could never pass. The SP
+                // exposes the inserted row count via SELECT @@ROWCOUNT.
+                object result = await command.ExecuteScalarAsync();
 
-                return rowsAffected > 0;
-
+                return result != null
+                    && result != DBNull.Value
+                    && Convert.ToInt32(result) > 0;
             }
         }
 
