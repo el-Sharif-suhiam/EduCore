@@ -32,8 +32,11 @@ namespace EduCore_BusinessLayer
 
                 orderId = payment.OrderId,
 
+                // Enrollments.ExpireAt is a DATE column: pass the UTC
+                // calendar date (access stays valid through the end of
+                // this day, twelve months from now).
                 ExpireAt = DateTime.UtcNow.AddMonths(
-                    clsGeneralRules.DefaultExpireDateByMonths)
+                    clsGeneralRules.DefaultExpireDateByMonths).Date
             };
 
             bool result =

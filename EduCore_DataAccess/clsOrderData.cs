@@ -28,6 +28,8 @@ namespace EduCore_DataAccess
                     .Value = order.Status.ToString();
 
 
+                await conn.OpenAsync();
+
                 var result = await cmd.ExecuteScalarAsync();
 
                 return (result != null && int.TryParse(result.ToString(), out int id)) ? id : -1;

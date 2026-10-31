@@ -13,21 +13,21 @@ namespace EduCore_DataAccess
     {
         public static async Task<bool> UpsertProgress(DtoProgress progress)
         {
-            string query = @"IF EXISTS (SELECT 1 FROM Progress WHERE UserId = @UserId AND LessonId = @LessonId)
-                            BEGIN
-                                UPDATE Progress
-                                SET IsComplete = @IsComplete,
-                                    CompletedDate = CASE 
-                                                        WHEN @IsComplete = 1 THEN GETDATE()
-                                                        ELSE CompletedDate
-                                                    END
-                                WHERE UserId = @UserId AND LessonId = @LessonId;
-                            END
-                            ELSE
-                            BEGIN
+            // Atomic upsert: update first, insert only when the update
+            // matched nothing. The PK (UserId, LessonId) is the arbiter —
+            // two concurrent calls can never duplicate or dead-lock on
+            // the old IF EXISTS / INSERT pattern.
+            string query = @"UPDATE Progress
+                            SET IsComplete = @IsComplete,
+                                CompletedDate = CASE
+                                                    WHEN @IsComplete = 1 THEN SYSUTCDATETIME()
+                                                    ELSE CompletedDate
+                                                END
+                            WHERE UserId = @UserId AND LessonId = @LessonId;
+
+                            IF @@ROWCOUNT = 0
                                 INSERT INTO Progress (UserId, LessonId, IsComplete)
-                                VALUES (@UserId, @LessonId, @IsComplete);
-                            END;";
+                                VALUES (@UserId, @LessonId, @IsComplete);";
 
             using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand cmd = new SqlCommand(query, con))
@@ -88,8 +88,8 @@ namespace EduCore_DataAccess
                                  p.IsComplete,
                                  p.CompletedDate
                              FROM CoursesLessons cl
-                             JOIN Lessons l ON l.Id = cl.LessonId
-                             LEFT JOIN Progress p 
+                             JOIN Lessons l ON l.Id = cl.LessonId AND l.IsDeleted = 0
+                             LEFT JOIN Progress p
                                  ON p.LessonId = l.Id AND p.UserId = @UserId
                              WHERE cl.CourseId = @CourseId;";
 

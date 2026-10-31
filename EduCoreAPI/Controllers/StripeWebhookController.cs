@@ -119,6 +119,16 @@ namespace EduCoreAPI.Controllers
             if (paymentId is null)
                 return; // Not ours / unmappable — acknowledge.
 
+            // checkout.session.completed also fires while an async
+            // payment (e.g. SEPA/BACS) is still "unpaid". Completing
+            // the order then would grant access for money not yet
+            // received; the async_payment_succeeded event (handled
+            // above) will drive the completion instead.
+            string? paymentStatus = GetString(session, "payment_status");
+            if (!string.IsNullOrEmpty(paymentStatus) &&
+                !paymentStatus.Equals("paid", StringComparison.OrdinalIgnoreCase))
+                return; // Not yet paid — acknowledge, wait for the real event.
+
             var payment = await clsPayment.FindAsync(paymentId.Value); // throws NotFound
 
             if (!payment.IsPending)

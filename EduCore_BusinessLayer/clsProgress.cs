@@ -358,7 +358,12 @@ namespace EduCore_BusinessLayer
 
         public static async Task EnsureEnrolledForLesson(int userId, int lessonId)
         {
-            clsLesson lesson = await clsLesson.Find(lessonId);
+            // Access lookup must work for course lessons too — GetLessonById
+            // only returns independent lessons (CourseId IS NULL).
+            DtoLessons? lesson = await clsLessonsData.GetLessonByIdAny(lessonId);
+
+            if (lesson is null)
+                throw new NotFoundException("There is no lesson with this Id");
 
             int productId;
 
@@ -372,6 +377,8 @@ namespace EduCore_BusinessLayer
                 productId = lesson.ProductId;
             }
 
+            // IsUserEnrolled also recognizes bundle purchases covering the
+            // course, so bundle buyers can study its lessons.
             if (!await clsEnrollment.IsUserEnrolled(userId, productId))
                 throw new ForbiddenException("You are not enrolled in this product");
         }

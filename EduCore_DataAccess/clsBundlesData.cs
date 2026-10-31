@@ -81,7 +81,7 @@ namespace EduCore_DataAccess
 
             using (SqlCommand command = new SqlCommand(query, conn,tx))
             {
-                command.Parameters.Add("@Id", SqlDbType.Int).Value = bundle.Id;
+                command.Parameters.Add("@Id", SqlDbType.SmallInt).Value = bundle.Id;
                 command.Parameters.Add("@ProductId", SqlDbType.Int).Value = bundle.ProductId;
 
                 rows = await command.ExecuteNonQueryAsync();
@@ -101,7 +101,7 @@ namespace EduCore_DataAccess
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                command.Parameters.Add("@Id", SqlDbType.Int).Value = bundleId;
+                command.Parameters.Add("@Id", SqlDbType.SmallInt).Value = bundleId;
 
                 await connection.OpenAsync();
                 rows = await command.ExecuteNonQueryAsync();
@@ -132,7 +132,7 @@ namespace EduCore_DataAccess
                     {
                         bundles.Add(new DtoBundle
                         {
-                            Id = reader.GetInt32(idIndex),
+                            Id = reader.GetInt16(idIndex),
                             ProductId = reader.GetInt32(productIndex),
                         });
                     }
@@ -222,7 +222,7 @@ namespace EduCore_DataAccess
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
             {
-                command.Parameters.Add("@Id", SqlDbType.Int).Value = bundleId;
+                command.Parameters.Add("@Id", SqlDbType.SmallInt).Value = bundleId;
                 command.Parameters.Add("@PublishedOnly", SqlDbType.Bit).Value = publishedOnly;
 
                 await connection.OpenAsync();

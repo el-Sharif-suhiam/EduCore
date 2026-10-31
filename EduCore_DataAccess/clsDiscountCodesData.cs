@@ -21,7 +21,7 @@ namespace EduCore_DataAccess
             using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand cmd = new SqlCommand(query, con))
             {
-                cmd.Parameters.Add("@Code", SqlDbType.VarChar, 200).Value = dto.DiscountCode;
+                cmd.Parameters.Add("@Code", SqlDbType.NVarChar, 200).Value = dto.DiscountCode;
                 cmd.Parameters.Add("@Rate", SqlDbType.Decimal).Value = (object?)dto.DiscountRate ?? DBNull.Value;
                 cmd.Parameters.Add("@CreatedBy", SqlDbType.Int).Value = dto.CreatedById;
                 cmd.Parameters.Add("@ExpireAt", SqlDbType.Date).Value = (object?)dto.ExpireAt ?? DBNull.Value;
@@ -134,7 +134,7 @@ namespace EduCore_DataAccess
             using (SqlCommand cmd = new SqlCommand(query, con))
             {
                 cmd.Parameters.Add("@Id", SqlDbType.SmallInt).Value = dto.Id;
-                cmd.Parameters.Add("@Code", SqlDbType.VarChar, 200).Value = dto.DiscountCode;
+                cmd.Parameters.Add("@Code", SqlDbType.NVarChar, 200).Value = dto.DiscountCode;
                 cmd.Parameters.Add("@Rate", SqlDbType.Decimal).Value = (object?)dto.DiscountRate ?? DBNull.Value;
                 cmd.Parameters.Add("@ExpireAt", SqlDbType.Date).Value = (object?)dto.ExpireAt ?? DBNull.Value;
                 cmd.Parameters.Add("@AllowedUse", SqlDbType.SmallInt).Value = (object?)dto.AllowedUseNumber ?? DBNull.Value;
@@ -179,8 +179,8 @@ namespace EduCore_DataAccess
             string query = @"SELECT Id, DiscountCode, DiscountRate, CreatedById, ExpireAt,
                                 AllowedUseNumber, TotalUserNumber
                              FROM DiscountCodes
-                             WHERE (ExpireAt > GETDATE() OR ExpireAt IS NULL) AND 
-                            (AllowedUseNumber = 0 OR AllowedUseNumber IS NULL OR AllowedUseNumber > TotalUserNumber);";
+                             WHERE (ExpireAt IS NULL OR ExpireAt >= CAST(SYSUTCDATETIME() AS DATE)) AND
+                             (AllowedUseNumber = 0 OR AllowedUseNumber IS NULL OR AllowedUseNumber > TotalUserNumber);";
 
             using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand cmd = new SqlCommand(query, con))

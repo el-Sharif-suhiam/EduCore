@@ -1,8 +1,8 @@
-﻿# EduCore â€” Learning Management Platform (Backend)
+# EduCore — Learning Management Platform (Backend)
 
 <div align="center">
 
-**A secure, production-grade e-learning backend â€” database design, T-SQL, layered .NET API, authenticatable APIs with Stripe payments and certificates.**
+**A secure, production-grade e-learning backend — database design, T-SQL, layered .NET API, authenticatable APIs with Stripe payments and certificates.**
 
 ![.NET](https://img.shields.io/badge/.NET%2010-512BD4?logo=.net&logoColor=white&style=for-the-badge)
 ![C#](https://img.shields.io/badge/C%23-239120?logo=csharp&logoColor=white&style=for-the-badge)
@@ -10,7 +10,7 @@
 ![JWT](https://img.shields.io/badge/JWT%20Auth-000000?logo=jsonwebtokens&logoColor=white&style=for-the-badge)
 ![Stripe](https://img.shields.io/badge/Stripe%20Checkout-635BFF?logo=stripe&logoColor=white&style=for-the-badge)
 
-**ADO.NET Â· T-SQL Â· BCrypt Â· Rate Limiting Â· QuestPDF Â· Swagger/OpenAPI Â· xUnit**
+**ADO.NET · T-SQL · BCrypt · Rate Limiting · QuestPDF · Swagger/OpenAPI · xUnit**
 
 </div>
 
@@ -23,7 +23,7 @@
 
 - [Overview](#overview)
 - [Why This Project](#why-this-project)
-- [Architecture â€” Three-Tier](#architecture--three-tier)
+- [Architecture — Three-Tier](#architecture--three-tier)
 - [Tech Stack](#tech-stack)
 - [Features](#features)
 - [Security Implementation](#security-implementation)
@@ -40,7 +40,7 @@
 ## Overview
 
 **EduCore** is a complete learning management platform (LMS) **backend**: students discover,
-purchase, and complete courses â€” and earn verifiable certificates â€” entirely through the REST API.
+purchase, and complete courses — and earn verifiable certificates — entirely through the REST API.
 
 The API supports:
 
@@ -48,12 +48,12 @@ The API supports:
 - Cart and orders with **discount codes**
 - Stripe hosted checkout (HMAC-verified webhooks, idempotent completion)
 - Lesson progress tracking (per-lesson completion)
-- **Certificates** at 100% course completion â€” persisted, publicly verifiable, PDF download
+- **Certificates** at 100% course completion — persisted, publicly verifiable, PDF download
 - User management with **Instructor / Admin roles**
 - Discount-code management, audit trail, and structured logging
 
-> Built as a final software development project â€” the focus is on **engineering discipline**:
-> requirements analysis â†’ database design (T-SQL) â†’ layered backend with security best practices â†’
+> Built as a final software development project — the focus is on **engineering discipline**:
+> requirements analysis → database design (T-SQL) → layered backend with security best practices →
 > a clean, tested REST API.
 
 ---
@@ -65,16 +65,16 @@ This project demonstrates the complete, hands-on skillset expected of a backend 
 | Skill | Where it's proven |
 |---|---|
 | **Requirements & system design** | `docs/decisions/0001-discovery-phase.md`, domain lifecycle models |
-| **Database design & T-SQL** | `EduCore.sql` â€” 16 tables, constraints, filtered indexes, stored procedures, seed data |
-| **3-tier architecture** | API â†’ Business â†’ Data layers with a shared `Common` library |
-| **Raw ADO.NET (no ORM)** | `EduCore_DataAccess/cls*Data.cs` â€” parameterized commands, transactions, stored procedures |
+| **Database design & T-SQL** | `EduCore.sql` — 19 tables, constraints, filtered indexes, stored procedures, seed data |
+| **3-tier architecture** | API → Business → Data layers with a shared `Common` library |
+| **Raw ADO.NET (no ORM)** | `EduCore_DataAccess/cls*Data.cs` — parameterized commands, transactions, stored procedures |
 | **Security** | JWT authentication, resource-based authorization, BCrypt, rate limiting, HMAC webhook verification, exception middleware |
 | **Payments integration** | Stripe hosted checkout + verified webhooks with atomic, idempotent enrollment completion |
-| **Testing** | 55 xUnit tests: real SQL Server integration tests + in-process API tests + crypto unit tests |
+| **Testing** | 62 xUnit tests: real SQL Server integration tests + in-process API tests + crypto unit tests |
 
 ---
 
-## Architecture â€” Three-Tier
+## Architecture — Three-Tier
 
 The system follows a strict **3-tier / layered architecture**, keeping concerns separated:
 
@@ -112,22 +112,22 @@ The system follows a strict **3-tier / layered architecture**, keeping concerns 
 **Plus a shared cross-cutting library:**
 
 ```
-Common  (DTOs Â· Enums Â· Exceptions Â· Validation utilities)
+Common  (DTOs · Enums · Exceptions · Validation utilities)
 ```
 
 - **Presentation:** controllers parse HTTP, run authorization policies, and delegate.
-- **Business:** Active-Recordâ€“style classes (`clsUser`, `clsOrder`, â€¦) that own domain rules â€”
+- **Business:** Active-Record–style classes (`clsUser`, `clsOrder`, …) that own domain rules —
   hashing, discount validation, enrollment expiry, checkout completion.
 - **Data:** static ADO.NET classes execute parameterized SQL and stored procedures.
   `clsGeneralData.ExecuteTransaction` shares one connection + transaction for multi-step DB
   operations (registration, payment completion).
-- **Common:** shared DTOs, enums (`enRoles`, `enOrderStatus`, â€¦), typed exceptions
-  (`ValidationException`, `NotFoundException`, `ConflictException`), and validators â€” with no
+- **Common:** shared DTOs, enums (`enRoles`, `enOrderStatus`, …), typed exceptions
+  (`ValidationException`, `NotFoundException`, `ConflictException`), and validators — with no
   upward dependencies.
 
 > **Data flow example (purchase):**
-> `PaymentsController` â†’ `clsOrder`/`clsPayment` (business) â†’ `cls*Data` (ADO.NET) â†’
-> `SP_CreateNewPayment` (SQL Server) â†’ Stripe checkout â†’ verified webhook â†’
+> `PaymentsController` → `clsOrder`/`clsPayment` (business) → `cls*Data` (ADO.NET) →
+> `SP_CreateNewPayment` (SQL Server) → Stripe checkout → verified webhook →
 > `clsCheckoutService` atomically creates enrollments.
 
 ---
@@ -167,11 +167,11 @@ Common  (DTOs Â· Enums Â· Exceptions Â· Validation utilities)
 - Bundle management with publication workflow (drafts invisible to the public)
 - Manage users, grant/revoke **Instructor** and **Admin** roles
 - Discount-code management (SuperAdmin)
-- **Audit log** viewer â€” track administrative actions
-- **System log** viewer â€” structured error/monitoring log
+- **Audit log** viewer — track administrative actions
+- **System log** viewer — structured error/monitoring log
 
 ### Cross-Cutting
-- Centralized exception middleware â†’ RFC `problem+json` responses
+- Centralized exception middleware → RFC `problem+json` responses
 - Resource-based authorization (owners, instructors, enrolled users, admins)
 - Role-based access (Admin / Instructor / Student / SuperAdmin)
 - Soft-delete for users and products; full audit trail
@@ -184,25 +184,25 @@ Security is a first-class concern, not an afterthought:
 
 | Control | Implementation |
 |---|---|
-| **Password hashing** | BCrypt (work factor 12) via `BCrypt.Net-Next` â€” never stored in plaintext |
-| **JWT authentication** | HS256-signed access tokens; the API **refuses to start** without a strong secret (â‰¥ 32 bytes) |
+| **Password hashing** | BCrypt (work factor 12) via `BCrypt.Net-Next` — never stored in plaintext |
+| **JWT authentication** | HS256-signed access tokens; the API **refuses to start** without a strong secret (≥ 32 bytes) |
 | **Refresh-token rotation** | Refresh tokens BCrypt-hashed, 3-day expiry, rotated on each refresh, revocable on logout (`clsUser`) |
-| **Rate limiting** | Fixed-window per IP: **5 req/min** on login/refresh/certificates, **3 req/min** on registration â€” 429 `problem+json` |
+| **Rate limiting** | Fixed-window per IP: **5 req/min** on login/refresh/certificates, **3 req/min** on registration — 429 `problem+json` |
 | **Resource-based authorization** | Custom `IAuthorizationHandler`s: `InstructorOwnership`, `UserOwnerOrAdmin`, `UserOwnerOnly`, `IsUserEnrolledOrAdmin` |
-| **Publication visibility** | Draft courses/lessons/bundles are filtered in SQL; drafts return 404 to non-owners â€” no client-side filtering |
+| **Publication visibility** | Draft courses/lessons/bundles are filtered in SQL; drafts return 404 to non-owners — no client-side filtering |
 | **No data oracles** | The anonymous email-existence endpoint was removed (account enumeration surface) |
 | **Defense against SQL injection** | 100% parameterized ADO.NET commands / stored procedures |
 | **Stripe webhook HMAC** | Request signatures verified with HMAC-SHA256 + `whsec_` secret + timestamp tolerance before any side effect |
 | **Payment state machine** | Status transitions are conditional on `Pending` (DB-level); a succeeded payment can never be failed/expired; concurrent webhook deliveries cannot duplicate enrollments or discount usage |
-| **Secret management** | Zero secrets in source â€” `.env` (gitignored) + environment variables |
-| **Centralized error handling** | `ExceptionMiddleware` maps exceptions â†’ proper HTTP statuses, prevents stack-trace leakage |
-| **Soft deletes** | Users/products are deactivated, not destroyed â€” auditability preserved |
+| **Secret management** | Zero secrets in source — `.env` (gitignored) + environment variables |
+| **Centralized error handling** | `ExceptionMiddleware` maps exceptions → proper HTTP statuses, prevents stack-trace leakage |
+| **Soft deletes** | Users/products are deactivated, not destroyed — auditability preserved |
 
 ---
 
 ## Database Design
 
-The full schema lives in **`EduCore.sql`** â€” clean enough to read line-by-line.
+The full schema lives in **`EduCore.sql`** — clean enough to read line-by-line.
 
 ### Core tables
 
@@ -211,27 +211,27 @@ The full schema lives in **`EduCore.sql`** â€” clean enough to read line-by
 | `Users` / `Roles` / `UserRoles` | Users, roles (4 seeded), M:N role assignment |
 | `Products` | Polymorphic sellable base row (`ProductType`: Lesson / Course / Bundle) |
 | `Courses` / `Bundles` / `Lessons` | 1:1 product extensions + content |
-| `CoursesInstructors` | Course â†’ instructor ownership (M:N) |
+| `CoursesInstructors` | Course → instructor ownership (M:N) |
 | `BundlesItems` | Bundle contents |
 | `Orders` / `OrderItems` | Order state machine + product snapshots (`PriceAtPurchase`) |
 | `Payments` | Idempotency-keyed payment lifecycle, `FinalPrice` computed |
 | `Enrollments` | Access grant with `ExpireAt`, unique per `(UserId, ProductId)` |
 | `Progress` | Per-lesson completion (upsert) |
 | `Certificates` | One certificate per (user, course) with a public verification code |
-| `DiscountCodes` | Rate (1â€“100), expiry, usage limits |
+| `DiscountCodes` | Rate (1–100), expiry, usage limits |
 | `Audits` / `Logs` | Administrative actions + system events/errors |
 
 ### Database engineering highlights
 
-- **Native constraints** â€” `CHECK` on payment statuses, filtered unique indexes
-  (one pending order per user, unique transaction ids), computed `FinalPrice â‰¥ 0`
-- **Stored procedures** â€” `SP_AddNewItemToOrder`, `SP_RemoveItemFromOrder`,
+- **Native constraints** — `CHECK` on payment statuses, filtered unique indexes
+  (one pending order per user, unique transaction ids), computed `FinalPrice ≥ 0`
+- **Stored procedures** — `SP_AddNewItemToOrder`, `SP_RemoveItemFromOrder`,
   `SP_CreateNewPayment`, `SP_CreateEnrollmentsFromPaidOrder`, `SP_IssueCertificate`
-- **Server-side rules** â€” prices, discount application, order state, enrollment and
+- **Server-side rules** — prices, discount application, order state, enrollment and
   certificate eligibility are enforced in T-SQL so clients cannot bypass them
-- **Idempotent script** â€” guarded CREATEs; safe to re-run; integration tests apply it
+- **Idempotent script** — guarded CREATEs; safe to re-run; integration tests apply it
   to a disposable database
-- **Seed data** â€” demo instructors/products (`docs/database/seed-demo-courses.sql`)
+- **Seed data** — demo instructors/products (`docs/database/seed-demo-courses.sql`)
 
 ---
 
@@ -241,7 +241,7 @@ The full schema lives in **`EduCore.sql`** â€” clean enough to read line-by
 
 | Area | Highlights | Auth |
 |---|---|---|
-| **Auth** | `POST /auth/login` Â· `/auth/refresh` Â· `/auth/logout` | Anonymous (rate-limited) |
+| **Auth** | `POST /auth/login` · `/auth/refresh` · `/auth/logout` | Anonymous (rate-limited) |
 | **Users** | List, get, update, change password, promote to instructor | Owner / Admin |
 | **Courses** | Full CRUD, lesson management, publish/unpublish | Instructor ownership / Admin |
 | **Lessons** | Full CRUD + publish/unpublish | Instructor ownership |
@@ -254,7 +254,7 @@ The full schema lives in **`EduCore.sql`** â€” clean enough to read line-by
 | **Payments** | Create payment (idempotency key), Stripe checkout session, fail/expire | Student / Admin |
 | **Webhooks** | `POST /webhooks/stripe` | HMAC-verified |
 | **Discounts** | Create/validate/delete codes | SuperAdmin (validate = auth) |
-| **Audit / Logs** | `GET /audit` Â· `GET /logs` | Admin (paging validated) |
+| **Audit / Logs** | `GET /audit` · `GET /logs` | Admin (paging validated) |
 
 > Swagger UI with JWT "Authorize" is available at `/swagger` in Development.
 
@@ -262,11 +262,11 @@ The full schema lives in **`EduCore.sql`** â€” clean enough to read line-by
 
 ## Testing
 
-55 xUnit tests across three styles:
+62 xUnit tests across three styles:
 
 | Style | What it covers |
 |---|---|
-| **Integration (real SQL Server)** | The test fixture creates a disposable `EduCoreTests` database from the repo's own `EduCore.sql` (dropped and recreated per run â€” your dev database is never touched), seeds known data via ADO.NET, and exercises the real stored procedures and readers |
+| **Integration (real SQL Server)** | The test fixture creates a disposable `EduCoreTests` database from the repo's own `EduCore.sql` (dropped and recreated per run — your dev database is never touched), seeds known data via ADO.NET, and exercises the real stored procedures and readers |
 | **In-process API** | `WebApplicationFactory<Program>` boots the real pipeline (JWT auth, authorization handlers, exception middleware) against the test database |
 | **Unit (no I/O)** | Stripe webhook HMAC verification: valid signatures, tampering, wrong secrets, replay tolerance, malformed headers |
 
@@ -284,6 +284,8 @@ dotnet test EduCore.IntegrationTests
 - Without SQL Server: DB/API tests are **skipped** (reported as blocked), config and
   crypto unit tests still run.
 - Custom server (e.g. CI container): set `EDUCORE_TEST_DB_CONNECTION`.
+- CI / strict mode: set `EDUCORE_REQUIRE_DB=1` to make an unreachable SQL Server
+  **fail** the run instead of skipping the database tests.
 
 ---
 
@@ -291,44 +293,44 @@ dotnet test EduCore.IntegrationTests
 
 ```
 EduCore/
-â”œâ”€â”€ EduCore.slnx                    .NET solution (4 projects)
-â”œâ”€â”€ EduCore.sql                     Full DB schema + views + stored procedures + seed
-â”œâ”€â”€ .github/workflows/ci.yml        Build + test on push/PR
-â”‚
-â”œâ”€â”€ Common/                         â€” Cross-cutting layer â€”
-â”‚   â”œâ”€â”€ Dtos/                       Request/response contracts
-â”‚   â”œâ”€â”€ Enums/                      enRoles, enOrderStatus, enPaymentStatus, ...
-â”‚   â”œâ”€â”€ Exceptions/                 Typed exceptions mapped to HTTP statuses
-â”‚   â”œâ”€â”€ Utils/                      Email / password / URL / price validators
-â”‚   â””â”€â”€ ViewModels/
-â”‚
-â”œâ”€â”€ EduCoreAPI/                     â€” PRESENTATION LAYER â€”
-â”‚   â”œâ”€â”€ Controllers/                14 REST controllers
-â”‚   â”œâ”€â”€ Authorization/              Custom policy handlers (ownership / enrollment)
-â”‚   â”œâ”€â”€ Middlewares/                ExceptionMiddleware (problem+json)
-â”‚   â”œâ”€â”€ Program.cs                  JWT, rate limiting, CORS, Swagger, pipeline
-â”‚   â””â”€â”€ .env.example                Env template (secrets live here, not source)
-â”‚
-â”œâ”€â”€ EduCore_BusinessLayer/          â€” BUSINESS LAYER â€”
-â”‚   â”œâ”€â”€ clsUser.cs                  BCrypt, refresh-token rotation
-â”‚   â”œâ”€â”€ clsOrder.cs / clsPayment.cs / clsEnrollment.cs ...
-â”‚   â”œâ”€â”€ clsCheckoutService.cs       Transactional, idempotent payment-success completion
-â”‚   â”œâ”€â”€ clsStripeGateway.cs         Raw Stripe REST + webhook HMAC verification
-â”‚   â””â”€â”€ clsProgress.cs              Progress rules + QuestPDF certificates
-â”‚
-â”œâ”€â”€ EduCore_DataAccess/             â€” DATA ACCESS LAYER â€”
-â”‚   â”œâ”€â”€ clsDataAccessSettings.cs    Connection string from env (never appsettings)
-â”‚   â”œâ”€â”€ cls*Data.cs                 Parameterized ADO.NET + stored procedures
-â”‚   â””â”€â”€ clsGeneralData.cs           Shared ExecuteTransaction helper
-â”‚
-â”œâ”€â”€ EduCore.IntegrationTests/       xUnit: DB integration + API + unit tests
-â””â”€â”€ docs/
-    â”œâ”€â”€ api/endpoint-inventory.md   Every endpoint + auth level
-    â”œâ”€â”€ architecture/               Actual architecture notes
-    â”œâ”€â”€ database/                   Schema docs + demo seed + catalog reset
-    â”œâ”€â”€ decisions/                  ADRs (0001-discovery-phase)
-    â”œâ”€â”€ deployment/                 Production checklist
-    â””â”€â”€ domain/                     Lifecycle models
+├── EduCore.slnx                    .NET solution (4 projects)
+├── EduCore.sql                     Full DB schema + views + stored procedures + seed
+├── .github/workflows/ci.yml        Build + test on push/PR
+│
+├── Common/                         — Cross-cutting layer —
+│   ├── Dtos/                       Request/response contracts
+│   ├── Enums/                      enRoles, enOrderStatus, enPaymentStatus, ...
+│   ├── Exceptions/                 Typed exceptions mapped to HTTP statuses
+│   ├── Utils/                      Email / password / URL / price validators
+│   └── ViewModels/
+│
+├── EduCoreAPI/                     — PRESENTATION LAYER —
+│   ├── Controllers/                14 REST controllers
+│   ├── Authorization/              Custom policy handlers (ownership / enrollment)
+│   ├── Middlewares/                ExceptionMiddleware (problem+json)
+│   ├── Program.cs                  JWT, rate limiting, CORS, Swagger, pipeline
+│   └── .env.example                Env template (secrets live here, not source)
+│
+├── EduCore_BusinessLayer/          — BUSINESS LAYER —
+│   ├── clsUser.cs                  BCrypt, refresh-token rotation
+│   ├── clsOrder.cs / clsPayment.cs / clsEnrollment.cs ...
+│   ├── clsCheckoutService.cs       Transactional, idempotent payment-success completion
+│   ├── clsStripeGateway.cs         Raw Stripe REST + webhook HMAC verification
+│   └── clsProgress.cs              Progress rules + QuestPDF certificates
+│
+├── EduCore_DataAccess/             — DATA ACCESS LAYER —
+│   ├── clsDataAccessSettings.cs    Connection string from env (never appsettings)
+│   ├── cls*Data.cs                 Parameterized ADO.NET + stored procedures
+│   └── clsGeneralData.cs           Shared ExecuteTransaction helper
+│
+├── EduCore.IntegrationTests/       xUnit: DB integration + API + unit tests
+└── docs/
+    ├── api/endpoint-inventory.md   Every endpoint + auth level
+    ├── architecture/               Actual architecture notes
+    ├── database/                   Schema docs + demo seed + catalog reset
+    ├── decisions/                  ADRs (0001-discovery-phase)
+    ├── deployment/                 Production checklist
+    └── domain/                     Lifecycle models
 ```
 
 ---
@@ -344,10 +346,12 @@ EduCore/
 ### 1. Database (once)
 
 ```bash
-sqlcmd -S . -d EduCore -i EduCore.sql
+sqlcmd -S . -I -d EduCore -i EduCore.sql
 ```
 
-`EduCore.sql` creates the database objects â€” all tables, views, and stored procedures â€” and seeds base roles.
+`EduCore.sql` creates the database objects — all tables, views, and stored procedures — and seeds base roles.
+The `-I` flag (QUOTED_IDENTIFIER ON) is required: the schema uses persisted computed
+columns and filtered indexes.
 
 ### 2. Backend
 
@@ -371,7 +375,7 @@ Generate a JWT secret quickly:
 [Convert]::ToBase64String((1..48 | ForEach-Object { Get-Random -Maximum 256 }))
 ```
 
-- HTTP: `http://localhost:5087` Â· HTTPS: `https://localhost:7009`
+- HTTP: `http://localhost:5087` · HTTPS: `https://localhost:7009`
 - Swagger: `https://localhost:7009/swagger` (Development only)
 
 ---
@@ -381,8 +385,8 @@ Generate a JWT secret quickly:
 The full purchase loop:
 
 ```
-cart â†’ create payment â†’ Stripe hosted checkout â†’ redirect â†’ webhook (HMAC-verified)
-     â†’ transactional completion â†’ enrollments created atomically
+cart → create payment → Stripe hosted checkout → redirect → webhook (HMAC-verified)
+     → transactional completion → enrollments created atomically
 ```
 
 Details in `docs/deployment/PRODUCTION_CHECKLIST.md` (webhook registration, live keys,
@@ -392,14 +396,14 @@ FRONTEND_URL for success/cancel redirects).
 
 ## Documentation
 
-- `docs/api/endpoint-inventory.md` â€” every endpoint + auth level
-- `docs/architecture/01-actual-architecture.md` â€” how the system actually works
-- `docs/domain/lifecycles.md` â€” order/payment/certificate state machines
-- `docs/database/schema.md` â€” tables, views, SPs
-- `docs/deployment/PRODUCTION_CHECKLIST.md` â€” go-live checklist
+- `docs/api/endpoint-inventory.md` — every endpoint + auth level
+- `docs/architecture/01-actual-architecture.md` — how the system actually works
+- `docs/domain/lifecycles.md` — order/payment/certificate state machines
+- `docs/database/schema.md` — tables, views, SPs
+- `docs/deployment/PRODUCTION_CHECKLIST.md` — go-live checklist
 
 ---
 
 ## License
 
-Released under the **GNU GPL v3** â€” see [LICENSE](LICENSE).
+Released under the **GNU GPL v3** — see [LICENSE](LICENSE).

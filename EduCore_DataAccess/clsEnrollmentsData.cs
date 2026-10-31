@@ -23,14 +23,16 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@ExpireAt", SqlDbType.DateTime2)
                     .Value = (object?)enrollment.ExpireAt ?? DBNull.Value;
 
-                // The SP runs with SET NOCOUNT ON, so ExecuteNonQuery would
-                // always return -1 and this check could never pass. The SP
-                // exposes the inserted row count via SELECT @@ROWCOUNT.
+                // The SP runs with SET NOCOUNT ON and exposes the affected
+                // enrollment count (inserted + renewed) via a single-row
+                // result set. 0 is a valid outcome: the payment succeeded
+                // and every product already has an active enrollment, so
+                // the order completion chain must still proceed.
                 object result = await command.ExecuteScalarAsync();
 
                 return result != null
                     && result != DBNull.Value
-                    && Convert.ToInt32(result) > 0;
+                    && Convert.ToInt32(result) >= 0;
             }
         }
 
@@ -82,9 +84,33 @@ namespace EduCore_DataAccess
 
         public static async Task<bool> IsUserEnrolled(int userId, int productId)
         {
-            string query = @"SELECT 1 FROM Enrollments
-                        WHERE UserId = @UserId AND ProductId = @ProductId
-                        AND (ExpireAt IS NULL OR ExpireAt > SYSUTCDATETIME());";
+            // Access is granted in two ways:
+            //   1. a direct active enrollment on the product itself, or
+            //   2. an active enrollment on a BUNDLE product whose
+            //      BundlesItems reference a (non-deleted) course that owns
+            //      exactly this product — buying a bundle must unlock its
+            //      included courses, respecting the bundle enrollment's
+            //      expiry.
+            // ExpireAt is a DATE column: an enrollment stays valid through
+            // the END of its last day (UTC).
+            string query = @"SELECT 1
+                        WHERE EXISTS
+                        (
+                            SELECT 1 FROM Enrollments
+                            WHERE UserId = @UserId AND ProductId = @ProductId
+                            AND (ExpireAt IS NULL OR ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))
+                        )
+                        OR EXISTS
+                        (
+                            SELECT 1
+                            FROM Enrollments E
+                            JOIN Bundles B ON B.ProductId = E.ProductId
+                            JOIN BundlesItems BI ON BI.BundleId = B.Id
+                            JOIN Courses C ON C.Id = BI.CourseId AND C.IsDeleted = 0
+                            WHERE E.UserId = @UserId
+                              AND C.ProductId = @ProductId
+                              AND (E.ExpireAt IS NULL OR E.ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))
+                        );";
 
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, connection))
@@ -106,7 +132,7 @@ namespace EduCore_DataAccess
 
             string query = @"SELECT Id, UserId, ProductId, EnrolledAt, ExpireAt, PaymentId
                             FROM Enrollments
-                            WHERE UserId = @UserId AND (ExpireAt IS NULL OR ExpireAt > SYSUTCDATETIME())
+                            WHERE UserId = @UserId AND (ExpireAt IS NULL OR ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))
                             ORDER BY EnrolledAt DESC
                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                             FETCH NEXT @RowsPerPage ROWS ONLY;";
@@ -181,7 +207,7 @@ namespace EduCore_DataAccess
                             LEFT  JOIN Courses  C ON C.ProductId = E.ProductId AND C.IsDeleted = 0
                             LEFT  JOIN Lessons  L ON L.ProductId = E.ProductId AND L.IsDeleted = 0
                             WHERE E.UserId = @UserId
-                              AND (E.ExpireAt IS NULL OR E.ExpireAt > SYSUTCDATETIME())
+                              AND (E.ExpireAt IS NULL OR E.ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))
                             ORDER BY E.EnrolledAt DESC
                             OFFSET (@PageNumber - 1) * @RowsPerPage ROWS
                             FETCH NEXT @RowsPerPage ROWS ONLY;";

@@ -93,8 +93,8 @@ namespace EduCore_DataAccess
                             Id = reader.GetInt32(idIndex),
                             ProductType = reader.GetByte(typeIndex),
                             Name = reader.GetString(nameIndex),
-                            CreatedAt = reader.GetDateTime(createdIndex),
-                            UpdatedAt = reader.GetDateTime(updatedIndex),
+                            CreatedAt = reader.IsDBNull(createdIndex) ? DateTime.MinValue : reader.GetDateTime(createdIndex),
+                            UpdatedAt = reader.IsDBNull(updatedIndex) ? DateTime.MinValue : reader.GetDateTime(updatedIndex),
                             BasePrice = reader.GetDecimal(priceIndex),
                             CreatedByUser = reader.GetInt32(adminIndex),
                             ThumbnailUrl = reader.IsDBNull(thumbIndex) ? null : reader.GetString(thumbIndex),
@@ -137,9 +137,9 @@ namespace EduCore_DataAccess
         {
             int ProductID = -1;
 
-            string query = @"INSERT INTO Products (ProductType, Name, CreatedAt, UpdatedAt, 
-                               BasePrice, CreatedByUser, ThumbnailUrl,Summary) 
-                                VALUES (@ProductType,@Name,GETDATE(), Null,@BasePrice, @CreatedByUser,@ThumbnailUrl,@Summary)
+            string query = @"INSERT INTO Products (ProductType, Name, CreatedAt, UpdatedAt,
+                               BasePrice, CreatedByUser, ThumbnailUrl,Summary)
+                                VALUES (@ProductType,@Name,SYSUTCDATETIME(), Null,@BasePrice, @CreatedByUser,@ThumbnailUrl,@Summary)
                                 SELECT SCOPE_IDENTITY();";
 
 
@@ -181,7 +181,7 @@ namespace EduCore_DataAccess
                                  BasePrice = @Price,
                                  ThumbnailUrl = @Thumbnail,
                                  Summary = @Summary,
-                                 UpdatedAt = GETDATE()
+                                 UpdatedAt = SYSUTCDATETIME()
                              WHERE Id = @Id;";
 
             int rowsAffected = 0;

@@ -89,7 +89,7 @@ namespace EduCore_DataAccess
         {
             if (productId <= 0) return null;
             DtoCourse course = null;
-            string query = @"SELECT Id, ProductId, Summary, CoverImageUrl, IsDeleted, DeletedAt, DeletedById
+            string query = @"SELECT Id, ProductId, CoverImageUrl, IsDeleted, DeletedAt, DeletedById
                             FROM Courses
                             WHERE ProductId = @ProductId AND IsDeleted = 0";
             using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
@@ -157,7 +157,7 @@ namespace EduCore_DataAccess
         {
             string query = @"UPDATE Courses
                             SET IsDeleted = 1,
-                            DeletedAt = GetDATE(),
+                            DeletedAt = SYSUTCDATETIME(),
                             DeletedById = @AdminId
                             WHERE Id = @Id;";
             if (UnDelete)
@@ -397,8 +397,25 @@ private static async Task<List<CourseWithInstructorViewModel>> GetAllCoursesWith
 
         public static async Task<bool> AssignLessonToCourse(int courseId, int lessonId)
         {
-            string query = @"INSERT INTO CoursesLessons(CourseId,LessonId)
-                            VALUES(@courseId,@lessonId)";
+            // The course-lesson relationship lives in TWO places
+            // (Lessons.CourseId + CoursesLessons). Both are written here
+            // inside ONE transaction, and any junction row pointing the
+            // lesson at a DIFFERENT course is removed, so the two
+            // representations can never disagree.
+            string query = @"BEGIN TRANSACTION;
+
+                             DELETE FROM CoursesLessons
+                             WHERE LessonId = @LessonId
+                               AND CourseId <> @CourseId;
+
+                             INSERT INTO CoursesLessons(CourseId, LessonId)
+                             VALUES(@CourseId, @LessonId);
+
+                             UPDATE Lessons
+                             SET CourseId = @CourseId
+                             WHERE Id = @LessonId;
+
+                             COMMIT;";
             using (SqlConnection conn = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand command = new SqlCommand(query, conn))
             {

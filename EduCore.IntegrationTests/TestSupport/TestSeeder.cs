@@ -178,22 +178,23 @@ namespace EduCore.IntegrationTests.TestSupport
         /// Enrolls a user directly (order + succeeded payment + enrollment),
         /// satisfying the Enrollments→Payments foreign key.
         /// </summary>
-        public async Task<int> EnrollDirectAsync(int userId, int productId, decimal price = 0m)
+        public async Task<int> EnrollDirectAsync(int userId, int productId, decimal price = 0m, DateTime? expireAt = null)
         {
             int orderId = await OrderAsync(userId, "Completed", price);
             int paymentId = await PaymentAsync(orderId, $"seed-{Guid.NewGuid():N}", "Succeeded", price);
-            return await EnrollmentAsync(userId, productId, paymentId);
+            return await EnrollmentAsync(userId, productId, paymentId, expireAt);
         }
 
-        public Task<int> EnrollmentAsync(int userId, int productId, int paymentId)
+        public Task<int> EnrollmentAsync(int userId, int productId, int paymentId, DateTime? expireAt = null)
             => ScalarIntAsync(
-                @"INSERT INTO Enrollments (UserId, ProductId, PaymentId) VALUES (@UserId, @ProductId, @PaymentId);
+                @"INSERT INTO Enrollments (UserId, ProductId, PaymentId, ExpireAt) VALUES (@UserId, @ProductId, @PaymentId, @ExpireAt);
                   SELECT SCOPE_IDENTITY();",
                 c =>
                 {
                     Bind(c, "@UserId", SqlDbType.Int, userId);
                     Bind(c, "@ProductId", SqlDbType.Int, productId);
                     Bind(c, "@PaymentId", SqlDbType.Int, paymentId);
+                    Bind(c, "@ExpireAt", SqlDbType.Date, (object?)expireAt ?? DBNull.Value);
                 });
 
         public Task ProgressAsync(int userId, int lessonId, bool isComplete)
@@ -278,6 +279,12 @@ namespace EduCore.IntegrationTests.TestSupport
                 });
 
         // ---------------- low-level helpers ----------------
+
+        public Task<int> ScalarIntRawAsync(string sql, Action<SqlCommand> bind)
+            => ScalarIntAsync(sql, bind);
+
+        public Task<int?> ScalarIntOrNullRawAsync(string sql, Action<SqlCommand> bind)
+            => ScalarIntOrNullAsync(sql, bind);
 
         private static void Bind(SqlCommand command, string name, SqlDbType type, object value)
             => command.Parameters.Add(name, type).Value = value ?? DBNull.Value;

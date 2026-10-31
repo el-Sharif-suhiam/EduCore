@@ -218,8 +218,10 @@ using System.Security.Claims;namespace EduCoreAPI.Controllers
         // =========================
         // PUT: Mark As Failed
         // فشل الدفع — TransactionId اختياري
+        // Admin-only: payment lifecycle transitions are driven by the
+        // gateway webhook or back-office ops, never by the buyer.
         // =========================
-        [Authorize]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("{id:int}/fail")]
         public async Task<ActionResult> MarkAsFailed(
             [FromRoute] int id,
@@ -258,8 +260,9 @@ using System.Security.Claims;namespace EduCoreAPI.Controllers
         // PUT: Mark As Expired
         // انتهت صلاحية الدفع
         // لا يحتاج TransactionId
+        // Admin-only (same rationale as /fail).
         // =========================
-        [Authorize]
+        [Authorize(Roles = "Admin,SuperAdmin")]
         [HttpPut("{id:int}/expire")]
         public async Task<ActionResult> MarkAsExpired(
             [FromRoute] int id,

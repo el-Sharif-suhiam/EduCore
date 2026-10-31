@@ -459,14 +459,28 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- Serialize against SP_CreateNewPayment / SP_RemoveItemFromOrder:
+        -- the order-row lock (UPDLOCK) is taken FIRST so item mutations
+        -- and payment creation can never interleave on the same order.
+        DECLARE @OrderStatus VARCHAR(50);
+
+        SELECT @OrderStatus = Status
+        FROM Orders WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @OrderId;
+
         -- State machine guard: only editable orders accept new items.
         -- Completed/Cancelled are final; they must never be modified
         -- or silently flipped back to Pending by this procedure.
-        IF NOT EXISTS (
-            SELECT 1 FROM Orders
-            WHERE Id = @OrderId AND Status IN ('Pending', 'Empty')
-        )
+        IF @OrderStatus IS NULL OR @OrderStatus NOT IN ('Pending', 'Empty')
             THROW 50011, 'Order is not editable in its current state', 1;
+
+        -- A live payment pins the order total: mutating items under a
+        -- pending payment would let the buyer pay a stale price.
+        IF EXISTS (
+            SELECT 1 FROM Payments
+            WHERE OrderId = @OrderId AND Status = 'Pending'
+        )
+            THROW 50012, 'Order has a pending payment', 1;
 
         DECLARE @PriceAtPurchase DECIMAL(9,2);
 
@@ -528,12 +542,24 @@ BEGIN
     BEGIN TRY
         BEGIN TRANSACTION;
 
+        -- Same serialization point as SP_AddNewItemToOrder: lock the
+        -- order row first, then validate state.
+        DECLARE @OrderStatus VARCHAR(50);
+
+        SELECT @OrderStatus = Status
+        FROM Orders WITH (UPDLOCK, ROWLOCK)
+        WHERE Id = @OrderId;
+
         -- State machine guard: only editable orders accept removals.
-        IF NOT EXISTS (
-            SELECT 1 FROM Orders
-            WHERE Id = @OrderId AND Status IN ('Pending', 'Empty')
-        )
+        IF @OrderStatus IS NULL OR @OrderStatus NOT IN ('Pending', 'Empty')
             THROW 50011, 'Order is not editable in its current state', 1;
+
+        -- Items cannot be removed while a payment is pending on them.
+        IF EXISTS (
+            SELECT 1 FROM Payments
+            WHERE OrderId = @OrderId AND Status = 'Pending'
+        )
+            THROW 50012, 'Order has a pending payment', 1;
 
         DELETE FROM OrderItems
         WHERE OrderId = @OrderId
@@ -580,17 +606,23 @@ CREATE OR ALTER PROCEDURE SP_CreateNewPayment
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
 
         -- =========================
-        -- 2. جلب بيانات الطلب
+        -- 1. Lock the order row FIRST (same serialization point as
+        --    SP_AddNewItemToOrder / SP_RemoveItemFromOrder): item
+        --    mutations and payment creation can never interleave.
         -- =========================
         DECLARE @TotalPrice DECIMAL(9,2);
         DECLARE @OrderStatus VARCHAR(50);
 
-        SELECT 
+        SELECT
             @TotalPrice = TotalPrice,
             @OrderStatus = Status
-        FROM Orders
+        FROM Orders WITH (UPDLOCK, ROWLOCK)
         WHERE Id = @OrderId;
 
         IF @TotalPrice IS NULL
@@ -600,39 +632,100 @@ BEGIN
             THROW 50002, 'Order is not valid for payment', 1;
 
         -- =========================
-        -- 3. حساب الخصم
+        -- 2. Idempotency: same key + same order returns the existing
+        --    payment; same key + a different order is a client error.
+        --    HOLDLOCK keeps the check-then-insert atomic against a
+        --    concurrent call with the same key (the unique index
+        --    UX_Payments_IdempotencyKey is the last line of defense).
+        -- =========================
+        DECLARE @ExistingPaymentId INT;
+        DECLARE @ExistingFinalPrice DECIMAL(18,2);
+        DECLARE @ExistingOrderId INT;
+
+        SELECT
+            @ExistingPaymentId = Id,
+            @ExistingFinalPrice = FinalPrice,
+            @ExistingOrderId = OrderId
+        FROM Payments WITH (HOLDLOCK, UPDLOCK, ROWLOCK)
+        WHERE IdempotencyKey = @IdempotencyKey;
+
+        IF @ExistingPaymentId IS NOT NULL
+        BEGIN
+            IF @ExistingOrderId <> @OrderId
+                THROW 50005, 'Idempotency key already used for another order', 1;
+
+            COMMIT;
+
+            SELECT
+                @ExistingPaymentId AS PaymentId,
+                @ExistingFinalPrice AS FinalPrice;
+            RETURN;
+        END
+
+        -- =========================
+        -- 3. At most one live (Pending) payment per order: an older
+        --    Pending payment must be expired/failed before a new one
+        --    is created, otherwise the discount usage and the order
+        --    total could be double-counted.
+        -- =========================
+        IF EXISTS (
+            SELECT 1 FROM Payments
+            WHERE OrderId = @OrderId AND Status = 'Pending'
+        )
+            THROW 50006, 'A pending payment already exists for this order', 1;
+
+        -- =========================
+        -- 4. حساب الخصم
         -- =========================
         DECLARE @DiscountPrice DECIMAL(9,2) = 0;
 
         IF @DiscountId IS NOT NULL AND @DiscountId > 0
         BEGIN
-            DECLARE 
-                @ExpireAt DATETIME,
-                @DiscountRate DECIMAL(9,2),
+            DECLARE
+                @ExpireAt DATE,
+                @DiscountRate DECIMAL(5,2),
                 @AllowedUseNumber INT,
                 @UsedCount INT;
 
-            SELECT 
+            IF NOT EXISTS (
+                SELECT 1 FROM DiscountCodes WHERE Id = @DiscountId
+            )
+                THROW 50007, 'Discount not found', 1;
+
+            SELECT
                 @ExpireAt = ExpireAt,
                 @DiscountRate = DiscountRate,
                 @AllowedUseNumber = AllowedUseNumber,
-                @UsedCount = TotalUserNumber
+                @UsedCount = ISNULL(TotalUserNumber, 0)
             FROM DiscountCodes
             WHERE Id = @DiscountId;
 
-            -- انتهاء الصلاحية
-            IF @ExpireAt IS NOT NULL AND @ExpireAt <= SYSUTCDATETIME()
+            -- Rate sanity (mirrors clsDiscountCode.SetDiscountRate):
+            -- a rate must fall in (0, 100] when present.
+            IF @DiscountRate IS NOT NULL AND (@DiscountRate <= 0 OR @DiscountRate > 100)
+                THROW 50008, 'Discount rate is invalid', 1;
+
+            -- ExpireAt is a DATE column: the code stays valid through
+            -- the END of its last day (UTC). It is expired only when
+            -- its date is strictly before today.
+            IF @ExpireAt IS NOT NULL AND @ExpireAt < CAST(SYSUTCDATETIME() AS DATE)
                 THROW 50003, 'Discount expired', 1;
 
-            -- حد الاستخدام (NULL أو 0 = غير محدود)
+            -- حد الاستخدام (NULL أو 0 = غير محدود).
+            -- TotalUserNumber counts SUCCEEDED payments; Pending payments
+            -- reserve a slot so concurrent checkouts cannot over-consume.
+            SELECT @UsedCount = @UsedCount + COUNT(*)
+            FROM Payments
+            WHERE DiscountId = @DiscountId AND Status = 'Pending';
+
             IF ISNULL(@AllowedUseNumber, 0) <> 0 AND @UsedCount >= @AllowedUseNumber
                 THROW 50004, 'Discount limit reached', 1;
 
-            SET @DiscountPrice = (@TotalPrice * @DiscountRate) / 100;
+            SET @DiscountPrice = ISNULL((@TotalPrice * @DiscountRate) / 100, 0);
         END
 
         -- =========================
-        -- 4. إدخال الدفع
+        -- 5. إدخال الدفع
         -- =========================
         INSERT INTO Payments
         (
@@ -645,7 +738,7 @@ BEGIN
             TransactionId,
             IdempotencyKey
         )
-        OUTPUT 
+        OUTPUT
             INSERTED.Id AS PaymentId,
             INSERTED.FinalPrice
         VALUES
@@ -660,6 +753,14 @@ BEGIN
             @IdempotencyKey
         );
 
+        COMMIT;
+
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK;
+        THROW;
+    END CATCH
 END
 GO
 
@@ -697,23 +798,31 @@ BEGIN
         IF @PaymentStatus <> 'Succeeded'
             THROW 50003, 'Payment is not succeeded', 1;
 
-        -- 1) إرجاع كل عناصر الطلب
-        SELECT 
-            OI.Id,
-            OI.OrderId,
-            OI.ProductId,
-            OI.PriceAtPurchase
-        FROM OrderItems OI
-        WHERE OI.OrderId = @OrderId;
+        -- 1) تجديد الاشتراكات المنتهية: إعادة شراء نفس المنتج تمدد
+        --    صلاحية الاشتراك المنتهي بدل الفشل بسبب قيد التفرد
+        --    UQ_User_Product. ExpireAt عمود DATE: الاشتراك منتهٍ فقط
+        --    إذا كان تاريخ انتهائه قبل تاريخ اليوم (UTC) — يبقى صالحاً
+        --    حتى نهاية آخر يوم له.
+        UPDATE E
+        SET E.ExpireAt  = CAST(@ExpireAt AS DATE),
+            E.PaymentId = @PaymentId
+        FROM Enrollments E
+        JOIN OrderItems OI ON OI.ProductId = E.ProductId
+        WHERE OI.OrderId = @OrderId
+          AND E.UserId = @UserId
+          AND E.ExpireAt IS NOT NULL
+          AND E.ExpireAt < CAST(SYSUTCDATETIME() AS DATE);
 
-        -- 2) إنشاء enrollments لكل منتج في الطلب
+        DECLARE @Renewed INT = @@ROWCOUNT;
+
+        -- 2) إنشاء enrollments جديدة للمنتجات غير المشتركة سابقاً
         INSERT INTO Enrollments
             (UserId, ProductId, EnrolledAt, ExpireAt, PaymentId)
         SELECT DISTINCT
             @UserId,
             OI.ProductId,
             SYSUTCDATETIME(),
-            @ExpireAt,
+            CAST(@ExpireAt AS DATE),
             @PaymentId
         FROM OrderItems OI
         WHERE OI.OrderId = @OrderId
@@ -725,9 +834,14 @@ BEGIN
                 AND E.ProductId = OI.ProductId
           );
 
+        DECLARE @Inserted INT = @@ROWCOUNT;
+
         -- Row counts are suppressed by SET NOCOUNT ON, so clients cannot
-        -- rely on ExecuteNonQuery(); expose the inserted count explicitly.
-        SELECT @@ROWCOUNT AS InsertedRows;
+        -- rely on ExecuteNonQuery(); expose the affected count explicitly.
+        -- 0 is a valid outcome (every product in the order already has an
+        -- active enrollment) and must NOT be treated as a failure — the
+        -- payment succeeded, so the order completion chain must proceed.
+        SELECT @Inserted + @Renewed AS AffectedEnrollments;
 
     END TRY
     BEGIN CATCH
@@ -763,7 +877,8 @@ BEGIN
             SELECT 1 FROM Enrollments E
             WHERE E.UserId = @UserId
               AND E.ProductId = @ProductId
-              AND (E.ExpireAt IS NULL OR E.ExpireAt > SYSUTCDATETIME())
+              AND (E.ExpireAt IS NULL
+                   OR E.ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))
         )
             THROW 50021, 'User is not enrolled in this course', 1;
 
@@ -805,12 +920,21 @@ BEGIN
         BEGIN
             DECLARE @Code NVARCHAR(64) = LOWER(REPLACE(NEWID(), '-', ''));
 
-            INSERT INTO Certificates (CertificateCode, UserId, CourseId)
-            VALUES (@Code, @UserId, @CourseId);
+            BEGIN TRY
+                INSERT INTO Certificates (CertificateCode, UserId, CourseId)
+                VALUES (@Code, @UserId, @CourseId);
+            END TRY
+            BEGIN CATCH
+                -- Lost a race against a concurrent issuance: the unique
+                -- constraint UQ_Certificate_User_Course rejected the
+                -- duplicate. Fall through and return the winner's row.
+                IF ERROR_NUMBER() NOT IN (2627, 2601)
+                    THROW;
+            END CATCH
 
             SELECT CertificateCode, IssuedAt
             FROM Certificates
-            WHERE Id = SCOPE_IDENTITY();
+            WHERE UserId = @UserId AND CourseId = @CourseId;
         END
 
     END TRY

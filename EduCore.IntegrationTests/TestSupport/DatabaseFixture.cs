@@ -105,6 +105,17 @@ namespace EduCore.IntegrationTests.TestSupport
             {
                 DatabaseAvailable = false;
                 LastInitError = ex.Message;
+
+                // CI sets EDUCORE_REQUIRE_DB=1: an unreachable SQL Server
+                // must FAIL the run, never silently skip every database
+                // test and report a green build.
+                if (!string.IsNullOrWhiteSpace(
+                        Environment.GetEnvironmentVariable("EDUCORE_REQUIRE_DB")))
+                {
+                    throw new InvalidOperationException(
+                        "EDUCORE_REQUIRE_DB is set but SQL Server is unavailable: "
+                        + ex.Message, ex);
+                }
             }
         }
 

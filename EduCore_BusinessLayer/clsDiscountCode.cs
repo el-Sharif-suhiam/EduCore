@@ -22,7 +22,10 @@ namespace EduCore_BusinessLayer
 
         public bool IsUnlimited => AllowedUseNumber is null or 0;
 
-        public bool IsExpired => ExpireAt.HasValue && ExpireAt.Value < DateTime.UtcNow;
+        // ExpireAt is stored in a DATE column: the code stays valid
+        // through the END of its last day, so it is expired only when
+        // its date is strictly before today's UTC date.
+        public bool IsExpired => ExpireAt.HasValue && ExpireAt.Value.Date < DateTime.UtcNow.Date;
 
         public bool IsValid =>
             !IsExpired &&
@@ -64,7 +67,9 @@ namespace EduCore_BusinessLayer
 
         public void SetExpireAt(DateTime? expireAt)
         {
-            if (expireAt.HasValue && expireAt.Value <= DateTime.UtcNow)
+            // DATE column semantics: today is still a valid expiry day
+            // (valid through the end of the day, UTC).
+            if (expireAt.HasValue && expireAt.Value.Date < DateTime.UtcNow.Date)
                 throw new ValidationException("Expiry date must be in the future");
 
             _DiscountData.ExpireAt = expireAt;

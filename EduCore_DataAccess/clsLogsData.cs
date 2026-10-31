@@ -48,7 +48,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                     .Value = (object?)log.Source ?? DBNull.Value;
                 
                 cmd.Parameters.Add("@StackTrace", SqlDbType.NVarChar)
-                   .Value = log.StackTrace;
+                   .Value = (object?)log.StackTrace ?? DBNull.Value;
 
 
                 cmd.Parameters.Add("@IpAddress", SqlDbType.VarChar, 45)
@@ -77,7 +77,7 @@ SELECT CAST(SCOPE_IDENTITY() AS INT);";
                                  LogType,
                                  Message,
                                  Source,
-                                 StackTrace
+                                 StackTrace,
                                  IpAddress,
                                  UserAgent,
                                  RequestPath

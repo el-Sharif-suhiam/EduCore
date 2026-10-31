@@ -81,7 +81,7 @@ namespace EduCore_DataAccess
                             ProductId = reader.GetInt32(productIndex),
                             Title = reader.GetString(titleIndex),
                             VideoUrl = reader.IsDBNull(videoIndex) ? null : reader.GetString(videoIndex),
-                            BodyText = reader.GetString(bodyIndex),
+                            BodyText = reader.IsDBNull(bodyIndex) ? null : reader.GetString(bodyIndex),
                             IsDeleted = reader.GetBoolean(isDeletedIndex),
                             DeletedAt = reader.IsDBNull(deletedAtIndex) ? null : reader.GetDateTime(deletedAtIndex),
                             DeletedById = reader.IsDBNull(deletedByIndex) ? null : reader.GetInt32(deletedByIndex),
@@ -99,6 +99,64 @@ namespace EduCore_DataAccess
 
         public static async Task<DtoLessons> GetLessonByIdIncludeDeleted(int lessonId)
             => await GetLessonIdInternal(lessonId, true);
+
+        /// <summary>
+        /// Access-control lookup: returns ANY non-deleted lesson, including
+        /// lessons attached to a course (GetLessonById filters those out).
+        /// Used by progress marking to resolve the lesson's owning product.
+        /// </summary>
+        public static async Task<DtoLessons?> GetLessonByIdAny(int lessonId)
+        {
+            if (lessonId <= 0) return null;
+
+            DtoLessons? lesson = null;
+
+            string query = @"SELECT Id, ProductId, Title, VideoUrl, BodyText,
+                                IsDeleted, DeletedAt, DeletedById, InstructorId, CourseId
+                         FROM Lessons
+                         WHERE Id = @Id AND IsDeleted = 0;";
+
+            using (SqlConnection connection = new SqlConnection(clsDataAccessSettings.ConnectionString))
+            using (SqlCommand command = new SqlCommand(query, connection))
+            {
+                command.Parameters.Add("@Id", SqlDbType.Int).Value = lessonId;
+
+                await connection.OpenAsync();
+
+                using (SqlDataReader reader = await command.ExecuteReaderAsync())
+                {
+                    if (await reader.ReadAsync())
+                    {
+                        int idIndex = reader.GetOrdinal("Id");
+                        int productIndex = reader.GetOrdinal("ProductId");
+                        int titleIndex = reader.GetOrdinal("Title");
+                        int videoIndex = reader.GetOrdinal("VideoUrl");
+                        int bodyIndex = reader.GetOrdinal("BodyText");
+                        int isDeletedIndex = reader.GetOrdinal("IsDeleted");
+                        int deletedAtIndex = reader.GetOrdinal("DeletedAt");
+                        int deletedByIndex = reader.GetOrdinal("DeletedById");
+                        int instructorIndex = reader.GetOrdinal("InstructorId");
+                        int coursIdIndex = reader.GetOrdinal("CourseId");
+
+                        lesson = new DtoLessons
+                        {
+                            Id = reader.GetInt32(idIndex),
+                            ProductId = reader.GetInt32(productIndex),
+                            Title = reader.GetString(titleIndex),
+                            VideoUrl = reader.IsDBNull(videoIndex) ? null : reader.GetString(videoIndex),
+                            BodyText = reader.IsDBNull(bodyIndex) ? null : reader.GetString(bodyIndex),
+                            IsDeleted = reader.GetBoolean(isDeletedIndex),
+                            DeletedAt = reader.IsDBNull(deletedAtIndex) ? null : reader.GetDateTime(deletedAtIndex),
+                            DeletedById = reader.IsDBNull(deletedByIndex) ? null : reader.GetInt32(deletedByIndex),
+                            InstructorId = reader.GetInt32(instructorIndex),
+                            CourseId = reader.IsDBNull(coursIdIndex) ? null : reader.GetInt32(coursIdIndex)
+                        };
+                    }
+                }
+            }
+
+            return lesson;
+        }
 
 
         public static async Task<DtoLessons> GetLessonByProductId(int productId)
@@ -139,7 +197,7 @@ namespace EduCore_DataAccess
                             ProductId = reader.GetInt32(productIndex),
                             Title = reader.GetString(titleIndex),
                             VideoUrl = reader.IsDBNull(videoIndex) ? null : reader.GetString(videoIndex),
-                            BodyText = reader.GetString(bodyIndex),
+                            BodyText = reader.IsDBNull(bodyIndex) ? null : reader.GetString(bodyIndex),
                             IsDeleted = reader.GetBoolean(isDeletedIndex),
                             DeletedAt = reader.IsDBNull(deletedAtIndex) ? null : reader.GetDateTime(deletedAtIndex),
                             DeletedById = reader.IsDBNull(deletedByIndex) ? null : reader.GetInt32(deletedByIndex),
@@ -195,7 +253,7 @@ namespace EduCore_DataAccess
                             ProductId = reader.GetInt32(productIndex),
                             Title = reader.GetString(titleIndex),
                             VideoUrl = reader.IsDBNull(videoIndex) ? null : reader.GetString(videoIndex),
-                            BodyText = reader.GetString(bodyIndex),
+                            BodyText = reader.IsDBNull(bodyIndex) ? null : reader.GetString(bodyIndex),
                             IsDeleted = reader.GetBoolean(isDeletedIndex),
                             DeletedAt = reader.IsDBNull(deletedAtIndex) ? null : reader.GetDateTime(deletedAtIndex),
                             DeletedById = reader.IsDBNull(deletedByIndex) ? null : reader.GetInt32(deletedByIndex),
@@ -252,7 +310,7 @@ namespace EduCore_DataAccess
         {
             string query = @"UPDATE Lessons
                          SET IsDeleted = 1,
-                             DeletedAt = GETDATE(),
+                             DeletedAt = SYSUTCDATETIME(),
                              DeletedById = @AdminId
                          WHERE Id = @Id;";
             if (UnDelete)
@@ -332,7 +390,7 @@ namespace EduCore_DataAccess
                             ProductId = reader.GetInt32(productIndex),
                             Title = reader.GetString(titleIndex),
                             VideoUrl = reader.IsDBNull(videoIndex) ? null : reader.GetString(videoIndex),
-                            BodyText = reader.GetString(bodyIndex),
+                            BodyText = reader.IsDBNull(bodyIndex) ? null : reader.GetString(bodyIndex),
                             IsDeleted = reader.GetBoolean(isDeletedIndex),
                             DeletedAt = reader.IsDBNull(deletedAtIndex) ? null : reader.GetDateTime(deletedAtIndex),
                             DeletedById = reader.IsDBNull(deletedByIndex) ? null : reader.GetInt32(deletedByIndex),

@@ -219,6 +219,15 @@ namespace EduCore_BusinessLayer
 
                 _LessonsData.Id = lessonId;
 
+                // Keep BOTH representations of the relationship in sync
+                // inside this same transaction: Lessons.CourseId (written
+                // by AddLesson) and the CoursesLessons junction (read by
+                // progress/certificate checks). Skipping the junction here
+                // would make API-created course lessons invisible to
+                // GetCourseProgress / SP_IssueCertificate.
+                if (CourseId != null)
+                    await clsCourseLessonData.AddLessonToCourse(CourseId.Value, lessonId, conn, tx);
+
                 string auditMessage = string.Empty;
                 if (CourseId != null)
                     auditMessage = $"Created a new lesson associated with course id: { CourseId}";
@@ -264,6 +273,12 @@ namespace EduCore_BusinessLayer
 
                 if (!updatedLesson)
                     throw new ConflictException("Failed to update lesson");
+
+                // Same-transaction sync of the second representation:
+                // a lesson moved to another course (or detached) must not
+                // leave stale CoursesLessons rows behind, and a newly
+                // associated course must appear in the junction.
+                await clsCourseLessonData.SyncLessonCourse(_LessonsData.Id, CourseId, conn, tx);
 
 
                 string auditMessage = "Update independent lesson";
