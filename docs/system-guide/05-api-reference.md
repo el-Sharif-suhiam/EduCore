@@ -25,7 +25,7 @@ All error responses use the standard exception mapping (400/401/403/404/409/500)
 | POST | /api/users/students | Anonymous | Register student. |
 | DELETE | /api/users/{id} | Admin,SuperAdmin | Deactivate/delete user. |
 | POST | /api/users/{id}/activate | Admin,SuperAdmin | Activate user. |
-| PUT | /api/users/{id} | Owner or Admin | Update user profile. |
+| PUT | /api/users/{id} | UserOwnerOnly (owner) | Update user profile. |
 | PUT | /api/users/{id}/password | Owner or Admin | Change password. |
 | POST | /api/users/toInstructor/{id} | Admin,SuperAdmin | Grant instructor role. |
 | POST | /api/users/toInstructor/{id}/remove | Admin,SuperAdmin | Remove instructor role. |
@@ -173,3 +173,39 @@ Products are managed indirectly through course, lesson, and bundle endpoints.
 - Pagination parameters `pageNumber`, `pageSize` are query params where listed
   endpoints support them.
 - Search text parameters are query params where supported.
+
+## Request/Response Examples
+
+### Authentication — Login
+Request:
+```json
+{ "email": "student@test.local", "password": "Test1234!" }
+```
+Response:
+```json
+{ "token": "<jwt>", "refreshToken": "<refresh>" }
+```
+
+### Orders — Create order
+`POST /api/orders` (authenticated) returns the new or existing pending order id.
+
+### Orders — Add item
+`POST /api/orders/{orderId}/items/{productId}` adds a product with its current
+published price snapshot.
+
+### Payments — Create payment
+Request:
+```json
+{ "orderId": 1, "discountCode": "SAVE10", "idempotencyKey": "client-uuid", "paymentMethod": "card" }
+```
+Response:
+```json
+{ "paymentId": 42, "finalPrice": 27.00 }
+```
+
+### Progress — Mark complete
+`PUT /api/progress/lessons/{lessonId}/complete` returns success boolean.
+
+### Certificates — Verify
+`GET /api/certificates/{code}` (anonymous) returns validity flag, student name,
+course title, and issue date.

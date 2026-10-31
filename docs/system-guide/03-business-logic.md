@@ -32,9 +32,9 @@ Roles: `Student`, `Instructor`, `Admin`, `SuperAdmin` (seeded in `Roles`).
   `Lessons.CourseId` inside a transaction by the business layer.
 - Soft deletion: `IsDeleted = 1` hides from public views and blocks access
   (see §7).
-- Publication of a course/lesson is independent of its product's? Actually
-  publication lives on the Product (`IsPublished`). Courses/lessons inherit
-  visibility through their product.
+- Publication is controlled by `Products.IsPublished`. Courses and lessons
+  inherit their public visibility from their associated product row; there is
+  no separate publication flag on `Courses` or `Lessons`.
 - Standalone lessons remain accessible per their existing rules even when
   course context changes.
 
