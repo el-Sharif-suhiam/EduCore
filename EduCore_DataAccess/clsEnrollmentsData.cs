@@ -107,6 +107,7 @@ namespace EduCore_DataAccess
                             JOIN Bundles B ON B.ProductId = E.ProductId
                             JOIN BundlesItems BI ON BI.BundleId = B.Id
                             JOIN Courses C ON C.Id = BI.CourseId AND C.IsDeleted = 0
+                            JOIN Products CP ON CP.Id = C.ProductId AND CP.IsPublished = 1
                             WHERE E.UserId = @UserId
                               AND C.ProductId = @ProductId
                               AND (E.ExpireAt IS NULL OR E.ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))

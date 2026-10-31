@@ -1,4 +1,4 @@
-﻿using Common.Dtos;
+using Common.Dtos;
 using Common.ViewModels;
 using Microsoft.Data.SqlClient;
 using System;
@@ -25,7 +25,7 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@ProductId", SqlDbType.Int).Value = lesson.ProductId;
                 command.Parameters.Add("@Title", SqlDbType.NVarChar, 150).Value = lesson.Title;
 
-                command.Parameters.Add("@VideoUrl", SqlDbType.VarChar, 500).Value = (object?)lesson.VideoUrl ?? DBNull.Value;
+                command.Parameters.Add("@VideoUrl", SqlDbType.NVarChar, 500).Value = (object?)lesson.VideoUrl ?? DBNull.Value;
                 command.Parameters.Add("@BodyText", SqlDbType.NVarChar, -1).Value = (object?)lesson.BodyText ?? DBNull.Value;
 
                 command.Parameters.Add("@InstructorId", SqlDbType.Int).Value = lesson.InstructorId;
@@ -291,7 +291,7 @@ namespace EduCore_DataAccess
                 command.Parameters.Add("@Id", SqlDbType.Int).Value = lesson.Id;
                 command.Parameters.Add("@Title", SqlDbType.NVarChar, 150).Value = lesson.Title;
 
-                command.Parameters.Add("@VideoUrl", SqlDbType.VarChar, 500)
+                command.Parameters.Add("@VideoUrl", SqlDbType.NVarChar, 500)
                     .Value = (object?)lesson.VideoUrl ?? DBNull.Value;
 
                 command.Parameters.Add("@BodyText", SqlDbType.NVarChar,-1).Value = (object?)lesson.BodyText?? DBNull.Value;

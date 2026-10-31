@@ -1,0 +1,817 @@
+# EduCore — SQL & DataAccess Bug Fixes, Intensive Regression Testing, and README Cleanup
+
+You are working on the EduCore project, specifically the following branch:
+
+`audit/fixes`
+
+Repository:
+https://github.com/el-Sharif-suhiam/EduCore
+
+Your task is to inspect and fix the actual code, focusing particularly on:
+
+- `EduCore.sql`
+- `EduCore_DataAccess`
+- Integration between SQL, DataAccess, and BusinessLayer where necessary.
+
+After fixing the issues, perform an intensive set of integration and regression tests. Finally, thoroughly clean up `README.md`, correcting writing errors, formatting problems, and corrupted or unreadable characters.
+
+---
+
+# 1. Mandatory Rules Before Starting
+
+These are the most important instructions.
+
+## Preserve the existing system architecture
+
+I do not want the project redesigned or its existing workflow changed.
+
+Strictly prohibited:
+
+- Adding new architectural layers.
+- Moving responsibilities from their existing layers.
+- Converting the project to Repository Pattern or an ORM.
+- Replacing ADO.NET or changing the current SQL Server access approach.
+- Rewriting the system or restructuring files without a real necessity.
+- Changing table names, stored procedure names, DTOs, or public API contracts.
+- Changing existing business logic merely to make a fix easier.
+- Removing existing functionality or reducing system capabilities.
+- Adding new tables or columns unless the fix genuinely cannot be implemented without them. Any such change must be justified before implementation.
+
+**The objective is to make small, direct, and targeted fixes within the existing architecture, not to re-engineer the system.**
+
+You may modify SQL queries, stored procedures, transactions, result handling, data-reading methods, input validation, and tests.
+
+Preserve existing method names and calling conventions wherever possible.
+
+## Do not rely on audit reports
+
+Treat the list of issues below as items to investigate, not as an unquestionable source of truth.
+
+Inspect the current files yourself and confirm that each issue still exists before changing it. Compare every SQL query against its table definition, and every `SqlDataReader` mapping against the actual column types and nullability.
+
+Do not assume that comments in the code accurately describe what the implementation actually does.
+
+## Do not hide errors
+
+Do not use superficial fixes such as:
+
+- Always returning `true`.
+- Ignoring exceptions.
+- Adding `try/catch` blocks merely to suppress errors.
+- Returning default values that make an operation appear successful when the database operation failed.
+- Skipping failing tests.
+- Changing test expectations just to obtain a green result.
+
+If an issue cannot be fixed without changing the system architecture or its behavior, clearly report that limitation instead of implementing a speculative change.
+
+---
+
+# 2. Required SQL and DataAccess Fixes
+
+## A. Fix order creation
+
+File:
+
+`EduCore_DataAccess/clsOrderData.cs`
+
+Method:
+
+`CreateOrder`
+
+A SQL connection is created and then used with `ExecuteScalarAsync()` without being opened.
+
+Required changes:
+
+- Open the connection before executing the query.
+- Ensure the order ID is returned correctly.
+- Verify that the operation cannot report success unless a record was actually created.
+- Inspect similar methods to ensure there are no other cases where queries execute on closed connections.
+
+Do not change the existing order creation workflow.
+
+## B. Fix course lookup by ProductId
+
+File:
+
+`EduCore_DataAccess/clsCoursesData.cs`
+
+Method:
+
+`GetCoursebyProductId`
+
+Review the query that requests the `Summary` column from the `Courses` table, even though that column belongs to `Products`.
+
+Required changes:
+
+- Remove the incorrect column or retrieve it from the correct table if it is actually needed.
+- Ensure every column accessed by `SqlDataReader` exists in the query result.
+- Preserve the data currently required by `DtoCourse` without changing its public contract.
+
+## C. Fix data types in Bundles
+
+File:
+
+`EduCore_DataAccess/clsBundlesData.cs`
+
+Method:
+
+`GetAllBundles`
+
+Check the SQL type of `Bundles.Id`. It is `SMALLINT`, but the current code uses `GetInt32`.
+
+Required changes:
+
+- Use a reader method compatible with the actual SQL type.
+- Review all bundle ID reads throughout the DataAccess files.
+- Ensure `SqlParameter` types match the corresponding SQL column types.
+
+Do not change the database column type merely to work around a reader error.
+
+## D. Handle nullable columns correctly in DataAccess
+
+Review every file that reads database values using `SqlDataReader`.
+
+Ensure that every SQL column allowing `NULL` is checked with `IsDBNull` before calling a typed reader method.
+
+Pay particular attention to these cases:
+
+**1. Products**
+
+File:
+
+`clsProductsData.cs`
+
+Method:
+
+`GenericGetAllProduct`
+
+Column:
+
+`UpdatedAt`
+
+This column allows `NULL`, and newly created products are inserted with `NULL` for this field.
+
+Required changes:
+
+- Handle null values in a way compatible with the existing DTO.
+- Prevent runtime exceptions when reading product lists.
+- Keep the behavior consistent with `GetProductById`, which already handles this nullable field.
+
+**2. Lessons**
+
+File:
+
+`clsLessonsData.cs`
+
+Column:
+
+`BodyText`
+
+Several lesson-reading paths use `GetString` directly.
+
+Required changes:
+
+- Check for `NULL` before reading.
+- Preserve the existing behavior where lesson body text is optional, if that is the intended behavior.
+- Review every lesson-reading method, not just one method.
+
+## E. Fix the log retrieval query
+
+File:
+
+`EduCore_DataAccess/clsLogsData.cs`
+
+Method:
+
+`GetLogByIdAsync`
+
+Review the `SELECT` statement.
+
+There is a missing separator between `StackTrace` and `IpAddress`.
+
+Required changes:
+
+- Correct the query.
+- Ensure the resulting column names match the names passed to `GetOrdinal`.
+- Test retrieving an existing log and a nonexistent log.
+- Review the other log queries for similar mistakes.
+
+## F. Fix the enrollment creation result
+
+Files:
+
+- `EduCore.sql`
+- `EduCore_DataAccess/clsEnrollmentsData.cs`
+
+Stored procedure:
+
+`SP_CreateEnrollmentsFromPaidOrder`
+
+Method:
+
+`AddEnrollment`
+
+There is a mismatch between the results returned by the stored procedure and the way DataAccess reads them.
+
+The procedure currently returns the order items in its first result set and `InsertedRows` in a second result set. However, DataAccess uses `ExecuteScalarAsync()`, which reads the first value from the first result set, not the final inserted-row count.
+
+Required changes:
+
+- Check whether the returned order-item list is actually consumed by any caller.
+- Remove unnecessary result sets.
+- Make the stored procedure return one clear result containing the actual number of enrollments created or renewed.
+- Read that result correctly in DataAccess and validate it.
+- Never treat the existence of an `OrderItemId` as proof that an enrollment was successfully created.
+- Preserve the validation that the payment succeeded and belongs to the specified order.
+- Keep this operation inside the existing transaction created by `clsCheckoutService`.
+
+Test orders containing multiple products, cases where no new enrollment is created, and renewal scenarios.
+
+## G. Fix expired enrollment renewal
+
+Review:
+
+- The `Enrollments` table in `EduCore.sql`.
+- `SP_CreateEnrollmentsFromPaidOrder`.
+- `clsEnrollmentsData`.
+- `clsEnrollment`.
+
+There is a unique constraint on `(UserId, ProductId)`, while the stored procedure ignores an existing enrollment without checking whether it has expired.
+
+Required changes:
+
+- Preserve the existing uniqueness constraint.
+- Never create duplicate enrollment records for the same user and product.
+- When a user purchases a product whose enrollment has expired, renew the existing enrollment instead of ignoring the purchase.
+- Update the payment-related enrollment information according to the existing workflow.
+- Respect the subscription duration policy already implemented in the BusinessLayer.
+- Do not invent a new subscription duration or change the current expiration rules.
+- Verify that the user actually regains access after renewal.
+
+A payment must never be considered successfully completed if the buyer does not receive the corresponding enrollment.
+
+---
+
+# 3. Fix Course-Lesson Relationship Consistency
+
+This is a particularly important issue.
+
+The project currently stores the course-lesson relationship in two places:
+
+- `Lessons.CourseId`
+- The `CoursesLessons` junction table.
+
+Review all operations that create, update, delete, and read these relationships, including:
+
+- `clsLessonsData.AddLesson`
+- `clsLessonsData.UpdateLesson`
+- `clsCoursesData.AssignLessonToCourse`
+- `clsCourseLessonData.AddLessonToCourse`
+- `clsCourseLessonData.DeleteLessonFromCourse`
+- `clsProgressData.GetCourseProgress`
+- `SP_IssueCertificate`
+- `clsProgress.EnsureEnrolledForLesson`
+
+The problem is that some code paths update only `Lessons.CourseId`, while others update only `CoursesLessons`.
+
+This can cause inconsistent results between course lesson listings, progress calculations, access authorization, and certificate issuance.
+
+Required changes:
+
+1. Trace the actual write and read paths throughout the project.
+2. Determine the intended existing relationship behavior without changing the number of courses a lesson can belong to beyond what the current application supports.
+3. Preserve the existing table structure.
+4. Make all relationship updates consistent.
+5. Execute related changes within a single transaction where necessary.
+6. Prevent one representation of the relationship from being updated while the other remains inconsistent, whenever both represent the same relationship.
+7. Handle lesson removal from a course and changes to its course association correctly.
+8. Do not delete any table or column, and do not redesign the relationship.
+
+Test that a lesson displayed inside a course is the same lesson included in progress calculations and certificate eligibility checks. Also ensure that adding, removing, or updating relationships never leaves inconsistent records.
+
+---
+
+# 4. Fix Access Permissions for Courses Purchased Through Bundles
+
+Review:
+
+- `Bundles`
+- `BundlesItems`
+- `Enrollments`
+- `clsEnrollmentsData`
+- `clsProgress.EnsureEnrolledForCourse`
+- `clsProgress.EnsureEnrolledForLesson`
+
+A bundle contains multiple courses. Purchasing a bundle is expected to give the buyer access to the courses included in that bundle.
+
+Check whether the current system creates an enrollment only for the bundle product, while course access validation checks for a direct enrollment in the individual course product.
+
+Required changes:
+
+- Preserve the existing bundle purchasing workflow.
+- Make access validation recognize a purchased bundle and its included courses.
+- Never grant access to courses that are not part of the purchased bundle.
+- Respect the expiration of the bundle enrollment.
+- Do not grant access to deleted or unavailable content according to the existing publication and deletion rules.
+- Do not create additional independent enrollments for every included course unless that is already part of the existing business behavior.
+
+A bundle purchaser must be able to study its included courses without purchasing each course separately.
+
+---
+
+# 5. Fix Payment and Order Issues in SQL
+
+Do not change the payment provider or redesign the existing payment workflow. The objective is to secure the current flow with minimal changes.
+
+## A. Prevent order modification after payment initiation
+
+Review:
+
+- `SP_CreateNewPayment`
+- `SP_AddNewItemToOrder`
+- `SP_RemoveItemFromOrder`
+- Any other paths that add or remove `OrderItems`.
+- `clsPayment.CreatePayment`
+
+The problem: creating a payment saves the current amount, but the order remains `Pending`, and some order modification paths still allow its contents to change before the payment webhook arrives.
+
+Required changes:
+
+- When creating a payment, lock the corresponding order record inside an appropriate transaction.
+- Prevent adding or removing order items while there is a `Pending` payment associated with the order.
+- Use appropriate locking on the order record during payment creation and item modification to prevent race conditions.
+- Allow modifications again after the payment reaches `Failed` or `Expired`, according to the existing workflow.
+- Do not introduce a new order state or change the current state machine.
+- Do not add new tables.
+- Enforce this protection even when SQL procedures are called directly, not only through the BusinessLayer.
+
+The amount actually paid must always match the products the user receives.
+
+## B. Prevent multiple pending payments for the same order
+
+Review `SP_CreateNewPayment` and `clsPayment.CreatePayment`.
+
+Required changes:
+
+- Prevent more than one `Pending` payment from existing for the same order.
+- Preserve the current `IdempotencyKey` behavior.
+- If the client submits the same key for the same order again, return the existing payment.
+- If the same key is used with a different order, reject the operation.
+- Ensure the protection works under concurrent requests, not merely through a preliminary C# check.
+- Do not change the current Stripe session creation mechanism.
+
+## C. Protect discount usage calculations
+
+Review:
+
+- `SP_CreateNewPayment`
+- `clsDiscountCodesData`
+- `clsCheckoutService`
+- `clsDiscountCode`
+
+Required changes:
+
+- Verify that the discount exists when a `DiscountId` is supplied.
+- Reject expired or invalid discounts.
+- Validate that the discount rate is between 0 and 100 according to the existing rules.
+- Protect the usage limit from being exceeded by concurrent payments.
+- Ensure that duplicate webhook deliveries never increment discount usage more than once.
+- Increment usage only according to the existing successful-payment workflow.
+- Account for pending payments when checking limited usage, so concurrent operations cannot consume the final available use more than once.
+- Do not change the meaning of `TotalUserNumber` or the current discount rules exposed by the API.
+
+If a payment fails or is cancelled, it must not leave a permanent reservation that consumes an actual discount use.
+
+## D. Fix discount expiration date handling
+
+The `ExpireAt` column is of type `DATE`, but the application uses `DateTime` comparisons in SQL and C#.
+
+Review:
+
+- `SP_CreateNewPayment`
+- `GetValidDiscountCodes`
+- `clsDiscountCode.IsExpired`
+- `clsDiscountCodesData`
+
+Required changes:
+
+- Make the expiration-date meaning consistent between C# and SQL.
+- If the expiration date represents the last valid day, the discount must remain valid until the end of that day.
+- Do not change the column type unless absolutely necessary.
+- Use UTC consistently.
+
+## E. Fix Stripe payment verification
+
+Review:
+
+- `StripeWebhookController`
+- `clsStripeGateway`
+- `PaymentsController`
+- `clsCheckoutService`
+
+The problem: the `checkout.session.completed` path does not verify `payment_status` before granting access.
+
+Required changes:
+
+- Never create enrollments or complete an order until Stripe confirms that `payment_status` is `paid`.
+- Correctly handle `checkout.session.async_payment_succeeded`.
+- Never grant products when `checkout.session.completed` arrives while `payment_status` is still `unpaid`.
+- Preserve the existing webhook signature verification.
+- Preserve idempotency and prevent duplicate webhook side effects.
+- Never trust client-supplied data to declare a payment successful.
+
+Also review these endpoints:
+
+- `PUT /{id}/fail`
+- `PUT /{id}/expire`
+
+An ordinary user must not be able to change a payment's state without verification from the payment provider. Make these state changes dependent on a trusted webhook or an appropriately authorized administrative operation, while preserving the existing workflow and other system operations.
+
+---
+
+# 6. Fix Concurrency and Repeated-Operation Issues
+
+Review the following operations.
+
+## Progress
+
+File:
+
+`clsProgressData.cs`
+
+Method:
+
+`UpsertProgress`
+
+The current `IF EXISTS` followed by `INSERT` pattern can cause conflicts when two requests for the same user and lesson execute concurrently.
+
+Required changes:
+
+- Make the operation safe under concurrent execution.
+- Use the existing primary key `(UserId, LessonId)`.
+- Preserve the current Upsert behavior.
+- Prevent duplicate records and avoid unhandled exceptions caused by simultaneous requests.
+
+## Certificates
+
+Stored procedure:
+
+`SP_IssueCertificate`
+
+Required changes:
+
+- Preserve the rule of one certificate per user and course.
+- Make concurrent issuance requests return the same certificate instead of allowing one request to fail with a duplicate-key exception.
+- Preserve validation of active enrollment and full lesson completion.
+- Make the lesson calculation in `GetCourseProgress` consistent with the calculation used for certificate issuance, especially regarding deleted lessons.
+
+## Order Items
+
+Make adding and removing order items safe under concurrent execution while ensuring that the final order total remains accurate.
+
+Do not change the system architecture or introduce a new concurrency-management layer.
+
+---
+
+# 7. Comprehensive Review of the Remaining SQL and DataAccess Code
+
+Do not limit the review to the issues listed above.
+
+Review all files in `EduCore_DataAccess`, including:
+
+- `clsAuditsData`
+- `clsBundleItemsData`
+- `clsBundlesData`
+- `clsCertificatesData`
+- `clsCourseLessonData`
+- `clsCoursesData`
+- `clsCoursesInstructorsData`
+- `clsDataAccessSettings`
+- `clsDiscountCodesData`
+- `clsEnrollmentsData`
+- `clsGeneralData`
+- `clsLessonsData`
+- `clsLogsData`
+- `clsOrderData`
+- `clsOrderItemData`
+- `clsPaymentData`
+- `clsProductsData`
+- `clsProgressData`
+- `clsUserRolesData`
+- `clsUsersData`
+
+Check all of the following:
+
+1. Column names match between SQL definitions and application queries.
+2. SQL types match the corresponding `SqlDbType` parameters.
+3. Reader methods such as `GetInt16`, `GetInt32`, `GetByte`, `GetBoolean`, `GetDecimal`, `GetDateTime`, and `GetString` match the actual SQL data types.
+4. Nullable columns are handled correctly in every read operation.
+5. Connections are opened before commands execute.
+6. Connections, commands, and readers are disposed of correctly.
+7. `ExecuteScalarAsync`, `ExecuteReaderAsync`, and `ExecuteNonQueryAsync` are used appropriately.
+8. Multiple result sets are handled correctly.
+9. The same `SqlTransaction` is passed to all operations that are expected to participate in a single transaction.
+10. Operations that should participate in a transaction must not execute through separate connections outside that transaction.
+11. No queries reference nonexistent tables or columns.
+12. Pagination and result ordering are correct.
+13. There are no unsafe implicit conversions between `VARCHAR` and `NVARCHAR`, or between numeric and date types.
+14. SQL and BusinessLayer validation logic is consistent regarding authorization, deletion, publication, and enrollment.
+
+Review the entire `EduCore.sql` file as well:
+
+- Table definitions and constraints.
+- Primary and foreign keys.
+- Indexes.
+- Stored procedures.
+- Views.
+- Table relationships.
+- Schema compatibility with the existing queries.
+
+Avoid broad schema changes. Fix problems with the smallest reasonable modifications.
+
+---
+
+# 8. Intensive Testing — The Most Important Stage After Fixing
+
+After completing the code fixes, create and run an intensive set of integration and regression tests.
+
+**Strict rule: Do not modify or weaken tests to make the implementation pass.**
+
+When a test fails:
+
+1. Read the failure message.
+2. Identify the actual root cause.
+3. Inspect the implementation, SQL, and DataAccess code.
+4. Fix the code responsible for the failure.
+5. Run the test again.
+
+Do not delete a failing test, mark it as skipped, or weaken its conditions just to obtain a green result.
+
+Do not modify an existing test unless you independently prove that the test itself is incorrect, rather than the implementation. In that case, document why the original test was incorrect, why it did not represent the intended behavior, and exactly what was changed.
+
+**If a test remains failing, leave it failing and report the problem. Never hide it.**
+
+## A. Basic SQL and DataAccess Tests
+
+Test:
+
+- Creating a new order and returning its ID.
+- Adding and removing order items.
+- Retrieving an order and its items.
+- Retrieving a course by ProductId.
+- Retrieving all bundles.
+- Retrieving products where `UpdatedAt = NULL`.
+- Retrieving lessons where `BodyText = NULL`.
+- Retrieving a log by ID.
+- Retrieving all logs.
+- Reading enrollment data.
+- Reading payment data.
+- Retrieving users and their roles.
+- Correct data types in all read operations.
+
+## B. Payment and Enrollment Tests
+
+Test:
+
+- Purchasing an independent lesson.
+- Purchasing a course.
+- Purchasing a bundle.
+- Completing a payment successfully.
+- Failed payments.
+- Expired payments.
+- Duplicate webhook deliveries.
+- Attempting to complete an already completed payment.
+- Creating a payment twice with the same idempotency key.
+- Using the same idempotency key with a different order.
+- Attempting to create two pending payments for the same order using different keys.
+- Attempting to modify an order after payment initiation.
+- Attempting to add an item while a payment is pending.
+- Attempting to remove an item while a payment is pending.
+- Ensuring that paid items match the products the user actually receives.
+
+## C. Discount Tests
+
+Test:
+
+- A valid discount.
+- An expired discount.
+- A nonexistent discount.
+- An invalid discount percentage.
+- A discount with a limited number of uses.
+- Multiple users attempting to consume the final available use simultaneously.
+- A successful payment with a discount.
+- A failed payment with a discount.
+- Duplicate webhooks and ensuring discount usage is not counted more than once.
+- Discount validity throughout the entire expiration date according to the system's rules.
+
+## D. Course and Lesson Tests
+
+Test:
+
+- Creating a course.
+- Creating an independent lesson.
+- Creating a lesson inside a course.
+- Adding a lesson to a course.
+- Moving a lesson between courses according to the existing behavior.
+- Removing a lesson from a course.
+- Retrieving course lessons.
+- Retrieving a lesson by ID.
+- Retrieving a lesson by ProductId.
+- Calculating course progress.
+- Marking a lesson complete and incomplete.
+- Issuing a certificate for a completed course.
+- Rejecting a certificate for an incomplete course.
+- Excluding deleted lessons from progress and certificate calculations.
+- Ensuring that course-lesson relationships remain consistent across listing, access control, progress, and certificate operations.
+
+## E. Bundle and Access Tests
+
+Test:
+
+- Creating a bundle and adding courses to it.
+- Displaying bundle contents.
+- Purchasing a bundle.
+- Accessing all courses included in the bundle.
+- Rejecting access to a course not included in the bundle.
+- Rejecting access after the bundle enrollment expires.
+- Rejecting access to unpublished content according to the system's rules.
+- Ensuring bundle purchases do not create unnecessary or duplicate enrollments.
+
+## F. Concurrency Tests
+
+Use actual concurrent operations, not merely sequential calls.
+
+Test:
+
+- Two simultaneous attempts to add the same product to an order.
+- Two simultaneous attempts to create a payment for the same order using different idempotency keys.
+- Repeated payment status updates.
+- Two simultaneous deliveries of the same webhook.
+- Two simultaneous attempts to update a user's progress for the same lesson.
+- Two simultaneous requests to issue the same certificate.
+- Multiple operations attempting to consume the final available discount use.
+
+Verify that no duplicate records, incorrect order totals, or enrollments inconsistent with actual payments are created.
+
+## G. Test Environment Safety
+
+Review:
+
+`EduCore.IntegrationTests/TestSupport/DatabaseFixture.cs`
+
+There is an important issue to investigate: `EduCore.sql` contains database creation and `USE EduCore` statements, while the test fixture redirects the `USE EduCore` statement to `EduCoreTests`.
+
+Ensure that test execution does not unnecessarily create an additional database named `EduCore`, and that tests run exclusively against the dedicated test database.
+
+Never allow tests to delete or modify the development or production database.
+
+Also ensure:
+
+- CI must not report success while all database integration tests are skipped because SQL Server is unavailable.
+- SQL Server must be available during CI, and actual database integration tests must execute.
+- Test result files must be saved to the correct artifact path.
+- The number of passed, failed, and skipped tests must be reported clearly.
+
+## H. Running the Tests
+
+After completing the fixes:
+
+1. Run `dotnet build` for the entire solution.
+2. Run `dotnet test` for the entire solution.
+3. Verify that real SQL integration tests execute.
+4. Do not rely on a successful build alone.
+5. Do not treat successful unit tests as sufficient evidence that SQL is correct.
+6. Rerun tests after the final code modification.
+7. Inspect all available CI results.
+8. Never claim that something was successfully tested unless it was actually executed.
+
+Keep all existing tests and add new regression tests for every issue fixed.
+
+---
+
+# 9. Fix README.md After Completing the Code and Tests
+
+File:
+
+`README.md`
+
+The file contains various spelling and writing errors, formatting problems, corrupted characters, and text that appears to have encoding issues.
+
+After completing the code fixes and tests, review the entire README rather than editing only random sections.
+
+## A. Text Cleanup
+
+- Correct spelling and grammar mistakes.
+- Fix corrupted or unreadable characters.
+- Remove unnecessary duplicate text.
+- Make the language and writing style consistent throughout the document.
+- Ensure headings are clear and consistent.
+- Use UTF-8 correctly.
+- Remove unintended Unicode characters and symbols.
+
+## B. Markdown Formatting
+
+- Fix heading hierarchy.
+- Fix lists and numbering.
+- Fix Markdown tables.
+- Fix code blocks and their opening and closing fences.
+- Fix links.
+- Remove unnecessary separators and symbols.
+- Ensure the file renders correctly on GitHub.
+
+## C. Make Documentation Match the Actual Code
+
+Compare the README with the project after the fixes.
+
+Verify the accuracy of:
+
+- Project description.
+- Folder and project structure.
+- Layer and project names.
+- SQL Server setup instructions.
+- How to execute `EduCore.sql`.
+- Connection string configuration.
+- Environment variables.
+- Stripe and webhook configuration.
+- JWT configuration.
+- API startup instructions.
+- Test execution instructions.
+- Runtime requirements and .NET versions.
+- Any endpoint, request, or response examples.
+
+This branch is Backend-only. Do not document a frontend or include startup commands for files that have been removed from this branch.
+
+Do not invent features, commands, or environment variables that do not exist in the project.
+
+Do not delete useful sections merely because they contain errors. Correct them and preserve accurate information.
+
+---
+
+# 10. Required Execution Order
+
+Follow this sequence.
+
+### Phase 1 — Inspection
+
+- Inspect the current code.
+- Verify the listed issues.
+- Search for additional SQL and DataAccess bugs.
+- Build an internal list of confirmed problems.
+
+### Phase 2 — Fixes
+
+- Fix confirmed issues.
+- Make the smallest possible changes.
+- Preserve the current architecture and behavior.
+- Fix each problem at its source rather than hiding its symptoms.
+
+### Phase 3 — Testing
+
+- Run the existing tests.
+- Add new regression tests.
+- Perform SQL, integration, and concurrency tests.
+- Fix the implementation when tests fail.
+- Do not weaken or remove tests.
+- Rerun all relevant tests after the final code changes.
+
+### Phase 4 — README
+
+- Clean up text and corrupted characters.
+- Fix Markdown formatting.
+- Update documentation to match the actual project.
+- Do not modify working code merely to match outdated or incorrect documentation.
+
+### Phase 5 — Final Review
+
+Review all changes and ensure that no new problems have been introduced.
+
+Do not merge the branch into `main` and do not delete files outside the scope of the requested fixes.
+
+---
+
+# 11. Required Final Report
+
+When finished, provide a clear and accurate report covering:
+
+1. Total number of issues discovered.
+2. Number of issues successfully fixed.
+3. Files modified.
+4. Major SQL fixes.
+5. Major DataAccess fixes.
+6. Payment and enrollment workflow fixes.
+7. Course, lesson, and bundle relationship fixes.
+8. Existing tests that were preserved.
+9. New tests that were added.
+10. `dotnet build` result.
+11. `dotnet test` result, including Passed, Failed, and Skipped counts.
+12. Results of actual SQL Server integration tests.
+13. Whether README was fully cleaned up.
+14. Any remaining unresolved issues, with reasons.
+
+For every unresolved issue, identify the relevant file and method or stored procedure.
+
+Do not claim that the project is fully correct merely because the build succeeded or a limited set of tests passed.
+
+**The success criteria are correct data, consistency between SQL, DataAccess, and BusinessLayer, and successful regression and concurrency tests — without weakening tests or changing the system architecture.**
+
+Begin by inspecting the actual code, then execute the complete task while following all these constraints.

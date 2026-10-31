@@ -174,7 +174,7 @@ Common  (DTOs · Enums · Exceptions · Validation utilities)
 - Centralized exception middleware → RFC `problem+json` responses
 - Resource-based authorization (owners, instructors, enrolled users, admins)
 - Role-based access (Admin / Instructor / Student / SuperAdmin)
-- Soft-delete for users and products; full audit trail
+- User deactivation (`Users.IsActive`) and soft deletion for courses/lessons (`IsDeleted`); full audit trail
 
 ---
 
@@ -196,7 +196,7 @@ Security is a first-class concern, not an afterthought:
 | **Payment state machine** | Status transitions are conditional on `Pending` (DB-level); a succeeded payment can never be failed/expired; concurrent webhook deliveries cannot duplicate enrollments or discount usage |
 | **Secret management** | Zero secrets in source — `.env` (gitignored) + environment variables |
 | **Centralized error handling** | `ExceptionMiddleware` maps exceptions → proper HTTP statuses, prevents stack-trace leakage |
-| **Soft deletes** | Users/products are deactivated, not destroyed — auditability preserved |
+| **Deactivation / soft deletes** | Users are deactivated via `Users.IsActive`; courses and lessons are soft-deleted via `IsDeleted`; products have no soft-delete column (visibility is controlled by `IsPublished`) — auditability preserved |
 
 ---
 
@@ -395,6 +395,8 @@ FRONTEND_URL for success/cancel redirects).
 ---
 
 ## Documentation
+
+System guide: [docs/system-guide/00-overview.md](docs/system-guide/00-overview.md)
 
 - `docs/api/endpoint-inventory.md` — every endpoint + auth level
 - `docs/architecture/01-actual-architecture.md` — how the system actually works

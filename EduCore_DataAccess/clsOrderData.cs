@@ -91,6 +91,26 @@ namespace EduCore_DataAccess
             }
         }
 
+        /// <summary>
+        /// Acquires an update lock on the order row within the current
+        /// transaction. Used to establish a consistent order-first lock
+        /// acquisition order across payment completion and order mutation.
+        /// </summary>
+        public static async Task LockOrderAsync(int orderId, SqlConnection conn, SqlTransaction tx)
+        {
+            string query = @"SELECT Id FROM Orders WITH (UPDLOCK, ROWLOCK) WHERE Id = @Id;";
+
+            using (SqlCommand cmd = new SqlCommand(query, conn, tx))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.Int).Value = orderId;
+
+                if (conn.State != ConnectionState.Open)
+                    await conn.OpenAsync();
+
+                await cmd.ExecuteScalarAsync();
+            }
+        }
+
         public static async Task<bool> UpdateStatus(int orderId, string status, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE Orders

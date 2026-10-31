@@ -687,8 +687,10 @@ BEGIN
                 @AllowedUseNumber INT,
                 @UsedCount INT;
 
+            -- Lock the discount row for the duration of the transaction so
+            -- concurrent reservations cannot both observe the final slot.
             IF NOT EXISTS (
-                SELECT 1 FROM DiscountCodes WHERE Id = @DiscountId
+                SELECT 1 FROM DiscountCodes WITH (UPDLOCK, HOLDLOCK, ROWLOCK) WHERE Id = @DiscountId
             )
                 THROW 50007, 'Discount not found', 1;
 
@@ -697,7 +699,7 @@ BEGIN
                 @DiscountRate = DiscountRate,
                 @AllowedUseNumber = AllowedUseNumber,
                 @UsedCount = ISNULL(TotalUserNumber, 0)
-            FROM DiscountCodes
+            FROM DiscountCodes WITH (UPDLOCK, HOLDLOCK, ROWLOCK)
             WHERE Id = @DiscountId;
 
             -- Rate sanity (mirrors clsDiscountCode.SetDiscountRate):

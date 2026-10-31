@@ -158,9 +158,24 @@ namespace EduCore.IntegrationTests.TestSupport
 
         private static string[] SplitBatches(string script)
         {
-            return script.Split(
+            string[] batches = script.Split(
                 new[] { "\r\nGO", "\nGO", "\rgo", "\ngo" },
                 StringSplitOptions.RemoveEmptyEntries);
+
+            // Drop any batch that creates the real EduCore database so the
+            // isolated test run can never touch it. The test database itself
+            // is created separately by the fixture.
+            var filtered = new System.Collections.Generic.List<string>();
+            foreach (string batch in batches)
+            {
+                if (batch.IndexOf("CREATE DATABASE EduCore", StringComparison.OrdinalIgnoreCase) >= 0 ||
+                    batch.IndexOf("DB_ID('EduCore')", StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    continue;
+                }
+                filtered.Add(batch);
+            }
+            return filtered.ToArray();
         }
 
         private static string StripInitialCatalog(string connectionString)

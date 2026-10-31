@@ -125,7 +125,7 @@ namespace EduCoreAPI.Controllers
             // received; the async_payment_succeeded event (handled
             // above) will drive the completion instead.
             string? paymentStatus = GetString(session, "payment_status");
-            if (!string.IsNullOrEmpty(paymentStatus) &&
+            if (string.IsNullOrWhiteSpace(paymentStatus) ||
                 !paymentStatus.Equals("paid", StringComparison.OrdinalIgnoreCase))
                 return; // Not yet paid — acknowledge, wait for the real event.
 

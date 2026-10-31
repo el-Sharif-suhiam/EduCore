@@ -65,7 +65,10 @@ namespace EduCore_DataAccess
                                     JOIN BundlesItems BI    ON BI.BundleId = B.Id
                                     JOIN Courses C          ON C.Id = BI.CourseId
                                     JOIN Products CP        ON CP.Id = C.ProductId
-                                    WHERE BP.IsPublished = 1 AND B.Id = @Id";
+                                    WHERE BP.IsPublished = 1
+                                      AND C.IsDeleted = 0
+                                      AND CP.IsPublished = 1
+                                      AND B.Id = @Id";
 
             BundleItemsViewModel bundle = new BundleItemsViewModel();
 

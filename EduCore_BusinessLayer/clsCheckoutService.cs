@@ -29,6 +29,13 @@ namespace EduCore_BusinessLayer
                 async (conn, tx) =>
                 {
                     // =========================
+                    // 0) Lock the order row FIRST to keep a consistent
+                    //    order-first lock-acquisition order with the
+                    //    order-mutation stored procedures.
+                    // =========================
+                    await clsOrderData.LockOrderAsync(payment.OrderId, conn, tx);
+
+                    // =========================
                     // 1) Mark payment succeeded
                     // =========================
 
