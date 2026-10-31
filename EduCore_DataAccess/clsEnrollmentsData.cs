@@ -96,9 +96,14 @@ namespace EduCore_DataAccess
             string query = @"SELECT 1
                         WHERE EXISTS
                         (
-                            SELECT 1 FROM Enrollments
-                            WHERE UserId = @UserId AND ProductId = @ProductId
-                            AND (ExpireAt IS NULL OR ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))
+                            SELECT 1 FROM Enrollments E
+                            WHERE E.UserId = @UserId AND E.ProductId = @ProductId
+                            AND (E.ExpireAt IS NULL OR E.ExpireAt >= CAST(SYSUTCDATETIME() AS DATE))
+                            -- Soft-deleted content must not remain accessible
+                            -- through an existing enrollment. Unpublished
+                            -- content, by contrast, keeps its access.
+                            AND NOT EXISTS (SELECT 1 FROM Courses C WHERE C.ProductId = @ProductId AND C.IsDeleted = 1)
+                            AND NOT EXISTS (SELECT 1 FROM Lessons L WHERE L.ProductId = @ProductId AND L.IsDeleted = 1)
                         )
                         OR EXISTS
                         (

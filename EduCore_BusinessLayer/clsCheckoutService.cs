@@ -36,6 +36,19 @@ namespace EduCore_BusinessLayer
                     await clsOrderData.LockOrderAsync(payment.OrderId, conn, tx);
 
                     // =========================
+                    // 0b) Lock the discount row (if any) BEFORE the payment
+                    //     status transition. Establishes a consistent
+                    //     Order -> Discount -> Payment lock order with
+                    //     SP_CreateNewPayment, preventing lock-order inversion
+                    //     between Payments and DiscountCodes.
+                    // =========================
+                    if (payment.DiscountId.HasValue)
+                    {
+                        await clsDiscountCodesData.LockDiscountAsync(
+                            payment.DiscountId.Value, conn, tx);
+                    }
+
+                    // =========================
                     // 1) Mark payment succeeded
                     // =========================
 

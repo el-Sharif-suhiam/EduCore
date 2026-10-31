@@ -159,6 +159,28 @@ namespace EduCore_DataAccess
             }
         }
 
+        public static async Task LockDiscountAsync(short id, SqlConnection conn, SqlTransaction tx)
+        {
+            // Acquires an update lock on the discount row for the duration of
+            // the current transaction. Used to establish a consistent
+            // Order -> Discount -> Payment lock-acquisition order and to
+            // serialize concurrent reservations against the same discount.
+            string query = @"SELECT Id FROM DiscountCodes WITH (UPDLOCK, HOLDLOCK, ROWLOCK) WHERE Id = @Id;";
+
+            using (SqlCommand cmd = new SqlCommand(query, conn, tx))
+            {
+                cmd.Parameters.Add("@Id", SqlDbType.SmallInt).Value = id;
+
+                if (conn.State != ConnectionState.Open)
+                    await conn.OpenAsync();
+
+                object result = await cmd.ExecuteScalarAsync();
+
+                if (result is null)
+                    throw new Exception("Discount not found.");
+            }
+        }
+
         public static async Task<bool> IncrementUsage(short id, SqlConnection conn, SqlTransaction tx)
         {
             string query = @"UPDATE DiscountCodes

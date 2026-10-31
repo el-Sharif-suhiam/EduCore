@@ -17,7 +17,7 @@
 
 ## Products (Courses / Lessons / Bundles)
 - `Products` is the sellable base row; Course/Lesson/Bundle tables extend it 1:1 via ProductId.
-- Created unpublished (`IsPublished` default 0). **Only bundles have publish/unpublish API endpoints.**
+- Created unpublished (`IsPublished` default 0). Publish/unpublish endpoints exist for courses, lessons, and bundles.
 - Courses and lessons support soft delete (IsDeleted/DeletedAt/DeletedById) + restore; bundles do not.
 - Lessons are either independent (`CourseId NULL`, own price) or belong to a course (created via
   `POST /api/courses/{id}/lessons` with price forced to 0).
@@ -55,6 +55,11 @@
 ## Enrollments
 - Created per OrderItem product on payment success; unique (UserId, ProductId); ExpireAt = now + 12 months.
 - Access check `IsUserEnrolled` verified by tests.
+- Bundle access policy: an active bundle enrollment grants access to included,
+  non-deleted courses even when the course is unpublished; deleted courses are
+  denied; unrelated courses are denied; expired enrollments are denied.
+- Direct enrollment to a soft-deleted course/lesson is denied; unpublished
+  content remains accessible to existing purchasers.
 
 ## Progress & Certificates
 - Progress rows per (UserId, LessonId), upserted; CompletedDate set on completion.

@@ -17,26 +17,34 @@ namespace EduCore_DataAccess
             // matched nothing. The PK (UserId, LessonId) is the arbiter —
             // two concurrent calls can never duplicate or dead-lock on
             // the old IF EXISTS / INSERT pattern.
-            string query = @"BEGIN TRANSACTION;
+            string query = @"SET XACT_ABORT ON;
+                            BEGIN TRY
+                                BEGIN TRANSACTION;
 
-                            -- Acquire a key-range lock on the (UserId, LessonId)
-                            -- PK so concurrent upserts serialize per key.
-                            SELECT 1 FROM Progress WITH (UPDLOCK, HOLDLOCK)
-                            WHERE UserId = @UserId AND LessonId = @LessonId;
+                                -- Acquire a key-range lock on the (UserId, LessonId)
+                                -- PK so concurrent upserts serialize per key.
+                                SELECT 1 FROM Progress WITH (UPDLOCK, HOLDLOCK)
+                                WHERE UserId = @UserId AND LessonId = @LessonId;
 
-                            UPDATE Progress
-                            SET IsComplete = @IsComplete,
-                                CompletedDate = CASE
-                                                    WHEN @IsComplete = 1 THEN SYSUTCDATETIME()
-                                                    ELSE CompletedDate
-                                                END
-                            WHERE UserId = @UserId AND LessonId = @LessonId;
+                                UPDATE Progress
+                                SET IsComplete = @IsComplete,
+                                    CompletedDate = CASE
+                                                        WHEN @IsComplete = 1 THEN SYSUTCDATETIME()
+                                                        ELSE CompletedDate
+                                                    END
+                                WHERE UserId = @UserId AND LessonId = @LessonId;
 
-                            IF @@ROWCOUNT = 0
-                                INSERT INTO Progress (UserId, LessonId, IsComplete)
-                                VALUES (@UserId, @LessonId, @IsComplete);
+                                IF @@ROWCOUNT = 0
+                                    INSERT INTO Progress (UserId, LessonId, IsComplete)
+                                    VALUES (@UserId, @LessonId, @IsComplete);
 
-                            COMMIT;";
+                                COMMIT;
+                            END TRY
+                            BEGIN CATCH
+                                IF @@TRANCOUNT > 0
+                                    ROLLBACK;
+                                THROW;
+                            END CATCH";
 
             using (SqlConnection con = new SqlConnection(clsDataAccessSettings.ConnectionString))
             using (SqlCommand cmd = new SqlCommand(query, con))

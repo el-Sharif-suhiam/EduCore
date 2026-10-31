@@ -70,7 +70,7 @@ This project demonstrates the complete, hands-on skillset expected of a backend 
 | **Raw ADO.NET (no ORM)** | `EduCore_DataAccess/cls*Data.cs` — parameterized commands, transactions, stored procedures |
 | **Security** | JWT authentication, resource-based authorization, BCrypt, rate limiting, HMAC webhook verification, exception middleware |
 | **Payments integration** | Stripe hosted checkout + verified webhooks with atomic, idempotent enrollment completion |
-| **Testing** | 62 xUnit tests: real SQL Server integration tests + in-process API tests + crypto unit tests |
+| **Testing** | 78 xUnit tests: real SQL Server integration tests + in-process API tests + crypto unit tests + concurrency regression tests |
 
 ---
 
@@ -262,7 +262,7 @@ The full schema lives in **`EduCore.sql`** — clean enough to read line-by-line
 
 ## Testing
 
-62 xUnit tests across three styles:
+78 xUnit tests across three styles:
 
 | Style | What it covers |
 |---|---|

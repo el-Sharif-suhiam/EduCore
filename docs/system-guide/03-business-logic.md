@@ -1,59 +1,119 @@
-# Business Rules and Domain Behavior
+# EduCore — Business Logic
 
-Navigation: [Overview](00-overview.md) · [Architecture](01-architecture.md) · [Database](02-database.md) · [Workflows](04-workflows.md) · [API](05-api-reference.md) · [Security](06-security.md) · [Testing](07-testing-and-deployment.md) · [Glossary](08-glossary.md)
+## 1. Users and Roles
 
-## Users and roles
+Roles: `Student`, `Instructor`, `Admin`, `SuperAdmin` (seeded in `Roles`).
 
-Roles: Student, Instructor, Admin, SuperAdmin. Users have `IsActive`. Deactivation blocks login? Access checks rely on auth.
+- **Registration** creates a user with `Student` role and `IsActive = 1`.
+- **Activation/deactivation**: `Users.IsActive`. Deactivation sets
+  `IsActive = 0`; deactivated users cannot log in (login checks `IsActive`).
+  There is no hard deletion of users.
+- **Ownership**: instructors own courses/lessons/bundles they create
+  (`CreatedByUser`). Admins/SuperAdmins can manage globally; instructors
+  manage only their own content (enforced via `IAuthorizationService`).
+- **Role grants**: SuperAdmin (and Admin where policy allows) can promote
+  users to Instructor/Admin/SuperAdmin and remove roles.
 
-## Products and types
+## 2. Products
 
-ProductType tinyint distinguishes course/bundle/lesson. Products have BasePrice, IsPublished. Purchase requires IsPublished=1 (checked in SP_AddNewItemToOrder).
+- `ProductType`: Lesson (1), Course (2), Bundle (3).
+- `IsPublished` controls public catalog visibility.
+- `BasePrice` is the current price; order items snapshot `PriceAtPurchase`.
+- `Products` has no soft-delete column: deletion of a product is not
+  supported as a soft operation; content entities (Course/Lesson) carry
+  soft-delete instead.
+- Created by a user (`CreatedByUser` FK).
 
-## Courses and lessons
+## 3. Courses and Lessons
 
-Courses and Lessons link to Products. Courses/Lessons use IsDeleted. Standalone lessons are buyable products. Course-to-lesson assignment via CoursesLessons.
+- A course is created with a published/unpublished product.
+- Lessons may be standalone (`CourseId IS NULL`) or attached to a course
+  (`CourseId` set). The `CoursesLessons` junction is kept in sync with
+  `Lessons.CourseId` inside a transaction by the business layer.
+- Soft deletion: `IsDeleted = 1` hides from public views and blocks access
+  (see §7).
+- Publication of a course/lesson is independent of its product's? Actually
+  publication lives on the Product (`IsPublished`). Courses/lessons inherit
+  visibility through their product.
+- Standalone lessons remain accessible per their existing rules even when
+  course context changes.
 
-## Bundles
+## 4. Bundles
 
-Bundle product aggregates courses via BundlesItems. Bundle content display filters published bundle, non-deleted courses, published course products.
+- A bundle product groups courses via `BundlesItems`.
+- Public visibility requires: bundle product published, included course not
+  deleted, included course product published.
+- Purchased entitlement (for an active, non-expired bundle enrollment)
+  grants access to an included course when it is **unpublished but not
+  deleted**. Unpublishing does not revoke a legitimate purchase.
+- Soft-deleted included courses are **not** accessible, even to purchasers.
+- Bundle enrollment does not grant access to unrelated courses.
+- Expired bundle enrollment grants no access.
 
-## Prices and discounts
+## 5. Orders
 
-DiscountCodes have rate, allowed uses, expiry. Usage counts succeeded + pending payments. Expired if ExpireAt < today (UTC date).
+- States: `Empty`, `Pending`, `Completed`, `Cancelled`.
+- One `Pending` order per user (filtered unique index).
+- Item add/remove only when order is `Pending` or `Empty`.
+- A pending payment pins the order: items cannot be mutated while a payment
+  is `Pending`.
+- `TotalPrice` = sum of `OrderItems.PriceAtPurchase`.
+- Status becomes `Empty` when total is 0, else `Pending`.
+- Completed/Cancelled are final: never modified or reset.
 
-## Orders and order items
+## 6. Discounts
 
-Orders: Pending/Empty/Completed/Cancelled. Only Pending/Empty editable. Item mutations lock order row first. Pending payment pins order (no item changes).
+- `DiscountRate` is a percentage (0–100]; validated.
+- `ExpireAt` is a DATE; valid through the end of that day (UTC).
+- `AllowedUseNumber`: 0/NULL = unlimited.
+- `TotalUserNumber`: incremented when an applicable payment **succeeds**.
+- Pending payments **reserve** a slot: `SP_CreateNewPayment` counts
+  `Pending` payments for the discount plus `TotalUserNumber` and rejects
+  when `>= AllowedUseNumber`.
+- Unlimited usage: when `AllowedUseNumber` is 0/NULL, no limit check.
 
-## Payment lifecycle
+## 7. Payments
 
-Payment: Pending → Succeeded/Failed/Expired. Completion requires explicit Stripe payment_status="paid". Idempotency key ensures one payment per key.
+States: `Pending`, `Succeeded`, `Failed`, `Expired`, `Cancelled`.
 
-## Enrollment creation/renewal
+- **Creation**: `SP_CreateNewPayment` (idempotent by `IdempotencyKey`).
+  At most one `Pending` payment per order.
+- **Idempotency**: same key + same order returns existing payment; same key
+  + different order -> error.
+- **Stripe interaction**: payment creation does not call Stripe; the API
+  creates a Stripe checkout session referencing the payment.
+- **Webhook verification**: HMAC signature verified before processing.
+- **Completion**: conditional transition `Pending -> Succeeded`. Only the
+  first concurrent completion applies side effects.
+- **Failed/expired**: conditional `Pending -> Failed/Expired`.
+- **Transactional guarantees**: completion (discount usage, enrollments,
+  order completion, sibling expiry) is one transaction.
 
-SP_CreateEnrollmentsFromPaidOrder creates/renews enrollments per order products. Expired enrollments renewed on re-purchase.
+## 8. Enrollments and Access
 
-## Course/lesson access
+- Direct enrollment on a product grants access until `ExpireAt` (NULL = no
+  expiry).
+- Bundle enrollment grants access to included, non-deleted courses.
+- Renewal: re-purchasing an expired enrollment extends `ExpireAt` and
+  updates `PaymentId` (no duplicate row).
+- Access check (`IsUserEnrolled`): active enrollment (direct or bundle).
+- Deleted course: not accessible even with prior enrollment.
+- Unpublished course: accessible to existing purchasers.
+- Expired enrollment: no access.
 
-IsUserEnrolled: direct enrollment on product OR bundle enrollment whose course is non-deleted and course product published, respecting expiry.
+## 9. Progress and Certificates
 
-## Progress tracking
+- Progress is per `(UserId, LessonId)`.
+- `CompletedDate` set when marking complete; preserved when marking
+  incomplete.
+- Course progress % = completed lessons / total non-deleted lessons.
+- Certificate eligibility: active enrollment + 100% completion.
+- Certificate unique per `(UserId, CourseId)`; repeated issuance returns
+  the same code.
+- PDF generated once per code into configured storage.
 
-Upsert progress per (UserId, LessonId). CompletedDate set when IsComplete=1.
+## 10. User Deactivation vs Deletion
 
-## Certificate generation
-
-Certificates issued per user/course; generated via QuestPDF.
-
-## Publication/deletion/visibility
-
-Publication controls public visibility; drafts 404 to non-owners. Deletion soft (IsDeleted). Users deactivated via IsActive.
-
-## Key distinctions
-
-- Product vs course: product is sellable wrapper; course holds content.
-- Purchase vs enrollment: payment completion creates enrollments.
-- Publication vs access: unpublished content hidden publicly but previously purchased direct access may remain.
-- Pending vs completed payment.
-```
+- There is no user deletion. Deactivation (`IsActive = 0`) blocks login.
+- Content soft-deletion (`IsDeleted`) hides content and blocks access but
+  keeps rows for audit/history.
