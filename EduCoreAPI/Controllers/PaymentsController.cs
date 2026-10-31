@@ -129,8 +129,8 @@ using System.Security.Claims;namespace EduCoreAPI.Controllers
         //   POST api/payments/{id}/stripe-checkout-session
         //     -> { url, sessionId }
         //
-        // The CLIENT then redirects to `url` (see
-        // frontend/src/lib/payments.ts). The payment is NOT marked
+        // The CLIENT then redirects to `url`.
+        // The payment is NOT marked
         // succeeded here — the webhook (StripeWebhookController) is
         // the source of truth. This fixes audit finding H1: users can
         // no longer self-declare success via checkOut-succeed.

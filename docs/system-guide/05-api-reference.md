@@ -183,7 +183,7 @@ Request:
 ```
 Response:
 ```json
-{ "token": "<jwt>", "refreshToken": "<refresh>" }
+{ "accessToken": "<jwt>", "refreshToken": "<refresh>" }
 ```
 
 ### Orders — Create order
@@ -196,11 +196,11 @@ published price snapshot.
 ### Payments — Create payment
 Request:
 ```json
-{ "orderId": 1, "discountCode": "SAVE10", "idempotencyKey": "client-uuid", "paymentMethod": "card" }
+{ "orderId": 1, "paymentMethod": "card", "discountCode": "SAVE10", "idempotencyKey": "client-uuid" }
 ```
 Response:
 ```json
-{ "paymentId": 42, "finalPrice": 27.00 }
+{ "id": 42, "finalPrice": 27.00, "idempotencyKey": "client-uuid" }
 ```
 
 ### Progress — Mark complete

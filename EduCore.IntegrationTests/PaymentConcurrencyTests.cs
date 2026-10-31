@@ -65,6 +65,8 @@ namespace EduCore.IntegrationTests
             int successes = 0;
             int rejections = 0;
             int deadlocks = 0;
+            Exception unexpected = null;
+            SqlException rejectionEx = null;
 
             Func<int, Task> attempt = async (orderId) =>
             {
@@ -77,20 +79,23 @@ namespace EduCore.IntegrationTests
                 }
                 catch (SqlException ex)
                 {
-                    if (ex.Number == 1205) deadlocks++;
-                    else rejections++;
+                    if (ex.Number == 1205) { deadlocks++; unexpected = ex; }
+                    else if (ex.Number == 50004) { rejections++; rejectionEx = ex; }
+                    else { unexpected = ex; }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
-                    rejections++;
+                    unexpected = ex;
                 }
             };
 
             await Task.WhenAll(attempt(orderA), attempt(orderB));
 
             Assert.Equal(0, deadlocks);
+            Assert.Null(unexpected);
             Assert.Equal(1, successes);
             Assert.Equal(1, rejections);
+            Assert.NotNull(rejectionEx);
 
             // exactly one pending payment created for this discount
             int pendingCount = await _db.Seed.ScalarIntRawAsync(
@@ -125,7 +130,6 @@ namespace EduCore.IntegrationTests
 
             int deadlocks = 0;
             bool completionOk = false;
-            bool creationRejected = false;
             bool creationSucceeded = false;
             Exception completionEx = null;
             Exception creationEx = null;
@@ -141,9 +145,9 @@ namespace EduCore.IntegrationTests
                     var payment = await clsPayment.FindAsync(paymentAId);
                     completionOk = await clsCheckoutService.CompletePaymentAsync(userA, payment, $"tx-{Guid.NewGuid():N}");
                 }
-                catch (Exception ex)
+                catch (SqlException ex)
                 {
-                    if (ex is SqlException se && se.Number == 1205) deadlocks++;
+                    if (ex.Number == 1205) deadlocks++;
                     completionEx = ex;
                 }
             });
@@ -157,11 +161,10 @@ namespace EduCore.IntegrationTests
                     p.SetPaymentMethod("card");
                     creationSucceeded = await p.CreatePayment(orderB, (short)discountId, $"idem-pb-{Guid.NewGuid():N}");
                 }
-                catch (Exception ex)
+                catch (SqlException ex)
                 {
-                    if (ex is SqlException se && se.Number == 1205) deadlocks++;
+                    if (ex.Number == 1205) deadlocks++;
                     creationEx = ex;
-                    creationRejected = true;
                 }
             });
 
@@ -172,20 +175,25 @@ namespace EduCore.IntegrationTests
             Assert.Null(completionEx);
             Assert.True(completionOk, "payment completion must succeed");
 
-            // The second reservation must be rejected because the single slot
-            // is already consumed (or was reserved) by the first payment.
+            // The second reservation must be rejected specifically because the
+            // discount usage limit has been reached (SP_CreateNewPayment throws
+            // error 50004 'Discount limit reached').
             Assert.False(creationSucceeded, "second reservation must not succeed");
-            Assert.True(creationRejected, "second reservation must be rejected");
+            var creationSqlEx = Assert.IsType<SqlException>(creationEx);
+            Assert.Equal(50004, creationSqlEx.Number);
 
             // payment A succeeded
             Assert.Equal("Succeeded", await _db.Seed.PaymentStatusAsync(paymentAId));
             Assert.Equal("Completed", await _db.Seed.OrderStatusAsync(orderA));
 
-            // Invariant: successful usage + pending reservations <= AllowedUseNumber.
-            int usage = (await _db.Seed.DiscountUsageAsync(discountId)) ?? 0;
+            // No second pending payment was created for this discount.
             int pending = await _db.Seed.ScalarIntRawAsync(
                 "SELECT COUNT(*) FROM Payments WHERE DiscountId = @D AND Status = 'Pending';",
                 c => c.Parameters.Add("@D", System.Data.SqlDbType.SmallInt).Value = discountId);
+            Assert.Equal(0, pending);
+
+            // Invariant: successful usage + pending reservations <= AllowedUseNumber.
+            int usage = (await _db.Seed.DiscountUsageAsync(discountId)) ?? 0;
             Assert.True(usage + pending <= allowedUse,
                 $"usage({usage}) + pending({pending}) exceeded allowed({allowedUse})");
         }
@@ -195,7 +203,6 @@ namespace EduCore.IntegrationTests
         {
             RequireDatabase();
 
-            int totalDeadlocks = 0;
             for (int i = 0; i < 10; i++)
             {
                 int userA = await _db.Seed.UserAsync($"pcr-a-{i}-{Guid.NewGuid():N}@test.local", "Student");
@@ -214,6 +221,11 @@ namespace EduCore.IntegrationTests
                 await _db.Seed.OrderItemAsync(orderB, product, 30m);
 
                 int deadlocks = 0;
+                Exception completionEx = null;
+                Exception creationEx = null;
+                bool completionOk = false;
+                bool creationSucceeded = false;
+
                 var barrier = new System.Threading.Barrier(2);
                 await Task.WhenAll(
                     Task.Run(async () =>
@@ -222,10 +234,13 @@ namespace EduCore.IntegrationTests
                         try
                         {
                             var payment = await clsPayment.FindAsync(paymentAId);
-                            await clsCheckoutService.CompletePaymentAsync(userA, payment, $"tx-{Guid.NewGuid():N}");
+                            completionOk = await clsCheckoutService.CompletePaymentAsync(userA, payment, $"tx-{Guid.NewGuid():N}");
                         }
-                        catch (SqlException ex) { if (ex.Number == 1205) deadlocks++; }
-                        catch { }
+                        catch (SqlException ex)
+                        {
+                            if (ex.Number == 1205) deadlocks++;
+                            completionEx = ex;
+                        }
                     }),
                     Task.Run(async () =>
                     {
@@ -233,16 +248,36 @@ namespace EduCore.IntegrationTests
                         try
                         {
                             var p = new clsPayment(); p.SetPaymentMethod("card");
-                            await p.CreatePayment(orderB, (short)discountId, $"idem-pb-{Guid.NewGuid():N}");
+                            creationSucceeded = await p.CreatePayment(orderB, (short)discountId, $"idem-pb-{Guid.NewGuid():N}");
                         }
-                        catch (SqlException ex) { if (ex.Number == 1205) deadlocks++; }
-                        catch { }
+                        catch (SqlException ex)
+                        {
+                            if (ex.Number == 1205) deadlocks++;
+                            creationEx = ex;
+                        }
                     })
                 );
-                totalDeadlocks += deadlocks;
+
+                Assert.Equal(0, deadlocks);
+                Assert.Null(completionEx);
+                Assert.True(completionOk);
+                Assert.False(creationSucceeded);
+                var creationSqlEx = Assert.IsType<SqlException>(creationEx);
+                Assert.Equal(50004, creationSqlEx.Number);
+
+                Assert.Equal("Succeeded", await _db.Seed.PaymentStatusAsync(paymentAId));
+                Assert.Equal("Completed", await _db.Seed.OrderStatusAsync(orderA));
+
+                int pending = await _db.Seed.ScalarIntRawAsync(
+                    "SELECT COUNT(*) FROM Payments WHERE DiscountId = @D AND Status = 'Pending';",
+                    c => c.Parameters.Add("@D", System.Data.SqlDbType.SmallInt).Value = discountId);
+                Assert.Equal(0, pending);
+
+                int usage = (await _db.Seed.DiscountUsageAsync(discountId)) ?? 0;
+                Assert.True(usage + pending <= 1, $"usage({usage}) + pending({pending}) exceeded 1");
             }
 
-            Assert.Equal(0, totalDeadlocks);
+            // If we reach here, all iterations passed.
         }
 
         [Fact]
@@ -289,7 +324,6 @@ namespace EduCore.IntegrationTests
                         catch { }
                     })
                 );
-                totalDeadlocks += deadlocks;
             }
 
             Assert.Equal(0, totalDeadlocks);
