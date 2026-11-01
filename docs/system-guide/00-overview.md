@@ -90,18 +90,19 @@ Outside the system (integrated, not owned):
 
 ## 7. Project Relationships
 
+Arrows read "depends on" (each arrow is a `.csproj` project reference):
+
 ```
-Common  <--  EduCore_BusinessLayer  <--  EduCoreAPI
-   ^               ^                       ^
-   |               |                       |
-   +----  EduCore_DataAccess  -------------+
+EduCoreAPI  -->  EduCore_BusinessLayer  -->  EduCore_DataAccess  -->  Common
+    |                                                            ^
+    +------------------------------------------------------------+
 ```
 
 - `Common` — DTOs, enums, exceptions, ViewModels, utilities. No dependencies.
 - `EduCore_DataAccess` — ADO.NET data access, stored procedure calls. Depends on `Common`.
 - `EduCore_BusinessLayer` — business rules and orchestration. Depends on `Common` and `EduCore_DataAccess`.
-- `EduCoreAPI` — ASP.NET Core controllers, auth, middleware. Depends on all above.
-- `EduCore.IntegrationTests` — SQL-backed integration tests. Depends on all above.
+- `EduCoreAPI` — ASP.NET Core controllers, auth, middleware. References `EduCore_BusinessLayer` and `Common` only; all database operations are reached through the Business Layer, never by calling `EduCore_DataAccess` directly.
+- `EduCore.IntegrationTests` — SQL-backed integration tests. References `EduCoreAPI`.
 
 ## 8. Purchase-to-Access Lifecycle
 

@@ -125,6 +125,19 @@ Common  (DTOs · Enums · Exceptions · Validation utilities)
   (`ValidationException`, `NotFoundException`, `ConflictException`), and validators — with no
   upward dependencies.
 
+### Project dependencies (strictly one-way)
+
+| Project | Project references (`.csproj`) |
+|---|---|
+| `EduCoreAPI` | `EduCore_BusinessLayer`, `Common` |
+| `EduCore_BusinessLayer` | `EduCore_DataAccess`, `Common` |
+| `EduCore_DataAccess` | `Common` |
+| `Common` | — |
+
+Communication never skips or reverses a layer: controllers call business classes only,
+business classes are the only callers of `EduCore_DataAccess`, and `Common` provides shared
+contracts without enabling any bypass of these boundaries.
+
 > **Data flow example (purchase):**
 > `PaymentsController` → `clsOrder`/`clsPayment` (business) → `cls*Data` (ADO.NET) →
 > `SP_CreateNewPayment` (SQL Server) → Stripe checkout → verified webhook →

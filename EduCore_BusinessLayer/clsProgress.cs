@@ -488,5 +488,15 @@ namespace EduCore_BusinessLayer
 
             return certificate;
         }
+
+        /// <summary>
+        /// Retrieves a certificate by its code through the Data Access layer.
+        /// The API layer must resolve certificates via this method — never
+        /// by calling clsCertificatesData directly.
+        /// </summary>
+        public static async Task<DtoCertificate?> GetCertificateByCode(string certificateCode)
+        {
+            return await clsCertificatesData.GetByCode(certificateCode);
+        }
     }
 }

@@ -30,18 +30,34 @@ abstraction, and no ORM.
 
 ## 3. Dependencies
 
+Project references are declared in each `.csproj` and flow strictly one way —
+from the dependent project to its dependency:
+
+| Project | Project references (`.csproj`) |
+|---|---|
+| `EduCoreAPI` | `EduCore_BusinessLayer`, `Common` |
+| `EduCore_BusinessLayer` | `EduCore_DataAccess`, `Common` |
+| `EduCore_DataAccess` | `Common` |
+| `Common` | *(none)* |
+| `EduCore.IntegrationTests` | `EduCoreAPI` (transitively reaches the layers above) |
+
 ```mermaid
 graph LR
-  Common --> DataAccess[EduCore_DataAccess]
-  Common --> Business[EduCore_BusinessLayer]
-  DataAccess --> Business
-  Common --> API[EduCoreAPI]
-  DataAccess --> API
-  Business --> API
-  Common --> Tests[EduCore.IntegrationTests]
-  DataAccess --> Tests
-  Business --> Tests
+  API[EduCoreAPI] --> Business[EduCore_BusinessLayer]
+  API --> Common
+  Business --> DataAccess[EduCore_DataAccess]
+  Business --> Common
+  DataAccess --> Common
+  Tests[EduCore.IntegrationTests] --> API
 ```
+
+**Layer communication rule:** communication is strictly one-directional —
+`EduCoreAPI → EduCore_BusinessLayer → EduCore_DataAccess`. Controllers call
+business classes only; the API must never reference, instantiate, or call
+`EduCore_DataAccess` types directly, and every database operation reachable
+from the API is exposed through the Business Layer. `EduCore_DataAccess` never
+depends on the API or Business Layer, and `Common` carries shared types only —
+it is not a channel for bypassing layer boundaries.
 
 ## 4. Layer Responsibilities
 
@@ -50,6 +66,8 @@ graph LR
 - Parse HTTP requests and route parameters.
 - Enforce authentication/authorization via attributes and `IAuthorizationService`.
 - Call business-layer methods.
+- Never reference, instantiate, or call `EduCore_DataAccess` types — every
+  database operation is exposed to the API through the Business Layer.
 - Map business exceptions to HTTP status codes via middleware.
 - Return DTOs/ViewModels as JSON.
 
@@ -62,6 +80,7 @@ Controllers do **not** contain business rules or SQL.
 - Enforce ownership and role rules.
 - Invoke data access with connections/transactions.
 - Write audit entries.
+- The only layer permitted to call `EduCore_DataAccess`.
 
 ### Data Access
 
@@ -69,6 +88,7 @@ Controllers do **not** contain business rules or SQL.
 - Execute parameterized SQL or stored procedures.
 - Map `SqlDataReader` rows to DTOs/ViewModels.
 - Provide transactional helpers (`LockOrderAsync`, `LockDiscountAsync`).
+- Never depends on or communicates with `EduCoreAPI` or `EduCore_BusinessLayer`.
 
 ## 5. DTO / ViewModel Flow
 

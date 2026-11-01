@@ -2,7 +2,6 @@ using Common.Dtos;
 using Common.Exceptions;
 using Common.Utils;
 using EduCore_BusinessLayer;
-using EduCore_DataAccess;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
@@ -30,7 +29,7 @@ namespace EduCoreAPI.Controllers
                 throw new NotFoundException("Certificate not found");
 
             DtoCertificate? certificate =
-                await clsCertificatesData.GetByCode(code);
+                await clsProgress.GetCertificateByCode(code);
 
             if (certificate is null)
                 throw new NotFoundException("Certificate not found");
@@ -61,7 +60,7 @@ namespace EduCoreAPI.Controllers
                 throw new NotFoundException("Certificate not found");
 
             DtoCertificate? certificate =
-                await clsCertificatesData.GetByCode(code);
+                await clsProgress.GetCertificateByCode(code);
 
             if (certificate is null)
                 throw new NotFoundException("Certificate not found");
