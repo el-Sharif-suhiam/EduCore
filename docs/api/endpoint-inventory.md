@@ -1,7 +1,9 @@
 # EduCore — API Endpoint Inventory (actual implementation, current)
 
 Auth column: `anon` = [AllowAnonymous]/no auth · `auth` = any authenticated user · role lists as marked.
-Issues reference docs/agent/ENGINEERING_TODO.md ids.
+Issue tags (e.g. `H4`, `M9`) are finding ids from the original discovery audit — context in
+`docs/decisions/0001-discovery-phase.md`. The detailed finding list (`docs/agent/ENGINEERING_TODO.md`)
+is no longer in the repository.
 
 ## Auth — `api/auth` (AuthController)
 | Method | Route | Auth | Purpose | Request | Response | Issues |

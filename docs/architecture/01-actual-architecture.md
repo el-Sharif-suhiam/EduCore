@@ -62,7 +62,7 @@ DTO validation attributes exist; all validation is imperative inside business `S
 - Reader mapping by `GetOrdinal` per query (verbose, duplicated across methods).
 - Views `vwLessonsWithOutCourses` / `vwLessonsWithCourses` back lesson listings.
 
-## Known architectural problems (details in ENGINEERING_TODO.md)
+## Known architectural problems
 1. No DI/testability seam (H8) — severity: high for maintainability.
 2. Active-Record + static calls mix business rules across API handlers and business classes
    (e.g. price>0 guards in controllers, ownership rules split between handlers and clsCoursesInstructors).

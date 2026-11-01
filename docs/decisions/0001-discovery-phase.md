@@ -1,11 +1,12 @@
 # ADR 0001 — Discovery Phase & Fix Roadmap
 
 - **Date:** 2026-08-22
-- **Status:** Accepted (owner-approved workflow per INITIAL_AUDIT_PROMPT.md)
+- **Status:** Accepted (owner-approved workflow; the initial-audit prompt file is no longer in the repository)
 
 ## Context
 EduCore backend audited end-to-end (architecture, domain, API, security, performance, testing).
-10 critical, 9 high, 17 medium, 10 low findings recorded in `docs/agent/ENGINEERING_TODO.md`.
+10 critical, 9 high, 17 medium, 10 low findings recorded in `docs/agent/ENGINEERING_TODO.md`
+(no longer in the repository — findings were fixed across the phases below).
 
 ## Decision
 1. No code changes during discovery; baseline committed first (`ac27ee3`).

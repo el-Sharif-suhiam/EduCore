@@ -75,7 +75,9 @@ the intended communication flow.
   ADO.NET, stored procedures. It must not depend on or communicate directly with the API
   or Business Layer.
 - **Common:** shared types and contracts. It must not be used to circumvent the layer
-  boundaries.
+  boundaries. Note: the shared-contracts project is named `Common` (`Common/Common.csproj`,
+  root namespace `Common`); some older task descriptions call it `EduCore_Common` — that
+  name does not exist in this repository and always refers to this `Common` project.
 
 **Key principle:** `API → Business Layer → Data Access`. Never skip a layer, reverse the
 dependency direction, or establish direct communication between non-adjacent layers.
