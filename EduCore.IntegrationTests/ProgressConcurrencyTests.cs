@@ -104,7 +104,7 @@ namespace EduCore.IntegrationTests
 
             var dto = await clsProgressData.GetProgress(user, lessonId);
             Assert.NotNull(dto);
-            Assert.True(dto.IsComplete == true || dto.IsComplete == false);
+            Assert.True(dto.IsComplete.HasValue);
         }
 
         [Fact]
@@ -124,7 +124,7 @@ namespace EduCore.IntegrationTests
 
             Assert.True(await clsProgressData.UpsertProgress(new DtoProgress { UserId = user, LessonId = lessonId, IsComplete = false }));
             var afterIncomplete = await clsProgressData.GetProgress(user, lessonId);
-            Assert.False(afterIncomplete.IsComplete.Value);
+            Assert.False(afterIncomplete.IsComplete ?? true);
             // CompletedDate preserved per existing business rule
             Assert.NotNull(afterIncomplete.CompletedDate);
         }

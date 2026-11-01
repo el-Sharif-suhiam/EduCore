@@ -32,7 +32,7 @@ namespace EduCore.IntegrationTests.TestSupport
 
         public DatabaseFixture()
         {
-            string fromEnv = Environment.GetEnvironmentVariable("EDUCORE_TEST_DB_CONNECTION");
+            string? fromEnv = Environment.GetEnvironmentVariable("EDUCORE_TEST_DB_CONNECTION");
 
             _masterConnectionString = string.IsNullOrWhiteSpace(fromEnv)
                 ? "Server=.;Integrated Security=True;TrustServerCertificate=True"

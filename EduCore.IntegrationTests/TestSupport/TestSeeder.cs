@@ -298,7 +298,7 @@ namespace EduCore.IntegrationTests.TestSupport
             await con.OpenAsync();
             await using SqlCommand command = new(sql, con);
             bind(command);
-            object result = await command.ExecuteScalarAsync();
+            object? result = await command.ExecuteScalarAsync();
             return Convert.ToInt32(result);
         }
 
@@ -308,7 +308,7 @@ namespace EduCore.IntegrationTests.TestSupport
             await con.OpenAsync();
             await using SqlCommand command = new(sql, con);
             bind(command);
-            object result = await command.ExecuteScalarAsync();
+            object? result = await command.ExecuteScalarAsync();
             return result == null || result == DBNull.Value ? null : Convert.ToInt32(result);
         }
 
@@ -318,7 +318,7 @@ namespace EduCore.IntegrationTests.TestSupport
             await con.OpenAsync();
             await using SqlCommand command = new(sql, con);
             bind(command);
-            object result = await command.ExecuteScalarAsync();
+            object? result = await command.ExecuteScalarAsync();
             return result == null || result == DBNull.Value ? null : Convert.ToString(result);
         }
 

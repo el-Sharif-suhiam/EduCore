@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Common.Enums;
 using Common.Exceptions;
@@ -44,6 +45,24 @@ namespace EduCore.IntegrationTests
             return (userA, userB, product, discountId, orderA, orderB, paymentAId);
         }
 
+        private sealed class AttemptResult
+        {
+            public bool Success { get; set; }
+            public int? SqlErrorNumber { get; set; }
+            public Exception? Exception { get; set; }
+            public bool TimedOutOnBarrier { get; set; }
+        }
+
+        private sealed class OperationResult
+        {
+            public bool Success { get; set; }
+            public int? SqlErrorNumber { get; set; }
+            public Exception? Exception { get; set; }
+            public bool TimedOutOnBarrier { get; set; }
+        }
+
+        private static readonly TimeSpan BarrierTimeout = TimeSpan.FromSeconds(10);
+
         [Fact]
         public async Task CompetingReservations_FinalSlot_OnlyOneSucceeds()
         {
@@ -62,40 +81,64 @@ namespace EduCore.IntegrationTests
             int orderB = await _db.Seed.OrderAsync(userB, "Pending", 30m);
             await _db.Seed.OrderItemAsync(orderB, product, 30m);
 
-            int successes = 0;
-            int rejections = 0;
-            int deadlocks = 0;
-            Exception unexpected = null;
-            SqlException rejectionEx = null;
+            using var barrier = new Barrier(2);
 
-            Func<int, Task> attempt = async (orderId) =>
+            Func<int, Task<AttemptResult>> attempt = (orderId) => Task.Run(async () =>
             {
+                var result = new AttemptResult();
                 try
                 {
+                    if (!barrier.SignalAndWait(BarrierTimeout))
+                    {
+                        result.TimedOutOnBarrier = true;
+                        result.Exception = new TimeoutException(
+                            $"Concurrency barrier timed out after {BarrierTimeout.TotalSeconds} seconds while waiting for both reservation attempts to start.");
+                        return result;
+                    }
+
                     var p = new clsPayment();
                     p.SetPaymentMethod("card");
-                    bool r = await p.CreatePayment(orderId, (short)discountId, $"idem-{Guid.NewGuid():N}");
-                    if (r) successes++;
+                    result.Success = await p.CreatePayment(orderId, (short)discountId, $"idem-{Guid.NewGuid():N}");
                 }
                 catch (SqlException ex)
                 {
-                    if (ex.Number == 1205) { deadlocks++; unexpected = ex; }
-                    else if (ex.Number == 50004) { rejections++; rejectionEx = ex; }
-                    else { unexpected = ex; }
+                    result.SqlErrorNumber = ex.Number;
+                    result.Exception = ex;
                 }
                 catch (Exception ex)
                 {
-                    unexpected = ex;
+                    result.Exception = ex;
                 }
-            };
 
-            await Task.WhenAll(attempt(orderA), attempt(orderB));
+                return result;
+            });
+
+            AttemptResult[] results = await Task.WhenAll(attempt(orderA), attempt(orderB));
+
+            int successes = results.Count(r => r.Success);
+            int rejections = results.Count(r => r.SqlErrorNumber == 50004);
+            int deadlocks = results.Count(r => r.SqlErrorNumber == 1205);
+            AttemptResult? unexpected = results.FirstOrDefault(r =>
+                r.Exception is not null &&
+                !(r.Exception is SqlException sql && sql.Number == 50004));
 
             Assert.Equal(0, deadlocks);
-            Assert.Null(unexpected);
+            Assert.Null(unexpected?.Exception);
             Assert.Equal(1, successes);
             Assert.Equal(1, rejections);
-            Assert.NotNull(rejectionEx);
+
+            foreach (AttemptResult result in results)
+            {
+                if (result.Success)
+                {
+                    Assert.Null(result.Exception);
+                }
+                else
+                {
+                    SqlException sqlException = Assert.IsType<SqlException>(result.Exception);
+                    Assert.Equal(50004, sqlException.Number);
+                }
+            }
 
             // exactly one pending payment created for this discount
             int pendingCount = await _db.Seed.ScalarIntRawAsync(
@@ -128,59 +171,76 @@ namespace EduCore.IntegrationTests
             int orderB = await _db.Seed.OrderAsync(userB, "Pending", 30m);
             await _db.Seed.OrderItemAsync(orderB, product, 30m);
 
-            int deadlocks = 0;
-            bool completionOk = false;
-            bool creationSucceeded = false;
-            Exception completionEx = null;
-            Exception creationEx = null;
+            using var barrier = new Barrier(2);
 
-            // Synchronize so both operations start together and genuinely overlap.
-            var barrier = new System.Threading.Barrier(2);
+            var completion = new OperationResult();
+            var creation = new OperationResult();
 
-            var t1 = Task.Run(async () =>
+            Task t1 = Task.Run(async () =>
             {
-                barrier.SignalAndWait();
                 try
                 {
+                    if (!barrier.SignalAndWait(BarrierTimeout))
+                    {
+                        completion.TimedOutOnBarrier = true;
+                        completion.Exception = new TimeoutException(
+                            $"Concurrency barrier timed out after {BarrierTimeout.TotalSeconds} seconds while waiting for payment completion and reservation creation to start.");
+                        return;
+                    }
+
                     var payment = await clsPayment.FindAsync(paymentAId);
-                    completionOk = await clsCheckoutService.CompletePaymentAsync(userA, payment, $"tx-{Guid.NewGuid():N}");
+                    completion.Success = await clsCheckoutService.CompletePaymentAsync(userA, payment, $"tx-{Guid.NewGuid():N}");
                 }
                 catch (SqlException ex)
                 {
-                    if (ex.Number == 1205) deadlocks++;
-                    completionEx = ex;
+                    completion.SqlErrorNumber = ex.Number;
+                    completion.Exception = ex;
+                }
+                catch (Exception ex)
+                {
+                    completion.Exception = ex;
                 }
             });
 
-            var t2 = Task.Run(async () =>
+            Task t2 = Task.Run(async () =>
             {
-                barrier.SignalAndWait();
                 try
                 {
+                    if (!barrier.SignalAndWait(BarrierTimeout))
+                    {
+                        creation.TimedOutOnBarrier = true;
+                        creation.Exception = new TimeoutException(
+                            $"Concurrency barrier timed out after {BarrierTimeout.TotalSeconds} seconds while waiting for payment completion and reservation creation to start.");
+                        return;
+                    }
+
                     var p = new clsPayment();
                     p.SetPaymentMethod("card");
-                    creationSucceeded = await p.CreatePayment(orderB, (short)discountId, $"idem-pb-{Guid.NewGuid():N}");
+                    creation.Success = await p.CreatePayment(orderB, (short)discountId, $"idem-pb-{Guid.NewGuid():N}");
                 }
                 catch (SqlException ex)
                 {
-                    if (ex.Number == 1205) deadlocks++;
-                    creationEx = ex;
+                    creation.SqlErrorNumber = ex.Number;
+                    creation.Exception = ex;
+                }
+                catch (Exception ex)
+                {
+                    creation.Exception = ex;
                 }
             });
 
             await Task.WhenAll(t1, t2);
 
-            // A deadlock must never occur.
-            Assert.Equal(0, deadlocks);
-            Assert.Null(completionEx);
-            Assert.True(completionOk, "payment completion must succeed");
+            Assert.False(completion.TimedOutOnBarrier, completion.Exception?.Message);
+            Assert.False(creation.TimedOutOnBarrier, creation.Exception?.Message);
+            Assert.Null(completion.Exception);
+            Assert.True(completion.Success, "payment completion must succeed");
+            Assert.NotEqual(1205, completion.SqlErrorNumber);
 
-            // The second reservation must be rejected specifically because the
-            // discount usage limit has been reached (SP_CreateNewPayment throws
-            // error 50004 'Discount limit reached').
-            Assert.False(creationSucceeded, "second reservation must not succeed");
-            var creationSqlEx = Assert.IsType<SqlException>(creationEx);
-            Assert.Equal(50004, creationSqlEx.Number);
+            Assert.False(creation.Success, "second reservation must not succeed");
+            SqlException creationSqlException = Assert.IsType<SqlException>(creation.Exception);
+            Assert.Equal(50004, creationSqlException.Number);
+            Assert.NotEqual(1205, creation.SqlErrorNumber);
 
             // payment A succeeded
             Assert.Equal("Succeeded", await _db.Seed.PaymentStatusAsync(paymentAId));
@@ -192,8 +252,9 @@ namespace EduCore.IntegrationTests
                 c => c.Parameters.Add("@D", System.Data.SqlDbType.SmallInt).Value = discountId);
             Assert.Equal(0, pending);
 
-            // Invariant: successful usage + pending reservations <= AllowedUseNumber.
+            // The successful payment must have incremented discount usage exactly once.
             int usage = (await _db.Seed.DiscountUsageAsync(discountId)) ?? 0;
+            Assert.Equal(1, usage);
             Assert.True(usage + pending <= allowedUse,
                 $"usage({usage}) + pending({pending}) exceeded allowed({allowedUse})");
         }
@@ -211,7 +272,8 @@ namespace EduCore.IntegrationTests
                 int product = await _db.Seed.LessonProductAsync($"PCR prod {i} {Guid.NewGuid():N}", 30m, creator, true);
 
                 string code = $"PR{i}{Guid.NewGuid():N}"[..12];
-                int discountId = await _db.Seed.DiscountAsync(code, allowedUse: 1, creator);
+                int allowedUse = 1;
+                int discountId = await _db.Seed.DiscountAsync(code, allowedUse, creator);
 
                 int orderA = await _db.Seed.OrderAsync(userA, "Pending", 30m);
                 await _db.Seed.OrderItemAsync(orderA, product, 30m);
@@ -220,50 +282,73 @@ namespace EduCore.IntegrationTests
                 int orderB = await _db.Seed.OrderAsync(userB, "Pending", 30m);
                 await _db.Seed.OrderItemAsync(orderB, product, 30m);
 
-                int deadlocks = 0;
-                Exception completionEx = null;
-                Exception creationEx = null;
-                bool completionOk = false;
-                bool creationSucceeded = false;
+                using var barrier = new Barrier(2);
 
-                var barrier = new System.Threading.Barrier(2);
+                var completion = new OperationResult();
+                var creation = new OperationResult();
+
                 await Task.WhenAll(
                     Task.Run(async () =>
                     {
-                        barrier.SignalAndWait();
                         try
                         {
+                            if (!barrier.SignalAndWait(BarrierTimeout))
+                            {
+                                completion.TimedOutOnBarrier = true;
+                                completion.Exception = new TimeoutException(
+                                    $"Concurrency barrier timed out after {BarrierTimeout.TotalSeconds} seconds during repeated iteration {i}.");
+                                return;
+                            }
+
                             var payment = await clsPayment.FindAsync(paymentAId);
-                            completionOk = await clsCheckoutService.CompletePaymentAsync(userA, payment, $"tx-{Guid.NewGuid():N}");
+                            completion.Success = await clsCheckoutService.CompletePaymentAsync(userA, payment, $"tx-{Guid.NewGuid():N}");
                         }
                         catch (SqlException ex)
                         {
-                            if (ex.Number == 1205) deadlocks++;
-                            completionEx = ex;
+                            completion.SqlErrorNumber = ex.Number;
+                            completion.Exception = ex;
+                        }
+                        catch (Exception ex)
+                        {
+                            completion.Exception = ex;
                         }
                     }),
                     Task.Run(async () =>
                     {
-                        barrier.SignalAndWait();
                         try
                         {
-                            var p = new clsPayment(); p.SetPaymentMethod("card");
-                            creationSucceeded = await p.CreatePayment(orderB, (short)discountId, $"idem-pb-{Guid.NewGuid():N}");
+                            if (!barrier.SignalAndWait(BarrierTimeout))
+                            {
+                                creation.TimedOutOnBarrier = true;
+                                creation.Exception = new TimeoutException(
+                                    $"Concurrency barrier timed out after {BarrierTimeout.TotalSeconds} seconds during repeated iteration {i}.");
+                                return;
+                            }
+
+                            var p = new clsPayment();
+                            p.SetPaymentMethod("card");
+                            creation.Success = await p.CreatePayment(orderB, (short)discountId, $"idem-pb-{Guid.NewGuid():N}");
                         }
                         catch (SqlException ex)
                         {
-                            if (ex.Number == 1205) deadlocks++;
-                            creationEx = ex;
+                            creation.SqlErrorNumber = ex.Number;
+                            creation.Exception = ex;
                         }
-                    })
-                );
+                        catch (Exception ex)
+                        {
+                            creation.Exception = ex;
+                        }
+                    }));
 
-                Assert.Equal(0, deadlocks);
-                Assert.Null(completionEx);
-                Assert.True(completionOk);
-                Assert.False(creationSucceeded);
-                var creationSqlEx = Assert.IsType<SqlException>(creationEx);
-                Assert.Equal(50004, creationSqlEx.Number);
+                Assert.False(completion.TimedOutOnBarrier, completion.Exception?.Message);
+                Assert.False(creation.TimedOutOnBarrier, creation.Exception?.Message);
+                Assert.Null(completion.Exception);
+                Assert.True(completion.Success, $"iteration {i}: payment completion must succeed");
+                Assert.NotEqual(1205, completion.SqlErrorNumber);
+
+                Assert.False(creation.Success, $"iteration {i}: second reservation must not succeed");
+                SqlException creationSqlException = Assert.IsType<SqlException>(creation.Exception);
+                Assert.Equal(50004, creationSqlException.Number);
 
                 Assert.Equal("Succeeded", await _db.Seed.PaymentStatusAsync(paymentAId));
                 Assert.Equal("Completed", await _db.Seed.OrderStatusAsync(orderA));
@@ -274,10 +359,10 @@ namespace EduCore.IntegrationTests
                 Assert.Equal(0, pending);
 
                 int usage = (await _db.Seed.DiscountUsageAsync(discountId)) ?? 0;
-                Assert.True(usage + pending <= 1, $"usage({usage}) + pending({pending}) exceeded 1");
+                Assert.Equal(1, usage);
+                Assert.True(usage + pending <= allowedUse,
+                    $"iteration {i}: usage({usage}) + pending({pending}) exceeded allowed({allowedUse})");
             }
-
-            // If we reach here, all iterations passed.
         }
 
         [Fact]
@@ -285,7 +370,6 @@ namespace EduCore.IntegrationTests
         {
             RequireDatabase();
 
-            int totalDeadlocks = 0;
             for (int i = 0; i < 15; i++)
             {
                 int userA = await _db.Seed.UserAsync($"rep-a-{i}-{Guid.NewGuid():N}@test.local", "Student");
@@ -294,39 +378,86 @@ namespace EduCore.IntegrationTests
                 int product = await _db.Seed.LessonProductAsync($"REP prod {i} {Guid.NewGuid():N}", 30m, creator, true);
 
                 string code = $"RP{i}{Guid.NewGuid():N}"[..12];
-                int discountId = await _db.Seed.DiscountAsync(code, allowedUse: 1, creator);
+                int allowedUse = 1;
+                int discountId = await _db.Seed.DiscountAsync(code, allowedUse, creator);
 
                 int orderA = await _db.Seed.OrderAsync(userA, "Pending", 30m);
                 await _db.Seed.OrderItemAsync(orderA, product, 30m);
                 int orderB = await _db.Seed.OrderAsync(userB, "Pending", 30m);
                 await _db.Seed.OrderItemAsync(orderB, product, 30m);
 
-                int deadlocks = 0;
-                await Task.WhenAll(
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var p = new clsPayment(); p.SetPaymentMethod("card");
-                            await p.CreatePayment(orderA, (short)discountId, $"idem-{Guid.NewGuid():N}");
-                        }
-                        catch (SqlException ex) { if (ex.Number == 1205) deadlocks++; }
-                        catch { }
-                    }),
-                    Task.Run(async () =>
-                    {
-                        try
-                        {
-                            var p = new clsPayment(); p.SetPaymentMethod("card");
-                            await p.CreatePayment(orderB, (short)discountId, $"idem-{Guid.NewGuid():N}");
-                        }
-                        catch (SqlException ex) { if (ex.Number == 1205) deadlocks++; }
-                        catch { }
-                    })
-                );
-            }
+                using var barrier = new Barrier(2);
 
-            Assert.Equal(0, totalDeadlocks);
+                Func<int, Task<AttemptResult>> attempt = (orderId) => Task.Run(async () =>
+                {
+                    var result = new AttemptResult();
+                    try
+                    {
+                        if (!barrier.SignalAndWait(BarrierTimeout))
+                        {
+                            result.TimedOutOnBarrier = true;
+                            result.Exception = new TimeoutException(
+                                $"Concurrency barrier timed out after {BarrierTimeout.TotalSeconds} seconds during repeated iteration {i}.");
+                            return result;
+                        }
+
+                        var p = new clsPayment();
+                        p.SetPaymentMethod("card");
+                        result.Success = await p.CreatePayment(orderId, (short)discountId, $"idem-{Guid.NewGuid():N}");
+                    }
+                    catch (SqlException ex)
+                    {
+                        result.SqlErrorNumber = ex.Number;
+                        result.Exception = ex;
+                    }
+                    catch (Exception ex)
+                    {
+                        result.Exception = ex;
+                    }
+
+                    return result;
+                });
+
+                AttemptResult[] results = await Task.WhenAll(attempt(orderA), attempt(orderB));
+
+                Assert.False(results[0].TimedOutOnBarrier, results[0].Exception?.Message);
+                Assert.False(results[1].TimedOutOnBarrier, results[1].Exception?.Message);
+
+                int successes = results.Count(r => r.Success);
+                int rejections = results.Count(r => r.SqlErrorNumber == 50004);
+                int deadlocks = results.Count(r => r.SqlErrorNumber == 1205);
+                AttemptResult? unexpected = results.FirstOrDefault(r =>
+                    r.Exception is not null &&
+                    !(r.Exception is SqlException sql && sql.Number == 50004));
+
+                Assert.Equal(0, deadlocks);
+                Assert.Null(unexpected?.Exception);
+                Assert.Equal(1, successes);
+                Assert.Equal(1, rejections);
+
+                foreach (AttemptResult result in results)
+                {
+                    if (result.Success)
+                    {
+                        Assert.Null(result.Exception);
+                    }
+                    else
+                    {
+                        SqlException sqlException = Assert.IsType<SqlException>(result.Exception);
+                        Assert.Equal(50004, sqlException.Number);
+                    }
+                }
+
+                int pendingCount = await _db.Seed.ScalarIntRawAsync(
+                    "SELECT COUNT(*) FROM Payments WHERE DiscountId = @D AND Status = 'Pending';",
+                    c => c.Parameters.Add("@D", System.Data.SqlDbType.SmallInt).Value = discountId);
+                Assert.Equal(1, pendingCount);
+
+                int usage = (await _db.Seed.DiscountUsageAsync(discountId)) ?? 0;
+                Assert.Equal(0, usage);
+                Assert.True(usage + pendingCount <= allowedUse,
+                    $"iteration {i}: usage({usage}) + pending({pendingCount}) exceeded allowed({allowedUse})");
+            }
         }
     }
 }

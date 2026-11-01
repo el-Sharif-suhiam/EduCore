@@ -41,12 +41,6 @@ jobs:
       - name: Build (Release)
         run: dotnet build -c Release --no-restore
 
-      - name: Verify SQL Server is reachable
-        # The test fixture skips DB tests when SQL Server is unreachable;
-        # EDUCORE_REQUIRE_DB=1 makes the fixture FAIL instead, so a broken
-        # service container can never produce a green build.
-        run: sqlcmd -S localhost,1433 -U sa -P "EduCore_CI_Passw0rd!" -C -Q "SELECT 1" -b
-
       - name: Test
         run: >
           dotnet test EduCore.IntegrationTests -c Release --no-build

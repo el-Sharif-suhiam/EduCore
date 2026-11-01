@@ -26,7 +26,7 @@ All error responses use the standard exception mapping (400/401/403/404/409/500)
 | DELETE | /api/users/{id} | Admin,SuperAdmin | Deactivate/delete user. |
 | POST | /api/users/{id}/activate | Admin,SuperAdmin | Activate user. |
 | PUT | /api/users/{id} | UserOwnerOnly (owner) | Update user profile. |
-| PUT | /api/users/{id}/password | Owner or Admin | Change password. |
+| PUT | /api/users/{id}/password | UserOwnerOnly (owner) | Change password. |
 | POST | /api/users/toInstructor/{id} | Admin,SuperAdmin | Grant instructor role. |
 | POST | /api/users/toInstructor/{id}/remove | Admin,SuperAdmin | Remove instructor role. |
 | POST | /api/users/toAdmin/{id} | SuperAdmin | Grant admin role. |
